@@ -572,12 +572,46 @@ fn prefetch_cli(version: Option<String>, java_only: bool) -> i32 {
     }
 }
 
+/// Windows: окно рисует WebView2. В чистой Windows 10 его может не быть, тогда ставим с сайта Microsoft (официальный загрузчик, тихо).
+#[cfg(windows)]
+fn ensure_webview2() {
+    use std::os::windows::process::CommandExt;
+    const GUID: &str = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
+    let has = |root: &str, path: &str| {
+        std::process::Command::new("reg")
+            .args(["query", &format!("{root}\\{path}\\Clients\\{GUID}"), "/v", "pv"])
+            .creation_flags(0x0800_0000)
+            .output()
+            .map(|o| o.status.success() && !String::from_utf8_lossy(&o.stdout).contains("0.0.0.0"))
+            .unwrap_or(false)
+    };
+    if has("HKLM", "SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate") || has("HKLM", "SOFTWARE\\Microsoft\\EdgeUpdate") || has("HKCU", "Software\\Microsoft\\EdgeUpdate") {
+        return;
+    }
+    let file = std::env::temp_dir().join("noxel-webview2-setup.exe");
+    let ok = ureq::get("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
+        .timeout(std::time::Duration::from_secs(120))
+        .call()
+        .ok()
+        .and_then(|r| {
+            let mut f = std::fs::File::create(&file).ok()?;
+            std::io::copy(&mut r.into_reader(), &mut f).ok()
+        })
+        .is_some();
+    if ok {
+        let _ = std::process::Command::new(&file).args(["/silent", "/install"]).creation_flags(0x0800_0000).status();
+        let _ = std::fs::remove_file(&file);
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(|a| a == "--prefetch").unwrap_or(false) {
         let _ = fs::create_dir_all(data_dir());
         std::process::exit(prefetch_cli(args.get(2).filter(|a| !a.starts_with("--")).cloned(), args.iter().any(|a| a == "--only-java")));
     }
+    #[cfg(windows)]
+    ensure_webview2();
     #[cfg(windows)]
     if let Ok(exe) = std::env::current_exe() {
         let _ = fs::remove_file(exe.with_extension("old"));

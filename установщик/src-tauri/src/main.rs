@@ -265,7 +265,41 @@ fn finish(app: AppHandle, run: bool, exe: String) {
     app.exit(0);
 }
 
+/// Windows: окно рисует WebView2. В чистой Windows 10 его может не быть, тогда ставим с сайта Microsoft (официальный загрузчик, тихо).
+#[cfg(windows)]
+fn ensure_webview2() {
+    use std::os::windows::process::CommandExt;
+    const GUID: &str = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
+    let has = |root: &str, path: &str| {
+        std::process::Command::new("reg")
+            .args(["query", &format!("{root}\\{path}\\Clients\\{GUID}"), "/v", "pv"])
+            .creation_flags(0x0800_0000)
+            .output()
+            .map(|o| o.status.success() && !String::from_utf8_lossy(&o.stdout).contains("0.0.0.0"))
+            .unwrap_or(false)
+    };
+    if has("HKLM", "SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate") || has("HKLM", "SOFTWARE\\Microsoft\\EdgeUpdate") || has("HKCU", "Software\\Microsoft\\EdgeUpdate") {
+        return;
+    }
+    let file = std::env::temp_dir().join("noxel-webview2-setup.exe");
+    let ok = ureq::get("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
+        .timeout(std::time::Duration::from_secs(120))
+        .call()
+        .ok()
+        .and_then(|r| {
+            let mut f = std::fs::File::create(&file).ok()?;
+            std::io::copy(&mut r.into_reader(), &mut f).ok()
+        })
+        .is_some();
+    if ok {
+        let _ = std::process::Command::new(&file).args(["/silent", "/install"]).creation_flags(0x0800_0000).status();
+        let _ = std::fs::remove_file(&file);
+    }
+}
+
 fn main() {
+    #[cfg(windows)]
+    ensure_webview2();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![plan, start, finish])
         .run(tauri::generate_context!())
