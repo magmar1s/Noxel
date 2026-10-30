@@ -24,6 +24,34 @@ pub fn install_agent() -> R<PathBuf> {
     Ok(p)
 }
 
+const ICON_256: &[u8] = include_bytes!("../assets/game-icon-256.png");
+const ICON_64: &[u8] = include_bytes!("../assets/game-icon-64.png");
+
+/// Linux: значок для панелей, которые подбирают его по классу окна (у игры класс совпадает с заголовком окна).
+/// На Windows значок окна ставит сам агент через GLFW.
+pub fn install_game_entry(mc: &str) {
+    if !cfg!(target_os = "linux") {
+        return;
+    }
+    let base = std::env::var("XDG_DATA_HOME").unwrap_or_else(|_| format!("{}/.local/share", std::env::var("HOME").unwrap_or_default()));
+    let icons = PathBuf::from(&base).join("icons/hicolor");
+    for (sub, bytes) in [("256x256/apps", ICON_256), ("64x64/apps", ICON_64)] {
+        let d = icons.join(sub);
+        if fs::create_dir_all(&d).is_ok() && fs::metadata(d.join("noxel-minecraft.png")).map(|m| m.len() != bytes.len() as u64).unwrap_or(true) {
+            let _ = fs::write(d.join("noxel-minecraft.png"), bytes);
+        }
+    }
+    let apps = PathBuf::from(&base).join("applications");
+    let _ = fs::create_dir_all(&apps);
+    for (suffix, class) in [("", format!("Minecraft {mc}")), ("-modded", format!("Minecraft* {mc}"))] {
+        let f = apps.join(format!("noxel-game-{}{suffix}.desktop", mc.replace(' ', "_")));
+        let text = format!("[Desktop Entry]\nType=Application\nName=Minecraft {mc} (Noxel)\nIcon=noxel-minecraft\nExec=true\nNoDisplay=true\nStartupWMClass={class}\n");
+        if fs::read_to_string(&f).map(|t| t != text).unwrap_or(true) {
+            let _ = fs::write(&f, text);
+        }
+    }
+}
+
 /// Пароль для конкретного сервера: 14 символов, латиница и цифры.
 pub fn server_password(secret: &str, host: &str) -> String {
     let key = hmac::Key::new(hmac::HMAC_SHA256, secret.as_bytes());

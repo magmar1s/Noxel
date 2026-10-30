@@ -499,6 +499,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
       <div class="glass stage" id="adet"></div>
     </section>
 
+    <section class="page" id="p-servers"><div class="glass sheet" id="srvpage"></div></section>
     <section class="page" id="p-settings"><div class="glass sheet" id="settings"></div></section>
   </main>
 </div>
@@ -522,6 +523,7 @@ const I = {
   play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',
   stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
   home:'<svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>',
+  srv:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>',
   ver:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
   mod:'<svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></svg>',
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>',
@@ -631,7 +633,7 @@ addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('
 document.addEventListener('mousemove', e => { const g = e.target.closest && e.target.closest('.glass'); if (g) { const r = g.getBoundingClientRect(); g.style.setProperty('--mx', (e.clientX - r.left) + 'px'); g.style.setProperty('--my', (e.clientY - r.top) + 'px'); } });
 
 /* ── навигация ── */
-const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
 $('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}">${ic}<span class="tip">${t}</span></button>`).join(''));
 $$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
 $('#railAcc').onclick = () => go('accounts');
@@ -642,6 +644,7 @@ function go(p){
   if (p === 'home') { renderProfiles(); renderHero(); }
   if (p === 'versions') { loadVersions(); }
   if (p === 'mods') { initMods(); }
+  if (p === 'servers') { renderServerPage(); }
   if (p === 'accounts') { renderAccounts(); }
   if (p === 'settings') { renderSettings(); }
 }
@@ -1277,6 +1280,41 @@ async function renderServers(force){
   $$('[data-se]', el).forEach(b => b.onclick = () => editServer(+b.dataset.se));
   $$('[data-sd]', el).forEach(b => b.onclick = async () => { const s = list[+b.dataset.sd]; const ok = await modal(`Удалить «${s.name}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; saveServers(list.filter((_, i) => i !== +b.dataset.sd)); });
 }
+/* вкладка «Серверы»: популярные серверы с онлайном и быстрым заходом */
+const SV = {q: '', sort: 'online'};
+async function renderServerPage(force){
+  const el = $('#srvpage'); if (!el) return;
+  if (!S.srv || force) {
+    el.innerHTML = '<div class="srvgrid">' + '<div class="sk" style="height:170px"></div>'.repeat(6) + '</div>';
+    try { S.srv = await invoke('servers_list'); } catch (e) { el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(e)}</p><button class="minibtn" id="svRetry">Повторить</button></div></div>`; $('#svRetry').onclick = () => renderServerPage(true); return; }
+  }
+  const all = (S.srv.servers || []).filter(s => s.host);
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Популярные серверы. Онлайн проверяется напрямую у сервера.</span><span style="display:flex;gap:8px"><input class="inp" id="svQ" placeholder="Поиск" value="${esc(SV.q)}" style="width:170px"><select class="inp" id="svS"><option value="online">По онлайну</option><option value="name">По названию</option><option value="ping">По пингу</option></select><button class="minibtn sm" id="svRef">Обновить</button></span></div><div id="svList" class="srvgrid"></div>`;
+  $('#svS').value = SV.sort;
+  const draw = () => {
+    const q = SV.q.toLowerCase(), val = s => (ping[s.host] && ping[s.host].v) || {};
+    let list = all.filter(s => !q || (s.name + ' ' + s.host + ' ' + (s.tags || []).join(' ')).toLowerCase().includes(q));
+    list.sort((a, b) => SV.sort === 'name' ? a.name.localeCompare(b.name) : SV.sort === 'ping' ? (val(a).online ? val(a).ping : 1e9) - (val(b).online ? val(b).ping : 1e9) : (val(b).players || -1) - (val(a).players || -1));
+    const p = prof(S.sel);
+    $('#svList').innerHTML = list.map((s, i) => { const v = val(s), pct = v.online && v.max ? Math.min(100, Math.round(v.players / v.max * 100)) : 0; return `<div class="scard" style="--i:${Math.min(i, 12)}">
+      <div class="top"><div class="avatar">${esc(letter(s.name))}</div><div class="meta"><b>${esc(s.name)}</b><small>${esc(s.host)}</small></div><span class="badge ${v.online ? 'w' : ''}">${v.online ? 'ОНЛАЙН' : v.t === undefined && !ping[s.host] ? '…' : 'НЕТ ОТВЕТА'}</span></div>
+      <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(s.desc)}</div>
+      <div style="height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#777,#fff);transition:width .6s"></div></div>
+      <div class="hint">${v.online ? `${(v.players ?? 0).toLocaleString('ru')} из ${(v.max ?? 0).toLocaleString('ru')} игроков${v.ping != null ? ' · ' + v.ping + ' мс' : ''}${v.version ? ' · ' + esc(String(v.version).slice(0, 26)) : ''}` : ping[s.host] ? 'сервер не отвечает' : 'проверяю…'}</div>
+      <div class="chips">${(s.tags || []).map(t => `<span class="chip">${esc(t)}</span>`).join('')}${(s.mods || []).map(x => `<span class="chip">${x.required ? '★ ' : ''}${esc(x.name || x.id)}</span>`).join('')}</div>
+      <div class="mrow"><button class="minibtn solid sm" data-go="${esc(s.host)}" ${p && p.installed ? '' : 'disabled'} title="${p ? '' : 'Сначала создай профиль'}">${I.play || ''} Зайти</button><button class="minibtn sm" data-cp="${esc(s.host)}">Адрес</button>${s.link ? `<button class="minibtn sm" data-sl="${esc(s.link)}">${I.ext} Сайт</button>` : ''}</div></div>`; }).join('') || '<div class="empty"><div><h3>Ничего не нашлось</h3></div></div>';
+    $$('[data-go]', el).forEach(b => b.onclick = async () => { b.disabled = true; try { await invoke('launch_to', {id: S.sel, host: b.dataset.go}); go('home'); } catch (e) { b.disabled = false; modal('Не удалось запустить', String(e)); } });
+    $$('[data-cp]', el).forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('Адрес скопирован')).catch(() => {}));
+    $$('[data-sl]', el).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.sl}).catch(toast));
+  };
+  draw();
+  const refresh = async () => { await Promise.all(all.map(async s => { const r = ping[s.host]; if (!r || Date.now() - r.t > 60000) ping[s.host] = {t: Date.now(), v: await invoke('server_status', {host: s.host}).catch(() => ({online: false}))}; })); if (S.page === 'servers') draw(); };
+  all.forEach(s => { if (!ping[s.host]) invoke('server_status', {host: s.host}).catch(() => ({online: false})).then(v => { ping[s.host] = {t: Date.now(), v}; if (S.page === 'servers' && !SV.busy) { SV.busy = 1; setTimeout(() => { SV.busy = 0; draw(); }, 250); } }); });
+  $('#svQ').oninput = e => { SV.q = e.target.value; draw(); };
+  $('#svS').onchange = e => { SV.sort = e.target.value; draw(); };
+  $('#svRef').onclick = () => { for (const k in ping) delete ping[k]; renderServerPage(); };
+
+}
 async function saveServers(list){
   try { await invoke('servers_save', {list: {servers: list}}); toast('Список сохранён на сервере'); S.srv = null; renderServers(true); }
   catch (e) { modal('Не удалось сохранить', String(e)); }
@@ -1378,6 +1416,7 @@ function renderSettings(){
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
       ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}
       ${sw('sAA', 'Автовход на серверах', 'Сам вводит /register и /login, когда сервер просит. Пароль у каждого сервера свой', s.auto_auth)}
+      ${sw('sGI', 'Значок Noxel у игры', 'В панели задач у окна Minecraft будет логотип Noxel с маленьким значком игры', s.game_icon)}
       ${sw('sAS', 'Автоустановка скина', 'Отправляет команду SkinsRestorer со ссылкой на твой скин (аккаунты Noxel)', s.auto_skin)}
       <div class="opt"><div class="t"><b>Окно лаунчера</b><small>Что делать после запуска игры</small></div><div id="sOn" style="width:190px"></div></div></div>
     <div class="glass panel" style="--i:2"><h3>Java<small>По умолчанию Noxel сам скачивает нужную версию Java для каждой версии игры</small></h3>
@@ -1408,7 +1447,7 @@ function renderSettings(){
     const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
   }, 450); };
   const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
-  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sAnim', 'animations', applyAnim);
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sAnim', 'animations', applyAnim);
   mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
   mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
   const rg = $('#sRam'); const rp = () => { rg.style.setProperty('--p', ((rg.value - rg.min) / (rg.max - rg.min) * 100) + '%'); $('#sRamV').innerHTML = `${(rg.value / 1024).toFixed(1)}<small>ГБ</small>`; };

@@ -39,7 +39,7 @@ fn full_launch() {
     let game = mc::Game::default();
     let logs = Arc::new(Mutex::new(Vec::<String>::new()));
     let l2 = logs.clone();
-    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |v| l2.lock().unwrap().extend(v))).unwrap();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |v| l2.lock().unwrap().extend(v)), Arc::new(|_| {})).unwrap();
     std::thread::sleep(Duration::from_secs(secs));
     let alive = child.try_wait().unwrap().is_none();
     let _ = child.kill();
@@ -282,7 +282,8 @@ fn autologin_flow() {
     assert!(wait(&slog, "Done (", 240).is_some(), "сервер не запустился: {:?}", slog.lock().unwrap().iter().rev().take(5).collect::<Vec<_>>());
     println!("сервер запущен");
     // игрок
-    accounts::add_local("AutoTest").unwrap();
+    let _ = accounts::add_local("AutoTest");
+    accounts::select("local-autotest").unwrap();
     let p = mc::create_profile(&ver, "vanilla", None, "autotest", None).unwrap();
     let st = load_settings();
     let acct = accounts::active_fresh().unwrap();
@@ -294,13 +295,23 @@ fn autologin_flow() {
     let clog = Arc::new(Mutex::new(Vec::<String>::new()));
     let (a2, c2) = (auth.clone(), clog.clone());
     let game = mc::Game::default();
-    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |lines| {
-        for l in &lines {
-            a2.lock().unwrap().on_line(l);
-        }
-        c2.lock().unwrap().extend(lines);
-    }))
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |lines| c2.lock().unwrap().extend(lines)), Arc::new(move |l| a2.lock().unwrap().on_line(l)))
     .unwrap();
+    // окно игры не должно забирать фокус у того, чем занят пользователь (Hyprland)
+    let prev = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()).and_then(|v| v["address"].as_str().map(String::from));
+    let gpid = child.id() as u64;
+    if let Some(prev) = prev {
+        std::thread::spawn(move || {
+            for _ in 0..800 {
+                std::thread::sleep(Duration::from_millis(250));
+                if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
+                    if v["pid"].as_u64() == Some(gpid) {
+                        let _ = Command::new("hyprctl").args(["dispatch", "focuswindow", &format!("address:{prev}")]).output();
+                    }
+                }
+            }
+        });
+    }
     let joined = wait(&slog, "AutoTest joined the game", 240);
     println!("игрок зашёл на сервер: {}", joined.is_some());
     if joined.is_none() {
@@ -316,21 +327,25 @@ fn autologin_flow() {
     let mut ok = joined.is_some();
     if ok {
         std::thread::sleep(Duration::from_secs(4));
+        // ванильный сервер не знает /register и /login и отвечает «Unknown or incomplete command» с текстом команды,
+        // по этому ответу видно, что именно набрал игрок
+        clog.lock().unwrap().clear();
         tell(&mut server, "Please register with /register <password> <confirmPassword>");
-        let r = wait(&slog, &format!("issued server command: /register {pw} {pw}"), 40);
-        println!("регистрация: {:?}", r);
+        let r = wait(&clog, &format!("[CHAT] register {pw} {pw}<--[HERE]"), 40);
+        println!("регистрация дошла до сервера: {}", r.is_some());
         ok &= r.is_some();
         tell(&mut server, "Please login with /login <password>");
-        let l = wait(&slog, &format!("issued server command: /login {pw}"), 40);
-        println!("вход: {:?}", l);
+        let l = wait(&clog, &format!("[CHAT] login {pw}<--[HERE]"), 40);
+        println!("вход дошёл до сервера: {}", l.is_some());
         ok &= l.is_some();
     }
     let _ = child.kill();
     let _ = writeln!(server.stdin.as_mut().unwrap(), "stop");
     std::thread::sleep(Duration::from_secs(3));
     let _ = server.kill();
+    println!("--- агент: {}", std::fs::read_to_string(pr.gamedir.join(".noxel/agent.log")).unwrap_or_default());
     if !ok {
-        println!("--- агент: {}", std::fs::read_to_string(pr.gamedir.join(".noxel/agent.log")).unwrap_or_default());
+        println!("--- агент (ещё раз): {}", std::fs::read_to_string(pr.gamedir.join(".noxel/agent.log")).unwrap_or_default());
         println!("--- команды: {}", std::fs::read_to_string(pr.gamedir.join(".noxel/cmd.txt")).unwrap_or_default());
         println!("--- хвост игры:\n{}", clog.lock().unwrap().iter().rev().take(20).cloned().collect::<Vec<_>>().join("\n"));
     }

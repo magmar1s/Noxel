@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d2d31"/><stop offset="1" stop-color="#070708"/></linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d4d4d8"/></linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9b9ba1"/><stop offset="1" stop-color="#5b5b60"/></linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#46464b"/><stop offset="1" stop-color="#1c1c1f"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff" stop-opacity=".95"/><stop offset=".55" stop-color="#ffffff" stop-opacity=".28"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="gtop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7fd14a"/><stop offset="1" stop-color="#4c9a2a"/></linearGradient>
+    <linearGradient id="gleft" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6b43"/><stop offset="1" stop-color="#6b4528"/></linearGradient>
+    <linearGradient id="gright" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5232"/><stop offset="1" stop-color="#4e3320"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="509" height="509" rx="114.5" fill="none" stroke="#fff" stroke-opacity=".14" stroke-width="3"/>
+  <g transform="translate(-14 -22) scale(.92)" stroke="#0b0b0c" stroke-width="7" stroke-linejoin="round">
+    <path d="M256 92 392 170 256 248 120 170Z" fill="url(#top)"/>
+    <path d="M120 170 256 248V420L120 342Z" fill="url(#left)"/>
+    <path d="M392 170 256 248V420L392 342Z" fill="url(#right)"/>
+  </g>
+  <circle cx="392" cy="392" r="118" fill="url(#glow)"/>
+  <g transform="translate(392 392)" stroke="#0b0b0c" stroke-width="5" stroke-linejoin="round">
+    <path d="M0 -70 62 -34 0 2 -62 -34Z" fill="url(#gtop)"/>
+    <path d="M-62 -34 0 2V72L-62 36Z" fill="url(#gleft)"/>
+    <path d="M62 -34 0 2V72L62 36Z" fill="url(#gright)"/>
+    <path d="M-62 -34 0 2 62 -34" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="3"/>
+  </g>
+</svg>

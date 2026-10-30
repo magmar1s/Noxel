@@ -152,9 +152,6 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                     }
                 }
                 for l in &lines {
-                    if let Some(a) = &auth {
-                        a.lock().unwrap().on_line(l);
-                    }
                     if let Some(h) = stats::server_from_log(l) {
                         stats::update(&acc_id, &sid2, |s| {
                             if !s.servers.contains(&h) {
@@ -167,7 +164,13 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
             });
             let acc_id = acct.id.clone();
             let started = Instant::now();
-            let child = mc::spawn_game(&game, &pr, emit_log)?;
+            let auth_line = auth.clone();
+            let on_line: Arc<dyn Fn(&str) + Send + Sync> = Arc::new(move |l| {
+                if let Some(a) = &auth_line {
+                    a.lock().unwrap().on_line(l);
+                }
+            });
+            let child = mc::spawn_game(&game, &pr, emit_log, on_line)?;
             *game.running.lock().unwrap() = Some(id.clone());
             *game.child.lock().unwrap() = Some(child);
             let _ = app.emit("profiles-changed", ());
@@ -237,6 +240,12 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
 
 #[tauri::command]
 fn launch(app: AppHandle, id: String) -> R<()> {
+    start(app, id, true)
+}
+
+#[tauri::command]
+fn launch_to(app: AppHandle, id: String, host: String) -> R<()> {
+    *mc::JOIN.lock().unwrap() = Some(host);
     start(app, id, true)
 }
 
@@ -588,6 +597,7 @@ fn main() {
             accounts_list,
             servers_list,
             server_status,
+            launch_to,
             server_password,
             autoauth_toggle,
             servers_save,

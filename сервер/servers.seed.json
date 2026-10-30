@@ -1,20 +1,580 @@
-{"version": 1, "updated": 1, "servers": [
- {"id": "any-client", "name": "Любой сервер: клиентские улучшения", "host": "", "official": false,
-  "desc": "Моды, которые работают на любых серверах без установки чего-либо на сервер: оптимизация, шейдеры, удобство.",
-  "tags": ["клиентские", "оптимизация"], "mc": "", "loader": "fabric", "link": "",
-  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
-           {"provider": "modrinth", "id": "sodium", "name": "Sodium", "required": false},
-           {"provider": "modrinth", "id": "lithium", "name": "Lithium", "required": false},
-           {"provider": "modrinth", "id": "iris", "name": "Iris Shaders", "required": false},
-           {"provider": "modrinth", "id": "modmenu", "name": "Mod Menu", "required": false}]},
- {"id": "hypixel", "name": "Hypixel", "host": "mc.hypixel.net", "official": false,
-  "desc": "Крупнейший сервер мини-игр. Для входа модов не нужно. Это пример записи: разрешённые моды проверь в правилах на hypixel.net и отредактируй список.",
-  "tags": ["мини-игры"], "mc": "", "loader": "fabric", "link": "https://hypixel.net",
-  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
-           {"provider": "modrinth", "id": "sodium", "name": "Sodium", "required": false}]},
- {"id": "wynncraft", "name": "Wynncraft", "host": "play.wynncraft.com", "official": false,
-  "desc": "MMORPG-сервер. Популярное дополнение от сообщества: Wynntils (карта, чат, таймеры). Это пример записи: проверь правила сервера на wynncraft.com.",
-  "tags": ["MMORPG"], "mc": "", "loader": "fabric", "link": "https://wynncraft.com",
-  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
-           {"provider": "modrinth", "id": "wynntils", "name": "Wynntils", "required": false}]}
-]}
+{
+ "version": 2,
+ "updated": 2,
+ "servers": [
+  {
+   "id": "any-client",
+   "name": "Любой сервер: клиентские улучшения",
+   "host": "",
+   "official": false,
+   "desc": "Моды, которые работают на любых серверах без установки чего-либо на сервер: оптимизация, шейдеры, удобство.",
+   "tags": [
+    "клиентские",
+    "оптимизация"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "iris",
+     "name": "Iris Shaders",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "modmenu",
+     "name": "Mod Menu",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "hypixel",
+   "name": "Hypixel",
+   "host": "mc.hypixel.net",
+   "official": false,
+   "desc": "Крупнейший сервер мини-игр. Для входа модов не нужно. Это пример записи: разрешённые моды проверь в правилах на hypixel.net и отредактируй список.",
+   "tags": [
+    "мини-игры"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "https://hypixel.net",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "wynncraft",
+   "name": "Wynncraft",
+   "host": "play.wynncraft.com",
+   "official": false,
+   "desc": "MMORPG-сервер. Популярное дополнение от сообщества: Wynntils (карта, чат, таймеры). Это пример записи: проверь правила сервера на wynncraft.com.",
+   "tags": [
+    "MMORPG"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "https://wynncraft.com",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "wynntils",
+     "name": "Wynntils",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "donutsmp",
+   "name": "DonutSMP",
+   "host": "donutsmp.net",
+   "official": false,
+   "desc": "Крупнейший SMP-сервер: экономика, ресурсы, PvP. Работают только клиентские улучшения. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "SMP",
+    "экономика"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "pika",
+   "name": "PikaNetwork",
+   "host": "play.pika-network.net",
+   "official": false,
+   "desc": "Мини-игры, BedWars, Skyblock, Practice. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры",
+    "BedWars"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "minecadia",
+   "name": "Minecadia",
+   "host": "play.minecadia.com",
+   "official": false,
+   "desc": "Prison, Skyblock и другие режимы. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "prison",
+    "skyblock"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "mc-complex",
+   "name": "MC-Complex",
+   "host": "hub.mc-complex.com",
+   "official": false,
+   "desc": "Сеть режимов: выживание, мини-игры. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "выживание",
+    "мини-игры"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "manacube",
+   "name": "ManaCube",
+   "host": "play.manacube.com",
+   "official": false,
+   "desc": "Выживание, Skyblock, мини-игры. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "skyblock",
+    "выживание"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "cubecraft",
+   "name": "CubeCraft",
+   "host": "play.cubecraft.net",
+   "official": false,
+   "desc": "Мини-игры, EggWars, SkyWars. Принимает и Java, и Bedrock. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры",
+    "EggWars"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "jartex",
+   "name": "Jartex Network",
+   "host": "play.jartexnetwork.com",
+   "official": false,
+   "desc": "Практика PvP, Skyblock, выживание. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "PvP",
+    "skyblock"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "extremecraft",
+   "name": "ExtremeCraft",
+   "host": "play.extremecraft.net",
+   "official": false,
+   "desc": "Мини-игры, Skyblock, Factions. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры",
+    "factions"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "mccisland",
+   "name": "MCC Island",
+   "host": "play.mccisland.net",
+   "official": false,
+   "desc": "Мини-игры от создателей MC Championship. Для входа моды не нужны, оптимизация разрешена. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры",
+    "события"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "skyblock-net",
+   "name": "Skyblock.net",
+   "host": "play.skyblock.net",
+   "official": false,
+   "desc": "Популярный Skyblock-сервер. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "skyblock"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "mineplex",
+   "name": "Mineplex",
+   "host": "play.mineplex.com",
+   "official": false,
+   "desc": "Классическая сеть мини-игр. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "mush",
+   "name": "MushMC",
+   "host": "play.mush.com.br",
+   "official": false,
+   "desc": "Бразильская сеть: BedWars, SkyWars, KitPvP. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "мини-игры",
+    "PvP"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "dexland",
+   "name": "DexLand",
+   "host": "mc.dexland.org",
+   "official": false,
+   "desc": "Русскоязычный сервер: выживание и мини-игры. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "русский",
+    "выживание"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  },
+  {
+   "id": "mineberry",
+   "name": "MineBerry",
+   "host": "mc.mineberry.org",
+   "official": false,
+   "desc": "Русскоязычный сервер: выживание, режимы. Список модов — рекомендация, проверь правила сервера.",
+   "tags": [
+    "русский",
+    "выживание"
+   ],
+   "mc": "",
+   "loader": "fabric",
+   "link": "",
+   "mods": [
+    {
+     "provider": "modrinth",
+     "id": "fabric-api",
+     "name": "Fabric API",
+     "required": true
+    },
+    {
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "required": false
+    },
+    {
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "required": false
+    }
+   ]
+  }
+ ]
+}

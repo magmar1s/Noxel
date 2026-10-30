@@ -854,6 +854,9 @@ pub fn prefetch(version: &str, threads: usize, java_only: bool, cb: Cb) -> R<Str
     Ok(id)
 }
 
+/// сервер, на который надо зайти сразу после запуска (ставит лаунчер, забирает prepare)
+pub static JOIN: Mutex<Option<String>> = Mutex::new(None);
+
 pub struct Prepared {
     pub java: PathBuf,
     pub args: Vec<String>,
@@ -1040,7 +1043,12 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
         format!("-Xms{}M", st.ram_mb.clamp(256, 1024)),
     ];
     args.extend(st.jvm_args.split_whitespace().map(String::from));
-    if st.auto_auth || st.auto_skin {
+    let _ = fs::create_dir_all(gamedir.join(".noxel"));
+    let _ = fs::write(gamedir.join(".noxel/flags.txt"), format!("icon={}\n", st.game_icon as u8));
+    if st.game_icon {
+        crate::autoauth::install_game_entry(&p.mc);
+    }
+    if st.auto_auth || st.auto_skin || st.game_icon {
         if let Ok(agent) = crate::autoauth::install_agent() {
             args.push(format!("-javaagent:{}={}", agent.display(), gamedir.display()));
         }
@@ -1066,6 +1074,16 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
     }
     if st.width > 0 && st.height > 0 && !v["arguments"].is_object() {
         args.extend(["--width".into(), st.width.to_string(), "--height".into(), st.height.to_string()]);
+    }
+    if let Some(host) = JOIN.lock().unwrap().take() {
+        // прямой заход на сервер: с 1.20 есть quickPlay, раньше — --server
+        let part = |n: usize| p.mc.split('.').nth(n).and_then(|x| x.parse::<u32>().ok()).unwrap_or(0);
+        if part(0) >= 26 || (part(0) == 1 && part(1) >= 20) {
+            args.extend(["--quickPlayMultiplayer".into(), host]);
+        } else {
+            let (h, port) = host.split_once(':').map(|(a, b)| (a.to_string(), b.to_string())).unwrap_or((host.clone(), "25565".into()));
+            args.extend(["--server".into(), h, "--port".into(), port]);
+        }
     }
     let _ = base;
     Ok(Prepared { java, args, gamedir })
@@ -1142,6 +1160,7 @@ pub fn spawn_game(
     game: &Game,
     pr: &Prepared,
     emit_log: Arc<dyn Fn(Vec<String>) + Send + Sync>,
+    on_line: Arc<dyn Fn(&str) + Send + Sync>,
 ) -> R<std::process::Child> {
     game.logs.lock().unwrap().clear();
     let mut child = cmd(&pr.java)
@@ -1159,12 +1178,16 @@ pub fn spawn_game(
     let err = child.stderr.take().unwrap();
     for r in [Box::new(out) as Box<dyn std::io::Read + Send>, Box::new(err)] {
         let pend = pending.clone();
+        let on_line = on_line.clone();
         readers.push(std::thread::spawn(move || {
             let mut fmt = LogFmt::default();
             for l in BufReader::new(r).lines().map_while(|l| l.ok()) {
                 let mut out = vec![];
                 fmt.feed(l, &mut out);
                 if !out.is_empty() {
+                    for l in &out {
+                        on_line(l); // мгновенная реакция (автовход), без пакетной задержки
+                    }
                     pend.lock().unwrap().extend(out);
                 }
             }
