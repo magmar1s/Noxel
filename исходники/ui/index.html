@@ -293,6 +293,11 @@ button.tile:hover{border-color:var(--line2)}
 
 /* ── моды ── */
 .sheet{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#srvpage,#newspage{display:block;overflow-y:auto;padding:14px 14px 20px;scrollbar-width:none}
+#srvpage::-webkit-scrollbar,#newspage::-webkit-scrollbar{display:none}
+#srvpage .updbar,#newspage .updbar{flex-wrap:wrap;gap:10px}
+#srvpage .updbar>span:first-child,#newspage .updbar>span:first-child{flex:1 1 260px;min-width:0}
+#srvpage .updbar>span:last-child{flex-wrap:wrap}
 .mhead{display:flex;flex-direction:column;gap:12px;padding:18px 20px 12px}
 .mrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .mrow .grow{flex:1}
