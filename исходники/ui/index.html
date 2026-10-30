@@ -1427,7 +1427,12 @@ function openUpdate(r){
   $('#uLater').onclick = closeX;
   $('#uGo').onclick = async () => {
     $('#uGo').disabled = true; $('#uGo').textContent = 'Скачиваю…';
-    try { const v = await invoke('launcher_update'); box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Чтобы изменения заработали, перезапусти лаунчер.</div><div class="btns"><button class="minibtn" id="uLater2">Позже</button><button class="minibtn solid" id="uRe">Перезапустить</button></div>`; $('#uLater2').onclick = closeX; $('#uRe').onclick = () => invoke('launcher_restart').catch(toast); }
+    try {
+      const v = await invoke('launcher_update');
+      const busy = S.game && S.game.state === 'running';
+      if (busy) { box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Игра сейчас запущена. Перезапусти лаунчер, когда закончишь играть: данные сохранены.</div><div class="btns"><button class="minibtn" id="uLater2">Позже</button><button class="minibtn solid" id="uRe">Перезапустить</button></div>`; $('#uLater2').onclick = closeX; $('#uRe').onclick = () => invoke('launcher_restart').catch(toast); }
+      else { box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Перезапускаю лаунчер… Профили, аккаунты и моды сохранены.</div>`; setTimeout(() => invoke('launcher_restart').catch(e => { closeX(); toast(e); }), 900); }
+    }
     catch (e) { closeX(); modal('Не удалось обновить', String(e)); }
   };
   $('#xmodal').classList.add('on');
