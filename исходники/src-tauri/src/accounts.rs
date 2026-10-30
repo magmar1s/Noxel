@@ -401,6 +401,15 @@ pub fn ensure_secret(id: &str) -> R<String> {
 /// Команда для SkinsRestorer с постоянной ссылкой на скин (только у аккаунтов Noxel с загруженным скином).
 pub fn skin_command(id: &str) -> Option<(String, String)> {
     let a = get(id).ok()?;
+    if a.kind == "microsoft" {
+        // у лицензионного аккаунта скин уже лежит у Mojang: ссылка textures.minecraft.net принимается любым сервером со SkinsRestorer
+        let a = refresh_if_needed(a).ok()?;
+        let prof: Value = agent().get("https://api.minecraftservices.com/minecraft/profile").set("Authorization", &format!("Bearer {}", a.access_token)).call().ok()?.into_json().ok()?;
+        let sk = prof["skins"].as_array()?.iter().find(|x| x["state"] == "ACTIVE")?.clone();
+        let url = sk["url"].as_str()?.to_string();
+        let model = if sk["variant"] == "SLIM" { "slim" } else { "classic" };
+        return Some((skins::sha256(url.as_bytes()), format!("/skin url \"{url}\" {model}")));
+    }
     if a.kind != "noxel" {
         return None;
     }

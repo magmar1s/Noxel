@@ -416,6 +416,16 @@ fn autoauth_toggle(host: String) -> Vec<String> {
 }
 
 #[tauri::command(async)]
+fn news_list() -> R<Value> {
+    remote::news()
+}
+
+#[tauri::command(async)]
+fn news_save(list: Value) -> R<Value> {
+    remote::news_save(list)
+}
+
+#[tauri::command(async)]
 fn servers_list() -> R<Value> {
     remote::servers()
 }
@@ -645,6 +655,8 @@ fn main() {
             clear_cache,
             accounts_list,
             servers_list,
+            news_list,
+            news_save,
             server_status,
             launch_to,
             server_password,

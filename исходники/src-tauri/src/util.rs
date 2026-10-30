@@ -223,6 +223,8 @@ pub struct Settings {
     pub auto_auth: bool,
     pub auto_skin: bool,
     pub game_icon: bool,
+    /// Автовход и автоскин теперь выключены по умолчанию; у уже установленных копий сбрасываем один раз.
+    pub opt_in_v2: bool,
     pub auto_skip: Vec<String>,
     pub on_launch: String,
     pub fullscreen: bool,
@@ -246,9 +248,10 @@ impl Default for Settings {
             height: 0,
             ms_client_id: String::new(),
             admin_token: String::new(),
-            auto_auth: true,
-            auto_skin: true,
+            auto_auth: false,
+            auto_skin: false,
             game_icon: true,
+            opt_in_v2: false,
             auto_skip: vec![],
             on_launch: "keep".into(),
             fullscreen: false,
@@ -287,7 +290,14 @@ pub fn total_ram_mb() -> u32 {
 }
 
 pub fn load_settings() -> Settings {
-    read_json(&data_dir().join("settings.json")).unwrap_or_default()
+    let mut s: Settings = read_json(&data_dir().join("settings.json")).unwrap_or_default();
+    if !s.opt_in_v2 {
+        s.auto_auth = false;
+        s.auto_skin = false;
+        s.opt_in_v2 = true;
+        save_settings(&s);
+    }
+    s
 }
 
 pub fn save_settings(s: &Settings) {

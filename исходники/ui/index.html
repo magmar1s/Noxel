@@ -70,6 +70,10 @@ html.still *,html.still *::before,html.still *::after{animation:none!important;t
 .nav{position:relative;display:flex;flex-direction:column;gap:6px}
 .nav-pill{position:absolute;left:-12px;top:0;width:3px;height:22px;border-radius:3px;background:var(--fg);box-shadow:0 0 14px rgba(255,255,255,.7);
   transition:transform .5s var(--spring);transform:translateY(var(--y,13px))}
+.nbtn.has-new::after{content:'';position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
+.ncard{padding:18px 20px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.ncard.imp{border-color:rgba(255,255,255,.4)}.ncard.pin{background:rgba(255,255,255,.08)}
+.ncard h3{margin:0;font-size:17px}.ncard .nb{white-space:pre-wrap;color:var(--fg2);font-size:13.5px;line-height:1.5;user-select:text}
 .nbtn{position:relative;width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:var(--fg3);
   transition:background .25s var(--ease),color .25s var(--ease),transform .35s var(--spring)}
 .nbtn svg{width:21px;height:21px;transition:transform .35s var(--spring)}
@@ -499,6 +503,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
       <div class="glass stage" id="adet"></div>
     </section>
 
+    <section class="page" id="p-news"><div class="glass sheet" id="newspage"></div></section>
     <section class="page" id="p-servers"><div class="glass sheet" id="srvpage"></div></section>
     <section class="page" id="p-settings"><div class="glass sheet" id="settings"></div></section>
   </main>
@@ -523,6 +528,7 @@ const I = {
   play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',
   stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
   home:'<svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg>',
   srv:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01M7 17h.01"/></svg>',
   ver:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
   mod:'<svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></svg>',
@@ -633,7 +639,7 @@ addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('
 document.addEventListener('mousemove', e => { const g = e.target.closest && e.target.closest('.glass'); if (g) { const r = g.getBoundingClientRect(); g.style.setProperty('--mx', (e.clientX - r.left) + 'px'); g.style.setProperty('--my', (e.clientY - r.top) + 'px'); } });
 
 /* ── навигация ── */
-const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
 $('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}">${ic}<span class="tip">${t}</span></button>`).join(''));
 $$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
 $('#railAcc').onclick = () => go('accounts');
@@ -645,6 +651,7 @@ function go(p){
   if (p === 'versions') { loadVersions(); }
   if (p === 'mods') { initMods(); }
   if (p === 'servers') { renderServerPage(); }
+  if (p === 'news') { renderNews(true); }
   if (p === 'accounts') { renderAccounts(); }
   if (p === 'settings') { renderSettings(); }
 }
@@ -1315,6 +1322,55 @@ async function renderServerPage(force){
   $('#svRef').onclick = () => { for (const k in ping) delete ping[k]; renderServerPage(); };
 
 }
+/* новости: публикует администратор (токен в настройках), видят все */
+const NEWS_KIND = {info: 'ИНФО', update: 'ОБНОВЛЕНИЕ', important: 'ВАЖНО'};
+function newsMark(list){ try { localStorage.setItem('nx_news_seen', String(Math.max(0, ...list.map(x => x.date || 0)))); } catch (e) {} const b = $('.nbtn[data-p=news]'); if (b) b.classList.remove('has-new'); }
+async function newsBadge(){
+  try { const r = await invoke('news_list'); const items = r.items || []; const top = Math.max(0, ...items.map(x => x.date || 0)); let seen = 0; try { seen = +localStorage.getItem('nx_news_seen') || 0; } catch (e) {} const b = $('.nbtn[data-p=news]'); if (b && top > seen && S.page !== 'news') b.classList.add('has-new'); } catch (e) {}
+}
+async function renderNews(force){
+  const el = $('#newspage'); if (!el) return;
+  if (!S.news || force) {
+    el.innerHTML = '<div class="sk" style="height:120px"></div><div class="sk" style="height:120px;margin-top:12px"></div>';
+    try { S.news = await invoke('news_list'); } catch (e) { el.innerHTML = `<div class="empty"><div><h3>Не получилось загрузить</h3><p>${esc(e)}</p><button class="minibtn" id="nwRetry">Повторить</button></div></div>`; $('#nwRetry').onclick = () => renderNews(true); return; }
+  }
+  const admin = !!(S.set && S.set.admin_token), items = [...(S.news.items || [])].sort((a, b) => (b.pinned - a.pinned) || (b.date - a.date));
+  newsMark(items);
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span><b style="font-size:18px">Новости</b> &nbsp;<span class="hint">Объявления от разработчика Noxel</span></span><span style="display:flex;gap:8px"><button class="minibtn sm" id="nwRef">Обновить</button>${admin ? `<button class="minibtn solid sm" id="nwAdd">${I.plus} Опубликовать</button>` : ''}</span></div>
+    ${items.length ? items.map((x, i) => `<div class="ncard ${x.kind === 'important' ? 'imp' : ''} ${x.pinned ? 'pin' : ''}" style="--i:${Math.min(i, 10)};margin-bottom:12px">
+      <div style="display:flex;gap:10px;align-items:center"><span class="badge ${x.kind === 'info' ? '' : 'w'}">${NEWS_KIND[x.kind] || 'ИНФО'}</span>${x.pinned ? '<span class="badge">ЗАКРЕПЛЕНО</span>' : ''}<small class="hint" style="margin-left:auto">${new Date(x.date * 1000).toLocaleDateString('ru-RU', {day: 'numeric', month: 'long', year: 'numeric'})}</small></div>
+      <h3>${esc(x.title)}</h3>${x.body ? `<div class="nb">${esc(x.body)}</div>` : ''}
+      <div class="mrow">${x.kind === 'update' && S.lupd && S.lupd.newer ? `<button class="minibtn solid sm" data-nu="1">${I.dl} Скачать обновление</button>` : ''}${x.link ? `<button class="minibtn sm" data-nl="${esc(x.link)}">${I.ext} Открыть</button>` : ''}${admin ? `<button class="ibtn sm" data-ne="${i}" title="Изменить">${I.gear}</button><button class="ibtn sm" data-nd="${i}" title="Удалить">${I.trash}</button>` : ''}</div></div>`).join('') : '<div class="empty"><div><h3>Пока новостей нет</h3><p>Здесь появятся объявления об обновлениях и важных изменениях.</p></div></div>'}`;
+  $('#nwRef').onclick = () => renderNews(true);
+  if ($('#nwAdd')) $('#nwAdd').onclick = () => editNews(-1, items);
+  $$('[data-nl]', el).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.nl}).catch(toast));
+  $$('[data-nu]', el).forEach(b => b.onclick = () => S.lupd && openUpdate(S.lupd));
+  $$('[data-ne]', el).forEach(b => b.onclick = () => editNews(+b.dataset.ne, items));
+  $$('[data-nd]', el).forEach(b => b.onclick = async () => { const x = items[+b.dataset.nd]; const ok = await modal(`Удалить «${x.title}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (ok) saveNews(items.filter((_, i) => i !== +b.dataset.nd)); });
+}
+async function saveNews(items){
+  try { await invoke('news_save', {list: {items}}); toast('Опубликовано'); S.news = null; renderNews(true); }
+  catch (e) { modal('Не удалось сохранить', String(e)); }
+}
+function editNews(idx, items){
+  const n = idx >= 0 ? items[idx] : {title: '', body: '', kind: 'info', link: '', pinned: false};
+  const box = $('#xbox'); let pin = !!n.pinned;
+  box.innerHTML = `<h3>${idx >= 0 ? 'Изменить новость' : 'Новая новость'}</h3>
+    <div class="field"><label>Заголовок</label><input class="inp" id="nT" maxlength="120" value="${esc(n.title)}"></div>
+    <div class="field"><label>Текст</label><textarea class="inp" id="nB" maxlength="4000" style="min-height:130px"></textarea></div>
+    <div class="two"><div class="field"><label>Тип</label><select class="inp" id="nK"><option value="info">Информация</option><option value="update">Обновление (кнопка «Скачать»)</option><option value="important">Важно</option></select></div><div class="field"><label>Ссылка (необязательно)</label><input class="inp" id="nL" value="${esc(n.link || '')}" placeholder="https://"></div></div>
+    <div class="opt" style="margin-top:12px"><div class="t"><b>Закрепить сверху</b></div><button class="switch ${pin ? 'on' : ''}" id="nP"></button></div>
+    <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="nS">Опубликовать</button></div>`;
+  $('#nB').value = n.body || ''; $('#nK').value = n.kind || 'info';
+  $('#nP').onclick = () => { pin = !pin; $('#nP').classList.toggle('on', pin); };
+  $('#xc').onclick = closeX;
+  $('#nS').onclick = () => {
+    const ent = {...n, title: $('#nT').value.trim(), body: $('#nB').value.trim(), kind: $('#nK').value, link: $('#nL').value.trim(), pinned: pin, date: idx >= 0 ? n.date : Math.floor(Date.now() / 1000)};
+    if (!ent.title) return toast('Нужен заголовок');
+    const next = [...items]; if (idx >= 0) next[idx] = ent; else next.push(ent); closeX(); saveNews(next);
+  };
+  $('#xmodal').classList.add('on');
+}
 async function saveServers(list){
   try { await invoke('servers_save', {list: {servers: list}}); toast('Список сохранён на сервере'); S.srv = null; renderServers(true); }
   catch (e) { modal('Не удалось сохранить', String(e)); }
@@ -1415,9 +1471,9 @@ function renderSettings(){
     <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
       ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}
-      ${sw('sAA', 'Автовход на серверах', 'Сам вводит /register и /login, когда сервер просит. Пароль у каждого сервера свой', s.auto_auth)}
+      ${sw('sAA', 'Автовход на серверах (бета)', 'Сам вводит /register и /login, когда сервер просит. Пароль у каждого сервера свой', s.auto_auth)}
       ${sw('sGI', 'Значок Noxel у игры', 'В панели задач у окна Minecraft будет логотип Noxel с маленьким значком игры', s.game_icon)}
-      ${sw('sAS', 'Автоустановка скина', 'Отправляет команду SkinsRestorer со ссылкой на твой скин (аккаунты Noxel)', s.auto_skin)}
+      ${sw('sAS', 'Автоустановка скина (бета)', 'Отправляет команду SkinsRestorer со ссылкой на твой скин (аккаунты Noxel)', s.auto_skin)}
       <div class="opt"><div class="t"><b>Окно лаунчера</b><small>Что делать после запуска игры</small></div><div id="sOn" style="width:190px"></div></div></div>
     <div class="glass panel" style="--i:2"><h3>Java<small>По умолчанию Noxel сам скачивает нужную версию Java для каждой версии игры</small></h3>
       <div class="field"><label>Сборщик мусора</label><div id="sGc"></div></div>

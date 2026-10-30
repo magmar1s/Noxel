@@ -23,6 +23,7 @@ CF_KEY_FILE = os.environ.get("NOXEL_CF_KEY_FILE", "/etc/noxel/cf.key")
 ADMIN_FILE = os.environ.get("NOXEL_ADMIN_FILE", "/etc/noxel/admin.token")
 SERVERS = os.path.join(DATA, "servers.json")
 LAUNCHER = os.path.join(DATA, "launcher.json")
+NEWS = os.path.join(DATA, "news.json")
 # через прокси разрешены только безопасные запросы на чтение
 CF_ALLOWED = re.compile(r"^(mods/search|mods/\d+|mods/\d+/description|mods/\d+/files|mods/\d+/files/\d+|mods/\d+/files/\d+/download-url|mods/\d+/files/\d+/changelog)$")
 _cf_cache = {}
@@ -108,6 +109,26 @@ def read_secret(path):
             return f.read().strip()
     except OSError:
         return ""
+
+
+def clean_news(v):
+    """Проверяет объявления, присланные администратором: {"items": [{title, body, kind, date, link, pinned}]}."""
+    if not isinstance(v, dict) or not isinstance(v.get("items"), list) or len(v["items"]) > 100:
+        raise Err(400, "ожидается {\"items\": [...]}, не больше 100 записей")
+    out = []
+    for i, x in enumerate(v["items"]):
+        if not isinstance(x, dict):
+            raise Err(400, "запись %d: ожидается объект" % i)
+        title, body = str(x.get("title", "")).strip()[:120], str(x.get("body", "")).strip()[:4000]
+        if not title:
+            raise Err(400, "запись %d: нужен заголовок" % i)
+        link = str(x.get("link", "")).strip()[:300]
+        if link and not link.startswith(("https://", "http://")):
+            raise Err(400, "запись %d: ссылка должна начинаться с https://" % i)
+        kind = x.get("kind") if x.get("kind") in ("info", "update", "important") else "info"
+        date = x.get("date") if isinstance(x.get("date"), int) and 0 < x["date"] < 4102444800 else int(time.time())
+        out.append({"id": str(x.get("id") or ("n%d-%d" % (date, i)))[:40], "title": title, "body": body, "kind": kind, "date": date, "link": link, "pinned": bool(x.get("pinned"))})
+    return {"version": int(time.time()), "items": out}
 
 
 def clean_servers(v):
@@ -315,12 +336,25 @@ class H(BaseHTTPRequestHandler):
         m = re.match(r"^/cf/(.+)$", p)
         if method == "GET" and m:
             return self.cf_proxy(m.group(1), u.query)
-        if method == "GET" and p in ("/servers", "/launcher"):
+        if method == "GET" and p in ("/servers", "/launcher", "/news"):
             try:
-                with open(SERVERS if p == "/servers" else LAUNCHER, "rb") as f:
+                with open({"/servers": SERVERS, "/launcher": LAUNCHER, "/news": NEWS}[p], "rb") as f:
                     return self.send(200, raw=f.read())
             except OSError:
-                return self.send(200, {"version": 0, "servers": []} if p == "/servers" else {})
+                return self.send(200, {"/servers": {"version": 0, "servers": []}, "/news": {"version": 0, "items": []}}.get(p, {}))
+        if method == "PUT" and p == "/news":
+            tok = (self.headers.get("Authorization") or "")[7:].strip()
+            admin = read_secret(ADMIN_FILE)
+            if not admin or not hmac.compare_digest(tok.encode(), admin.encode()):
+                throttle(("adm", self.ip()), 5)
+                raise Err(403, "нужен токен администратора")
+            data = clean_news(self.jbody())
+            tmp = NEWS + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f, ensure_ascii=False, indent=1)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, NEWS)
+            return self.send(200, {"ok": True, "version": data["version"], "count": len(data["items"])})
         if method == "PUT" and p == "/servers":
             tok = (self.headers.get("Authorization") or "")[7:].strip()
             admin = read_secret(ADMIN_FILE)

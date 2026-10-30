@@ -16,6 +16,18 @@ fn ver_tuple(v: &str) -> Vec<u64> {
     v.split(|c: char| !c.is_ascii_digit()).filter(|x| !x.is_empty()).map(|x| x.parse().unwrap_or(0)).collect()
 }
 
+pub fn news() -> R<Value> {
+    call("GET", "/news", None, Body::None)
+}
+
+pub fn news_save(list: Value) -> R<Value> {
+    let tok = load_settings().admin_token;
+    if tok.trim().is_empty() {
+        return Err("Нужен токен администратора (Настройки → Администратор)".into());
+    }
+    call("PUT", "/news", Some(tok.trim()), Body::Json(list))
+}
+
 pub fn servers() -> R<Value> {
     call("GET", "/servers", None, Body::None)
 }
