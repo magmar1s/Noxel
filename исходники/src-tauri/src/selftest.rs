@@ -284,11 +284,13 @@ fn autologin_flow() {
     // игрок
     let _ = accounts::add_local("AutoTest");
     accounts::select("local-autotest").unwrap();
-    let p = mc::create_profile(&ver, "vanilla", None, "autotest", None).unwrap();
+    let p = mc::create_profile(&ver, &std::env::var("T_LOADER").unwrap_or_else(|_| "vanilla".into()), None, &format!("autotest-{}", std::env::var("T_LOADER").unwrap_or_default()), None).unwrap();
     let st = load_settings();
     let acct = accounts::active_fresh().unwrap();
     let cb = |_: &str, _: f64, _: &str| {};
     let mut pr = mc::prepare(&p, &st, &acct, &cb).expect("подготовка игры");
+    // окно теста может быть без фокуса: пусть игра не уходит в паузу
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\n");
     pr.args.extend(["--quickPlayMultiplayer".to_string(), "127.0.0.1:25599".to_string()]);
     println!("агент подключён: {}", pr.args.iter().any(|a| a.starts_with("-javaagent:")));
     let auth = Arc::new(Mutex::new(autoauth::Auth::new(&acct.id, &pr.gamedir, Box::new(|k, h| println!("[автовход] {k} на {h}"))).unwrap()));
@@ -306,6 +308,10 @@ fn autologin_flow() {
                 std::thread::sleep(Duration::from_millis(250));
                 if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
                     if v["pid"].as_u64() == Some(gpid) {
+                        if let Some(addr) = v["address"].as_str() {
+                            // окно игры уводим на правый монитор (workspace 6), чтобы не мешать
+                            let _ = Command::new("hyprctl").args(["dispatch", &format!("hl.dsp.window.move({{ workspace = \"6\", follow = false, window = \"address:{addr}\" }})")]).output();
+                        }
                         let _ = Command::new("hyprctl").args(["dispatch", "focuswindow", &format!("address:{prev}")]).output();
                     }
                 }

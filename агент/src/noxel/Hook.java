@@ -36,7 +36,7 @@ public final class Hook {
     private static String id, text;
     private static final ArrayDeque<String[]> queue = new ArrayDeque<String[]>();
 
-    static void init(String gameDir) {
+    public static void init(String gameDir) {
         if (gameDir == null || gameDir.isEmpty()) return;
         dir = new File(gameDir, ".noxel");
         dir.mkdirs();
@@ -192,6 +192,7 @@ public final class Hook {
 
     private static final int CURSOR = 0x33001, CURSOR_NORMAL = 0x34001;
     private static long blockedSince, deadline;
+    private static boolean loggedQueue;
 
     /** Когда открыт любой экран (чат, инвентарь, меню), игра отпускает курсор. По этому признаку видно, что чат уже готов. */
     private static boolean screenOpen(long w) {
@@ -202,11 +203,12 @@ public final class Hook {
         if (state == 0) {
             readNew();
             if (queue.isEmpty()) return;
+            if (!loggedQueue) { loggedQueue = true; log("в очереди команд: " + queue.size()); }
             long w = GLFW.glfwGetCurrentContext();
             if (w == 0L) return;
             if (screenOpen(w)) {                              // игрок в меню: ждём, чтобы не вводить в чужое окно
-                if (blockedSince == 0L) blockedSince = now;
-                if (now - blockedSince > 20_000_000_000L) { String[] c = queue.poll(); id = c[0]; ack("dropped"); blockedSince = 0L; }
+                if (blockedSince == 0L) { blockedSince = now; log("ждём: курсор свободен (меню или окно без фокуса), в фокусе=" + GLFW.glfwGetWindowAttrib(w, 0x20001)); }
+                if (now - blockedSince > 90_000_000_000L) { String[] c = queue.poll(); id = c[0]; ack("dropped"); blockedSince = 0L; }
                 return;
             }
             blockedSince = 0L;

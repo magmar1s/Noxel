@@ -1482,6 +1482,7 @@ T.event.listen('log', ({payload: lines}) => {
   if (atEnd) pre.scrollTop = pre.scrollHeight;
 });
 T.event.listen('profiles-changed', () => loadProfiles());
+T.event.listen('game', ({payload: p}) => { if (p && p.state === 'agent-off') { modal('Игра упала из-за помощника Noxel', 'Автовход, автоскин и значок игры отключены, чтобы игра запускалась. Запусти её снова. Включить их обратно можно в настройках, а ошибку лучше передать разработчику.'); if (S.set) { S.set.auto_auth = false; S.set.auto_skin = false; S.set.game_icon = false; } } });
 T.event.listen('autoauth', ({payload: p}) => toast(p.kind === 'register' ? `Автовход: регистрация на ${p.host}` : p.kind === 'login' ? `Автовход: вход на ${p.host}` : `Скин отправлен на ${p.host}`));
 /* перетаскивание своих файлов */
 T.event.listen('tauri://drag-enter', () => { if (S.page === 'mods') { const d = $('#drop'); if (d) d.classList.add('on'); } });

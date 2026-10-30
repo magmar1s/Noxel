@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Подключает вызов Hook.tick() к GLFW.glfwPollEvents() без библиотек для работы с байт-кодом:
  * исходный метод переименовывается в glfwPollEvents$noxel, а рядом добавляется новый glfwPollEvents(),
- * который вызывает Hook.tick() и затем исходный метод. Новый метод без ветвлений, поэтому StackMapTable не нужен.
+ * который вызывает Runnable из System.getProperties() (его кладёт агент) и затем исходный метод. Новый метод без ветвлений, поэтому StackMapTable не нужен.
  */
 final class Patcher {
     private Patcher() {}
@@ -64,24 +64,38 @@ final class Patcher {
         if (nameIdxPos < 0) return null;
 
         int base = cpCount;                          // номера новых констант
-        int A = base, B = base + 1, C = base + 2, D = base + 3, F = base + 4, G = base + 5, H = base + 6, I = base + 7, K = base + 8;
+        int A = base, C = base + 2, G = base + 6, I = base + 8, O = base + 14, Q = base + 16, T = base + 19, H = base + 20, W = base + 22;
         ByteArrayOutputStream cp = new ByteArrayOutputStream();
         DataOutputStream o = new DataOutputStream(cp);
         utf(o, "glfwPollEvents$noxel");              // A
-        utf(o, "noxel/Hook");                        // B
-        o.writeByte(7); o.writeShort(B);             // C: класс Hook
-        utf(o, "tick");                              // D
-        o.writeByte(12); o.writeShort(D); o.writeShort(descIdx);        // F: tick()V
-        o.writeByte(10); o.writeShort(C); o.writeShort(F);              // G: Hook.tick()V
+        utf(o, "java/lang/System");                  // +1
+        o.writeByte(7); o.writeShort(base + 1);      // C: класс System
+        utf(o, "getProperties");                     // +3
+        utf(o, "()Ljava/util/Properties;");          // +4
+        o.writeByte(12); o.writeShort(base + 3); o.writeShort(base + 4);   // +5
+        o.writeByte(10); o.writeShort(C); o.writeShort(base + 5);          // G: System.getProperties()
+        utf(o, "noxel.tick");                        // +7
+        o.writeByte(8); o.writeShort(base + 7);      // I: строка "noxel.tick"
+        utf(o, "java/util/Properties");              // +9
+        o.writeByte(7); o.writeShort(base + 9);      // +10
+        utf(o, "get");                               // +11
+        utf(o, "(Ljava/lang/Object;)Ljava/lang/Object;"); // +12
+        o.writeByte(12); o.writeShort(base + 11); o.writeShort(base + 12); // +13
+        o.writeByte(10); o.writeShort(base + 10); o.writeShort(base + 13); // O: Properties.get
+        utf(o, "java/lang/Runnable");                // +15
+        o.writeByte(7); o.writeShort(base + 15);     // Q: класс Runnable
+        utf(o, "run");                               // +17
+        o.writeByte(12); o.writeShort(base + 17); o.writeShort(descIdx);   // +18
+        o.writeByte(11); o.writeShort(Q); o.writeShort(base + 18);         // T: Runnable.run()
         utf(o, "Code");                              // H
-        o.writeByte(12); o.writeShort(A); o.writeShort(descIdx);        // I: glfwPollEvents$noxel()V
-        o.writeByte(10); o.writeShort(thisClass); o.writeShort(I);      // K: GLFW.glfwPollEvents$noxel()V
+        o.writeByte(12); o.writeShort(A); o.writeShort(descIdx);           // +21
+        o.writeByte(10); o.writeShort(thisClass); o.writeShort(base + 21); // W: GLFW.glfwPollEvents$noxel()
         o.flush();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream(in.length + 128);
         DataOutputStream w = new DataOutputStream(out);
         w.write(in, 0, 8);
-        w.writeShort(cpCount + 9);
+        w.writeShort(cpCount + 23);
         w.write(in, 10, cpEnd - 10);
         w.write(cp.toByteArray());
         // от access_flags до числа методов
@@ -92,14 +106,18 @@ final class Patcher {
         int rel = nameIdxPos - methodsStart;
         ms[rel] = (byte) (A >> 8); ms[rel + 1] = (byte) A;          // исходный метод получает новое имя
         w.write(ms);
-        // новый метод: public static glfwPollEvents() { Hook.tick(); glfwPollEvents$noxel(); }
+        // новый метод: public static glfwPollEvents() { ((Runnable) System.getProperties().get("noxel.tick")).run(); glfwPollEvents$noxel(); }
         w.writeShort(0x0009); w.writeShort(nameIdx); w.writeShort(descIdx);
         w.writeShort(1); w.writeShort(H);
-        w.writeInt(2 + 2 + 4 + 7 + 2 + 2);
-        w.writeShort(0); w.writeShort(0);
-        w.writeInt(7);
+        w.writeInt(2 + 2 + 4 + 21 + 2 + 2);
+        w.writeShort(2); w.writeShort(0);
+        w.writeInt(21);
         w.writeByte(0xB8); w.writeShort(G);
-        w.writeByte(0xB8); w.writeShort(K);
+        w.writeByte(0x13); w.writeShort(I);
+        w.writeByte(0xB6); w.writeShort(O);
+        w.writeByte(0xC0); w.writeShort(Q);
+        w.writeByte(0xB9); w.writeShort(T); w.writeByte(1); w.writeByte(0);
+        w.writeByte(0xB8); w.writeShort(W);
         w.writeByte(0xB1);
         w.writeShort(0); w.writeShort(0);
         w.write(in, methodsEnd, in.length - methodsEnd);             // атрибуты класса

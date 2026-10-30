@@ -17,7 +17,8 @@ const AGENT: &[u8] = include_bytes!("../assets/noxel-agent.jar");
 /// Кладёт агента в папку данных (если его там ещё нет или он обновился) и возвращает путь.
 pub fn install_agent() -> R<PathBuf> {
     let p = data_dir().join("agent").join("noxel-agent.jar");
-    if fs::metadata(&p).map(|m| m.len() != AGENT.len() as u64).unwrap_or(true) {
+    // сравниваем содержимое, а не длину: устаревший агент не должен остаться, иначе игра падает
+    if fs::read(&p).map(|b| b != AGENT).unwrap_or(true) {
         fs::create_dir_all(p.parent().unwrap()).map_err(e)?;
         fs::write(&p, AGENT).map_err(e)?;
     }

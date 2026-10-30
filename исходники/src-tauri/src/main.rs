@@ -141,6 +141,9 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
             }
             let (acc_id, sid2) = (acct.id.clone(), sid.clone());
             let app2 = app.clone();
+            // игра упала из-за нашего агента: запоминаем, чтобы отключить его и не оставить игрока с вечным крашем
+            let agent_fault = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let fault2 = agent_fault.clone();
             let emit_log: Arc<dyn Fn(Vec<String>) + Send + Sync> = Arc::new(move |lines| {
                 let g = app2.state::<Game>();
                 {
@@ -152,6 +155,9 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                     }
                 }
                 for l in &lines {
+                    if l.contains("noxel/Hook") || l.contains("noxel.Hook") || l.contains("noxel/Ticker") || l.contains("noxel-agent") || l.contains("noxel/Patcher") {
+                        fault2.store(true, Ordering::Relaxed);
+                    }
                     if let Some(h) = stats::server_from_log(l) {
                         stats::update(&acc_id, &sid2, |s| {
                             if !s.servers.contains(&h) {
@@ -202,6 +208,15 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                         let code = status.code().unwrap_or(-1);
                         *g = None;
                         drop(g);
+                        if code != 0 && agent_fault.load(Ordering::Relaxed) {
+                            // агент лаунчера мешает этой игре: отключаем его, следующий запуск пройдёт без него
+                            let mut s = load_settings();
+                            s.auto_auth = false;
+                            s.auto_skin = false;
+                            s.game_icon = false;
+                            save_settings(&s);
+                            ev("agent-off", json!({}));
+                        }
                         ev("exited", json!({"code": code}));
                         break;
                     }
