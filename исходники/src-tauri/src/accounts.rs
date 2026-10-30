@@ -404,8 +404,19 @@ pub fn skin_command(id: &str) -> Option<(String, String)> {
     if a.kind != "noxel" {
         return None;
     }
-    let e = cur_skin(&a)?;
-    Some((e.hash.clone(), format!("/skin url {FILES_URL}/{}.png{}", e.hash, if e.model == "slim" { " slim" } else { "" })))
+    let e = cur_skin(&a)?.clone();
+    // SkinsRestorer скачивает скин по ссылке: файл обязан лежать на сервере, иначе игрок получит «недействительный URL»
+    let url = format!("{FILES_URL}/{}.png", e.hash);
+    let online = |u: &str| agent().head(u).call().is_ok();
+    if !online(&url) {
+        if let Ok(png) = skins::load(&e.hash) {
+            let _ = upload_skin(id, &png, &e.model, Some(e.id));
+        }
+        if !online(&url) {
+            return None;
+        }
+    }
+    Some((e.hash.clone(), format!("/skin url {url}{}", if e.model == "slim" { " slim" } else { "" })))
 }
 
 /// Для лицензионного аккаунта берём скин и плащ прямо с серверов Mojang.
