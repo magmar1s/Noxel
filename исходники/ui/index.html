@@ -991,7 +991,7 @@ async function renderDetails(){
   if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
   if ($('#bCape')) $('#bCape').onclick = async () => { const f = await pickPng('Выбери плащ (PNG 64×32)'); if (f) skinAction(() => invoke('cape_apply', {id: d.id, path: f}), 'Плащ загружен'); };
   if ($('#bCapeOff')) $('#bCapeOff').onclick = () => skinAction(() => invoke('cape_clear', {id: d.id}), 'Плащ убран');
-  if ($('#bCmd')) $('#bCmd').onclick = () => navigator.clipboard.writeText(`/skin url ${d.skin.url}`).then(() => toast('Команда скопирована: вставь её в чат сервера со SkinsRestorer')).catch(() => {});
+  if ($('#bCmd')) $('#bCmd').onclick = () => navigator.clipboard.writeText(`/skin url "${d.skin.url}" ${d.skin.model === 'slim' ? 'slim' : 'classic'}`).then(() => toast('Команда скопирована: вставь её в чат сервера со SkinsRestorer')).catch(() => {});
   $$('.hthumb', el).forEach(t => t.onclick = e => { if (e.target.closest('[data-del]')) return; if (!t.classList.contains('cur')) skinAction(() => invoke('skin_use', {id: d.id, entry: +t.dataset.id}), 'Скин возвращён'); });
   $$('[data-del]', el).forEach(b => b.onclick = () => skinAction(() => invoke('skin_remove', {id: d.id, entry: +b.dataset.del}), 'Удалено из истории'));
   $$('.hthumb canvas', el).forEach(c => drawFront(c, c.dataset.hash, c.dataset.slim === '1'));

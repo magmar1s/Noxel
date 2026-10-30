@@ -416,7 +416,8 @@ pub fn skin_command(id: &str) -> Option<(String, String)> {
             return None;
         }
     }
-    Some((e.hash.clone(), format!("/skin url {url}{}", if e.model == "slim" { " slim" } else { "" })))
+    // формат из документации SkinsRestorer 15: ссылка в кавычках и модель указана явно
+    Some((e.hash.clone(), format!("/skin url \"{url}\" {}", if e.model == "slim" { "slim" } else { "classic" })))
 }
 
 /// Для лицензионного аккаунта берём скин и плащ прямо с серверов Mojang.
