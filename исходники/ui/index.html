@@ -70,6 +70,9 @@ html.still *,html.still *::before,html.still *::after{animation:none!important;t
 .nav{position:relative;display:flex;flex-direction:column;gap:6px}
 .nav-pill{position:absolute;left:-12px;top:0;width:3px;height:22px;border-radius:3px;background:var(--fg);box-shadow:0 0 14px rgba(255,255,255,.7);
   transition:transform .5s var(--spring);transform:translateY(var(--y,13px))}
+.nbtn.upd{color:#fff;background:rgba(255,255,255,.14);margin-bottom:10px;animation:updp 2.2s ease-in-out infinite}
+.nbtn.upd[hidden]{display:none}
+@keyframes updp{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}50%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
 .nbtn.has-new::after{content:'';position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
 .ncard{padding:18px 20px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .ncard.imp{border-color:rgba(255,255,255,.4)}.ncard.pin{background:rgba(255,255,255,.08)}
@@ -470,6 +473,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
     <div class="mark"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg></div>
     <nav class="nav" id="nav"><i class="nav-pill" id="pill"></i></nav>
     <div class="grow"></div>
+    <button class="nbtn upd" id="railUpd" hidden><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span class="tip" id="railUpdTip"></span></button>
     <button class="rail-acc" id="railAcc"><span class="racc"><img id="railHead" class="head" alt=""></span><i id="dot"></i><b id="railName"></b><span class="tip" id="railTip"></span></button>
   </aside>
   <main id="pages">
@@ -1400,9 +1404,21 @@ function editServer(idx){
 
 /* обновление лаунчера с сервера */
 async function checkLauncher(silent){
-  try { const r = await invoke('launcher_check'); S.lupd = r; if (r.newer) openUpdate(r); else if (!silent) toast(`У тебя последняя версия: ${r.current}`); }
+  try {
+    const r = await invoke('launcher_check'); S.lupd = r; showUpdBtn();
+    if (r.newer) { if (!silent || !S.updShown) { S.updShown = true; openUpdate(r); } }
+    else if (!silent) toast(`У тебя последняя версия: ${r.current}`);
+  }
   catch (e) { if (!silent) toast(e); }
 }
+/* кнопка «Обновить» внизу левой панели: появляется, когда на сервере есть версия новее */
+function showUpdBtn(){
+  const b = $('#railUpd'); if (!b) return;
+  const n = !!(S.lupd && S.lupd.newer);
+  b.hidden = !n;
+  if (n) { $('#railUpdTip').textContent = `Обновить до ${S.lupd.latest}`; b.onclick = () => openUpdate(S.lupd); }
+}
+setInterval(() => checkLauncher(true), 20 * 60 * 1000);
 function openUpdate(r){
   const box = $('#xbox'), notes = [].concat(r.notes || []).filter(Boolean);
   box.innerHTML = `<h3>Доступно обновление Noxel ${esc(r.latest)}</h3><div class="hint" style="margin-bottom:12px">Сейчас у тебя ${esc(r.current)}. Скачается ${r.size ? fmtSize(r.size) : 'новая версия'}, подпись автора проверится автоматически. Профили, аккаунты и моды не затрагиваются.</div>
