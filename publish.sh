@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 VER="${1:?укажи версию, например: ./publish.sh 0.2.0 \"что нового\"}"; shift || true
-BIN="готовый продукт/Noxel"; KEY=".keys/release.pem"; HOST="${NOXEL_SSH:-root@mr1s.site}"; BASE="https://mr1s.site/noxel"
+BIN="${LIN_BIN:-готовый продукт/Noxel}"; KEY=".keys/release.pem"; HOST="${NOXEL_SSH:-root@mr1s.site}"; BASE="https://mr1s.site/noxel"
 [[ -f "$BIN" && -f "$KEY" ]] || { echo "Нет файла $BIN или ключа $KEY"; exit 1; }
 read -r -a SO <<< "${SSH_OPTS:-}"
 NAME="noxel-linux-x86_64-$VER"
