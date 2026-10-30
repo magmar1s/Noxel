@@ -1,0 +1,1476 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Noxel</title>
+<style>
+:root{
+  color-scheme:dark;
+  --fg:#f6f6f7; --fg2:rgba(255,255,255,.64); --fg3:rgba(255,255,255,.38); --fg4:rgba(255,255,255,.16);
+  --line:rgba(255,255,255,.11); --line2:rgba(255,255,255,.2);
+  --fill:rgba(255,255,255,.055); --fill2:rgba(255,255,255,.1); --fill3:rgba(255,255,255,.16);
+  --ink:#050506; --r1:28px; --r2:18px; --r3:12px;
+  --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.34,1.56,.64,1);
+  --font:"Inter","SF Pro Display","Noto Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SF Mono","Noto Sans Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--fg);font:14px/1.35 var(--font);-webkit-font-smoothing:antialiased;user-select:none}
+button,input,select,textarea{font:inherit;color:inherit;border:0;background:none;outline:none}
+button{cursor:pointer}
+button:disabled{cursor:default}
+svg{display:block;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.num{font-variant-numeric:tabular-nums}
+html.still *,html.still *::before,html.still *::after{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── фон: серые градиенты и медленно плывущие пятна ── */
+#bg{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(900px 620px at 12% -8%,#2a2a2e 0%,rgba(42,42,46,0) 62%),
+  radial-gradient(820px 700px at 104% 108%,#242428 0%,rgba(36,36,40,0) 58%),
+  linear-gradient(180deg,#0a0a0b,#050506)}
+#bg .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;background:radial-gradient(circle,rgba(255,255,255,.2),rgba(255,255,255,0) 70%);animation:drift 26s ease-in-out infinite alternate}
+#bg .o1{width:520px;height:520px;left:6%;top:14%}
+#bg .o2{width:460px;height:460px;right:4%;top:48%;animation-duration:34s;animation-delay:-9s;opacity:.38}
+#bg .o3{width:380px;height:380px;left:44%;top:-8%;animation-duration:30s;animation-delay:-16s;opacity:.3}
+@keyframes drift{0%{transform:translate(0,0) scale(1)}50%{transform:translate(70px,-50px) scale(1.15)}100%{transform:translate(-50px,60px) scale(.92)}}
+#bg::after{content:"";position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.026) 1px,transparent 1px);
+  background-size:56px 56px;-webkit-mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent)}
+#app{position:relative;height:100%;display:grid;grid-template-columns:72px 1fr;gap:14px;padding:14px}
+
+/* ── заставка ── */
+#splash{position:fixed;inset:0;z-index:300;display:grid;place-items:center;align-content:center;gap:22px;background:#050506;transition:opacity .7s var(--ease),visibility .7s}
+#splash.gone{opacity:0;visibility:hidden}
+#splash svg{width:96px;height:96px;stroke:none;overflow:visible}
+#splash .f{opacity:0;animation:face .8s var(--ease) forwards}
+#splash .f1{animation-delay:.15s;--dx:0px;--dy:-40px}
+#splash .f2{animation-delay:.35s;--dx:-40px;--dy:20px}
+#splash .f3{animation-delay:.55s;--dx:40px;--dy:20px}
+@keyframes face{from{opacity:0;transform:translate(var(--dx),var(--dy))}to{opacity:1;transform:none}}
+#splash .wm{font-size:15px;font-weight:650;letter-spacing:.6em;padding-left:.6em;color:var(--fg2);opacity:0;animation:wm 1s var(--ease) .7s forwards}
+@keyframes wm{from{opacity:0;letter-spacing:1.2em}to{opacity:1;letter-spacing:.6em}}
+
+/* ── стекло ── */
+.glass{position:relative;border-radius:var(--r1);
+  background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.012)),linear-gradient(rgba(12,12,14,.74),rgba(12,12,14,.74));
+  border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(255,255,255,.03),0 24px 60px -12px rgba(0,0,0,.6)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .4s var(--ease);
+  background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%),rgba(255,255,255,.08),transparent 65%)}
+.glass:hover::before{opacity:1}
+
+/* ── рейка ── */
+.rail{display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:6px;border-radius:36px}
+.mark{width:36px;height:36px;margin-bottom:14px;transition:transform .6s var(--spring)}
+.mark:hover{transform:rotate(-8deg) scale(1.12)}
+.mark svg{width:36px;height:36px;stroke:none}
+.nav{position:relative;display:flex;flex-direction:column;gap:6px}
+.nav-pill{position:absolute;left:-12px;top:0;width:3px;height:22px;border-radius:3px;background:var(--fg);box-shadow:0 0 14px rgba(255,255,255,.7);
+  transition:transform .5s var(--spring);transform:translateY(var(--y,13px))}
+.nbtn{position:relative;width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:var(--fg3);
+  transition:background .25s var(--ease),color .25s var(--ease),transform .35s var(--spring)}
+.nbtn svg{width:21px;height:21px;transition:transform .35s var(--spring)}
+.nbtn:hover{background:var(--fill2);color:var(--fg)}
+.nbtn:hover svg{transform:scale(1.14) translateY(-1px)}
+.nbtn:active{transform:scale(.92)}
+.nbtn.on{color:var(--fg);background:var(--fill2)}
+.tip{position:absolute;left:58px;padding:6px 11px;border-radius:10px;background:rgba(14,14,16,.95);border:1px solid var(--line);font-size:12px;white-space:nowrap;
+  opacity:0;transform:translateX(-6px);pointer-events:none;transition:opacity .2s,transform .3s var(--ease);z-index:50}
+.nbtn:hover .tip,.racc:hover .tip{opacity:1;transform:none;transition-delay:.25s}
+.rail .grow{flex:1}
+.racc{position:relative;width:42px;height:42px;border-radius:14px;margin-bottom:6px;display:grid;place-items:center;font-weight:700;font-size:15px;
+  background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.05));border:1px solid var(--line2);transition:transform .35s var(--spring)}
+.racc:hover{transform:scale(1.1) rotate(-4deg)}
+.racc i{position:absolute;right:-3px;bottom:-3px;width:11px;height:11px;border-radius:50%;background:var(--fg4);border:2px solid #0d0d0f;transition:background .4s,box-shadow .4s}
+.racc i.on{background:#fff;box-shadow:0 0 10px 2px rgba(255,255,255,.7)}
+.racc i.busy{background:#fff;animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ── страницы ── */
+#pages{position:relative;min-width:0;min-height:0}
+.page{position:absolute;inset:0;min-height:0}
+.page:not(.on){display:none}
+.page.on{display:grid;animation:pin .6s var(--ease) both}
+@keyframes pin{from{opacity:0;transform:translateY(12px) scale(.99);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+#p-home,#p-versions,#p-accounts{grid-template-columns:minmax(330px,380px) 1fr;gap:14px}
+#p-mods,#p-settings{grid-template-columns:1fr}
+
+/* ── списки ── */
+.list{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.lhead{padding:20px 18px 12px;display:flex;flex-direction:column;gap:12px}
+.ltitle{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ltitle h2{font-size:22px;font-weight:650;letter-spacing:-.02em}
+.ltitle h2 small{font-size:12px;font-weight:500;color:var(--fg3);margin-left:8px;letter-spacing:0}
+.search{display:flex;align-items:center;gap:10px;height:42px;padding:0 14px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid var(--line);transition:border-color .25s,background .25s}
+.search:focus-within{border-color:var(--line2);background:rgba(0,0,0,.4)}
+.search svg{width:17px;height:17px;color:var(--fg3);flex:none}
+.search input{flex:1;min-width:0;user-select:text}
+.search input::placeholder{color:var(--fg3)}
+.ibtn{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--fg2);flex:none;transition:background .25s var(--ease),color .2s,transform .3s var(--spring)}
+.ibtn svg{width:18px;height:18px;transition:transform .4s var(--spring)}
+.ibtn:hover{background:var(--fill2);color:var(--fg)}
+.ibtn:hover svg{transform:scale(1.12)}
+.ibtn:active{transform:scale(.9)}
+.ibtn.sm{width:30px;height:30px;border-radius:10px}.ibtn.sm svg{width:15px;height:15px}
+.ibtn.spin svg{animation:spin .8s linear infinite}
+.scroll{overflow-y:auto;overflow-x:hidden;min-height:0;padding:0 10px 14px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+
+.row{position:relative;display:flex;align-items:center;gap:12px;height:62px;padding:0 10px 0 12px;border-radius:16px;cursor:pointer;margin-bottom:2px;
+  transition:background .25s var(--ease),transform .35s var(--ease);animation:rin .5s var(--ease) both;animation-delay:calc(var(--i,0)*16ms)}
+@keyframes rin{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.row:hover{background:var(--fill);transform:translateX(3px)}
+.row.sel{background:var(--fill2)}
+.row.sel::before{content:"";position:absolute;left:3px;top:15px;bottom:15px;width:3px;border-radius:3px;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.8);animation:grow .5s var(--spring)}
+@keyframes grow{from{transform:scaleY(0)}to{transform:none}}
+.row.live{background:rgba(255,255,255,.15)}
+.avatar{width:40px;height:40px;border-radius:13px;flex:none;display:grid;place-items:center;font-weight:700;font-size:15px;letter-spacing:-.02em;
+  background:linear-gradient(145deg,rgba(255,255,255,.26),rgba(255,255,255,.05));border:1px solid var(--line2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 6px 14px -6px rgba(0,0,0,.7);transition:transform .4s var(--spring)}
+.row:hover .avatar{transform:scale(1.07) rotate(-3deg)}
+.avatar.lg{width:56px;height:56px;border-radius:18px;font-size:21px}
+.meta{flex:1;min-width:0}
+.meta b{display:block;font-weight:550;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta small{display:block;font-size:11.5px;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .acts{display:flex;gap:2px;opacity:0;transition:opacity .2s}
+.row:hover .acts{opacity:1}
+.badge{flex:none;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;letter-spacing:.04em;background:var(--fill2);border:1px solid var(--line);color:var(--fg2)}
+.badge.w{background:#fff;color:var(--ink);border-color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--fg4);border-top-color:#fff;animation:spin .8s linear infinite;flex:none}
+
+.empty{display:grid;place-items:center;text-align:center;padding:48px 28px;color:var(--fg2);align-content:center;height:100%}
+.empty h3{font-size:19px;color:var(--fg);margin-bottom:8px;font-weight:600}
+.empty p{max-width:340px;margin:0 auto 18px;font-size:13px;line-height:1.5}
+.sk{height:62px;border-radius:16px;margin-bottom:4px;background:linear-gradient(90deg,var(--fill) 25%,var(--fill2) 50%,var(--fill) 75%);background-size:300% 100%;animation:shim 1.4s linear infinite}
+@keyframes shim{from{background-position:100% 0}to{background-position:-100% 0}}
+
+/* ── контролы ── */
+.seg{position:relative;display:inline-flex;padding:4px;border-radius:14px;background:rgba(0,0,0,.35);border:1px solid var(--line);max-width:100%}
+.seg button{position:relative;z-index:1;padding:7px 15px;border-radius:10px;font-size:12.5px;font-weight:550;color:var(--fg3);transition:color .3s;white-space:nowrap}
+.seg button:hover{color:var(--fg2)}
+.seg button.on{color:var(--ink)}
+.seg button.na{opacity:.4}
+.seg .thumb{position:absolute;top:4px;bottom:4px;left:0;border-radius:10px;background:#fff;transition:transform .45s var(--spring),width .45s var(--spring);box-shadow:0 4px 14px -4px rgba(255,255,255,.35)}
+.seg.full{display:flex}.seg.full button{flex:1;padding-left:6px;padding-right:6px}
+.minibtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:12px;background:var(--fill2);border:1px solid var(--line);font-size:12.5px;font-weight:550;white-space:nowrap;transition:background .25s,transform .3s var(--spring),opacity .2s}
+.minibtn svg{width:15px;height:15px}
+.minibtn:hover{background:var(--fill3);transform:translateY(-1px)}
+.minibtn:active{transform:scale(.96)}
+.minibtn.solid{background:linear-gradient(180deg,#fff,#d9d9db);color:var(--ink);border-color:#fff}
+.minibtn.solid:hover{background:#fff}
+.minibtn:disabled{opacity:.45;pointer-events:none}
+.minibtn.sm{padding:6px 13px;border-radius:10px;font-size:12px}
+.rip{position:absolute;border-radius:50%;pointer-events:none;background:rgba(255,255,255,.4);transform:scale(0);animation:rip .65s ease-out forwards}
+.solid .rip,.play .rip{background:rgba(0,0,0,.18)}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+.inp{width:100%;height:42px;padding:0 14px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid var(--line);user-select:text;transition:border-color .25s,background .25s}
+.inp:focus{border-color:var(--line2);background:rgba(0,0,0,.4)}
+.inp::placeholder{color:var(--fg3)}
+.field{display:flex;flex-direction:column;gap:7px}
+.field>label,.lbl{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.hint{font-size:12px;color:var(--fg3);line-height:1.5}
+.hint.warn{color:var(--fg2)}
+
+.dd{position:relative;display:inline-block}
+.dd>button{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 14px;border-radius:14px;background:rgba(0,0,0,.28);border:1px solid var(--line);min-width:150px;max-width:100%;width:100%;transition:border-color .25s}
+.dd>button:hover,.dd.open>button{border-color:var(--line2)}
+.dd>button span{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dd>button svg{width:15px;height:15px;color:var(--fg3);transition:transform .35s var(--spring)}
+.dd.open>button svg{transform:rotate(180deg)}
+.dd .menu{position:absolute;left:0;top:calc(100% + 6px);min-width:100%;max-height:300px;overflow-y:auto;padding:6px;border-radius:16px;z-index:60;scrollbar-width:none;
+  background:rgba(18,18,20,.97);border:1px solid var(--line2);box-shadow:0 24px 50px -10px rgba(0,0,0,.8);
+  opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;transition:opacity .2s,transform .3s var(--ease)}
+.dd .menu::-webkit-scrollbar{display:none}
+.dd.open .menu{opacity:1;transform:none;pointer-events:auto}
+.dd.up .menu{top:auto;bottom:calc(100% + 6px)}
+.dd .menu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;padding:9px 12px;border-radius:10px;font-size:13px;text-align:left;white-space:nowrap;color:var(--fg2);transition:background .2s,color .2s}
+.dd .menu button:hover{background:var(--fill2);color:var(--fg)}
+.dd .menu button.on{color:var(--fg);background:var(--fill)}
+.dd .menu small{color:var(--fg3);font-size:11px}
+
+.switch{position:relative;width:44px;height:26px;border-radius:26px;flex:none;background:var(--fill2);border:1px solid var(--line);transition:background .3s var(--ease)}
+.switch::after{content:"";position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--fg3);transition:transform .4s var(--spring),background .3s}
+.switch.on{background:rgba(255,255,255,.28)}
+.switch.on::after{transform:translateX(18px);background:#fff;box-shadow:0 0 10px rgba(255,255,255,.6)}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.opt .t b{display:block;font-weight:550;font-size:13.5px}
+.opt .t small{display:block;color:var(--fg3);font-size:12px;margin-top:2px;line-height:1.4}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:linear-gradient(90deg,#fff var(--p,50%),var(--fill2) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:0;box-shadow:0 0 0 4px rgba(255,255,255,.14),0 4px 12px rgba(0,0,0,.6);cursor:pointer;transition:box-shadow .2s}
+input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(255,255,255,.16),0 4px 12px rgba(0,0,0,.6)}
+
+.bar{position:relative;flex:1;height:6px;border-radius:6px;background:var(--fill2);overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.5),#fff);transition:width .35s var(--ease)}
+.bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);transform:translateX(-100%);animation:sheen 1.6s linear infinite}
+@keyframes sheen{to{transform:translateX(100%)}}
+.bar.ind i{width:35%!important;animation:ind 1.3s var(--ease) infinite}
+@keyframes ind{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+
+/* ── главная ── */
+.stage{position:relative;overflow:hidden;min-height:0;display:flex;flex-direction:column}
+.stage .art{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(520px 380px at 80% 8%,rgba(255,255,255,.1),transparent 70%),radial-gradient(420px 320px at 5% 100%,rgba(255,255,255,.06),transparent 70%)}
+.stage .art svg{position:absolute;right:-70px;top:-50px;width:460px;height:460px;opacity:.12;stroke:none;animation:float 9s ease-in-out infinite alternate}
+@keyframes float{from{transform:translateY(0) rotate(0)}to{transform:translateY(22px) rotate(3deg)}}
+.hero{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;padding:30px 34px 20px}
+.hero>*{animation:up .7s var(--ease) both}
+.hero>.prog,.hero>.console{animation:none}
+.hero>*:nth-child(2){animation-delay:.05s}.hero>*:nth-child(3){animation-delay:.1s}.hero>*:nth-child(4){animation-delay:.15s}.hero>*:nth-child(5){animation-delay:.2s}.hero>*:nth-child(6){animation-delay:.25s}
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.hero .top{display:flex;align-items:center;gap:16px}
+.hero h1{font-size:40px;font-weight:700;letter-spacing:-.035em;line-height:1.12;margin-top:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:linear-gradient(180deg,#fff,rgba(255,255,255,.62));-webkit-background-clip:text;background-clip:text;color:transparent}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:30px;background:rgba(0,0,0,.35);border:1px solid var(--line);font-size:12px;color:var(--fg2)}
+.chip svg{width:13px;height:13px}
+.playrow{display:flex;align-items:center;gap:14px;margin-top:30px;flex-wrap:wrap}
+.play{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:12px;height:60px;min-width:230px;padding:0 34px;border-radius:30px;font-size:16px;font-weight:650;letter-spacing:.01em;
+  background:linear-gradient(180deg,#fff,#cfcfd2);color:var(--ink);border:1px solid #fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.3),0 0 46px -4px rgba(255,255,255,.35),0 18px 36px -10px rgba(0,0,0,.7);
+  transition:transform .4s var(--spring),box-shadow .5s,background .4s,color .4s;animation:glow 3.2s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 1px rgba(255,255,255,.4),0 0 70px 0 rgba(255,255,255,.5),0 18px 36px -10px rgba(0,0,0,.7)}}
+.play svg{width:20px;height:20px;fill:currentColor;stroke:none}
+.play:hover{transform:translateY(-2px) scale(1.03)}
+.play:active{transform:scale(.96)}
+.play.stop{background:rgba(255,255,255,.08);color:var(--fg);border-color:var(--line2);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 18px 36px -10px rgba(0,0,0,.7);animation:none}
+.play.wait{background:rgba(255,255,255,.1);color:var(--fg2);border-color:var(--line);box-shadow:none;pointer-events:none;animation:none}
+.play.wait svg{display:none}
+.prog{margin-top:22px;max-width:560px;opacity:0;transform:translateY(6px);transition:opacity .4s var(--ease),transform .5s var(--ease);pointer-events:none}
+.prog.on{opacity:1;transform:none}
+.prog .ph{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--fg2);margin-bottom:8px}
+.prog .ph b{font-weight:600;color:var(--fg);letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+.prog .ph span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;color:var(--fg3)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:auto;padding-top:20px}
+.tile{position:relative;padding:13px 15px;border-radius:18px;background:rgba(0,0,0,.32);border:1px solid var(--line);text-align:left;transition:background .3s,transform .4s var(--ease),border-color .3s;min-width:0}
+.tile:hover{background:rgba(0,0,0,.45);transform:translateY(-3px)}
+button.tile:hover{border-color:var(--line2)}
+.tile span{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:22px}
+.tile b{display:block;font-size:17px;font-weight:600;margin-top:4px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile svg{position:absolute;right:13px;top:13px;width:16px;height:16px;color:var(--fg3);transition:transform .4s var(--spring)}
+.tile:hover svg{transform:scale(1.2) rotate(-6deg)}
+.console{position:relative;margin-top:12px;border-radius:18px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden;
+  height:0;opacity:0;transition:height .5s var(--ease),opacity .3s}
+.console.on{height:210px;opacity:1}
+.console .ch{display:flex;align-items:center;justify-content:space-between;padding:8px 8px 8px 16px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);border-bottom:1px solid var(--line)}
+.console pre{height:calc(100% - 46px);overflow:auto;padding:10px 16px;font:11.5px/1.5 var(--mono);color:var(--fg2);user-select:text;white-space:pre-wrap;word-break:break-all;scrollbar-width:thin;scrollbar-color:var(--fg4) transparent}
+
+/* ── версии ── */
+.vd{position:relative;flex:1;min-height:0;overflow-y:auto;padding:30px 34px;display:flex;flex-direction:column;gap:20px;scrollbar-width:none}
+.vd::-webkit-scrollbar{display:none}
+.vd>*{animation:up .6s var(--ease) both}
+.vd>*:nth-child(2){animation-delay:.05s}.vd>*:nth-child(3){animation-delay:.1s}.vd>*:nth-child(4){animation-delay:.15s}.vd>*:nth-child(5){animation-delay:.2s}
+.vd h1{font-size:44px;font-weight:700;letter-spacing:-.04em;line-height:1.1;background:linear-gradient(180deg,#fff,rgba(255,255,255,.55));-webkit-background-clip:text;background-clip:text;color:transparent}
+.vd .sub{color:var(--fg3);font-size:13px;margin-top:8px}
+.note{display:flex;gap:12px;padding:14px 16px;border-radius:16px;background:rgba(0,0,0,.3);border:1px solid var(--line);font-size:12.5px;color:var(--fg2);line-height:1.5;max-width:600px}
+.note svg{width:18px;height:18px;flex:none;color:var(--fg3);margin-top:1px}
+.note code{font-family:var(--mono);font-size:11.5px;color:var(--fg);background:var(--fill2);padding:1px 6px;border-radius:6px;word-break:break-all}
+.acts2{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:auto;padding-top:6px}
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;max-width:640px}
+.pre{position:relative;text-align:left;padding:13px 15px;border-radius:16px;background:rgba(0,0,0,.3);border:1px solid var(--line);transition:background .3s,border-color .3s,transform .4s var(--spring)}
+.pre:hover{transform:translateY(-3px);background:rgba(255,255,255,.06)}
+.pre.on{background:rgba(255,255,255,.14);border-color:#fff;box-shadow:0 0 28px -8px rgba(255,255,255,.45)}
+.pre b{display:block;font-size:13.5px;font-weight:600}
+.pre small{display:block;margin-top:5px;font-size:11.5px;line-height:1.4;color:var(--fg3)}
+.pre.on small{color:var(--fg2)}
+
+/* ── аккаунты ── */
+.ms{display:flex;flex-direction:column;gap:14px;max-width:520px}
+.code{font-family:var(--mono);font-size:38px;font-weight:600;letter-spacing:.18em;padding:18px 24px;border-radius:20px;background:rgba(0,0,0,.4);border:1px solid var(--line2);text-align:center;user-select:text;animation:pop .6s var(--spring)}
+@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.wait{display:flex;align-items:center;gap:10px;color:var(--fg2);font-size:13px}
+
+/* ── моды ── */
+.sheet{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.mhead{display:flex;flex-direction:column;gap:12px;padding:18px 20px 12px}
+.mrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mrow .grow{flex:1}
+.mrow .search{flex:1;min-width:200px}
+.mbody{flex:1;min-height:0;overflow-y:auto;padding:4px 14px 18px;scrollbar-width:none}
+.mbody::-webkit-scrollbar{display:none}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:10px}
+.card{position:relative;display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:18px;background:rgba(0,0,0,.26);border:1px solid var(--line);
+  transition:background .3s,border-color .3s,transform .4s var(--ease);animation:rin .5s var(--ease) both;animation-delay:calc(var(--i,0)*14ms);min-width:0}
+.card:hover{background:rgba(255,255,255,.06);border-color:var(--line2);transform:translateY(-2px)}
+.card.off{opacity:.5}
+.ico{width:52px;height:52px;border-radius:15px;flex:none;object-fit:cover;background:var(--fill2) center/cover;border:1px solid var(--line);display:grid;place-items:center;color:var(--fg3);font-weight:700;overflow:hidden}
+.card .meta small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4}
+.card .meta .by{color:var(--fg3);font-size:11px;margin-top:3px;white-space:nowrap;display:block;overflow:hidden;text-overflow:ellipsis}
+.more{display:flex;justify-content:center;padding:18px 0 4px}
+.cnt{color:var(--fg3);font-size:12px}
+#drop{position:absolute;inset:10px;z-index:40;display:grid;place-items:center;border-radius:22px;border:2px dashed rgba(255,255,255,.5);background:rgba(8,8,10,.86);backdrop-filter:blur(8px);
+  font-size:18px;font-weight:600;opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s;pointer-events:none;text-align:center;line-height:1.6}
+#drop.on{opacity:1;visibility:visible}
+#drop small{display:block;font-size:13px;font-weight:400;color:var(--fg2)}
+#drop svg{width:44px;height:44px;margin:0 auto 12px;animation:float 1.6s ease-in-out infinite alternate}
+
+/* ── настройки ── */
+.sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 6px 20px}
+.panel{padding:22px 24px;display:flex;flex-direction:column;gap:16px;border-radius:24px;animation:up .6s var(--ease) both;animation-delay:calc(var(--i,0)*60ms)}
+.panel h3{font-size:15px;font-weight:600}
+.panel h3 small{display:block;font-weight:400;color:var(--fg3);font-size:12px;margin-top:3px;line-height:1.45}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:30px;font-weight:650;letter-spacing:-.03em}
+.big small{font-size:14px;color:var(--fg3);margin-left:4px;font-weight:500}
+
+/* ── модалка и тосты ── */
+#modal{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+#modal.on{opacity:1;pointer-events:auto}
+#modal .box{width:min(480px,90vw);padding:26px;border-radius:26px;transform:translateY(14px) scale(.97);transition:transform .5s var(--spring)}
+#modal.on .box{transform:none}
+#modal h3{font-size:20px;font-weight:650;margin-bottom:10px;letter-spacing:-.02em}
+#modal .txt{color:var(--fg2);font-size:13.5px;line-height:1.55;max-height:260px;overflow:auto;white-space:pre-wrap;user-select:text;word-break:break-word}
+#modal .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap}
+#toasts{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:8px;z-index:120;pointer-events:none}
+.toast{padding:12px 18px;border-radius:16px;font-size:13px;background:rgba(20,20,22,.96);border:1px solid var(--line2);box-shadow:0 20px 40px -10px rgba(0,0,0,.8);
+  animation:tin .5s var(--spring) both;max-width:380px}
+.toast.out{animation:tout .35s var(--ease) both}
+@keyframes tin{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:none}}
+@keyframes tout{to{opacity:0;transform:translateX(20px)}}
+
+/* ── головы и аватары-скины ── */
+.head{display:block;width:100%;height:100%;image-rendering:pixelated;border-radius:inherit;object-fit:cover}
+.avatar.skin{padding:0;overflow:hidden;background:#17171a}
+.racc{padding:0;overflow:hidden}
+.racc>.head{border-radius:13px}
+.addrow{display:flex;align-items:center;justify-content:center;gap:10px;height:54px;width:calc(100% - 8px);margin:10px 4px 0;border-radius:16px;border:1px dashed var(--line2);color:var(--fg2);font-weight:550;transition:background .25s,color .25s,transform .35s var(--spring),border-color .25s}
+.addrow svg{width:16px;height:16px}
+.addrow:hover{background:var(--fill);color:var(--fg);transform:translateY(-2px);border-color:rgba(255,255,255,.4)}
+.gh{font-weight:700;letter-spacing:-.035em;line-height:1.1;background:linear-gradient(180deg,#fff,rgba(255,255,255,.58));-webkit-background-clip:text;background-clip:text;color:transparent;word-break:break-all}
+
+/* ── страница аккаунта ── */
+.adetail{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 330px;overflow:hidden}
+.ainfo{position:relative;z-index:2;overflow-y:auto;padding:28px 6px 24px 34px;display:flex;flex-direction:column;gap:18px;scrollbar-width:none}
+.ainfo::-webkit-scrollbar{display:none}
+.ainfo>*{animation:up .6s var(--ease) both}
+.ainfo>*:nth-child(2){animation-delay:.05s}.ainfo>*:nth-child(3){animation-delay:.1s}.ainfo>*:nth-child(4){animation-delay:.15s}.ainfo>*:nth-child(5){animation-delay:.2s}.ainfo>*:nth-child(6){animation-delay:.25s}
+.aview{position:relative;display:grid;place-items:center;min-height:0}
+.aview::before{content:"";position:absolute;inset:6% -10% 6% 0;background:radial-gradient(closest-side,rgba(255,255,255,.16),transparent 72%);pointer-events:none}
+.mc-stage{perspective:1200px;width:100%;height:100%;display:grid;place-items:center;cursor:grab;touch-action:none}
+.mc-stage:active{cursor:grabbing}
+.mc-rig{position:relative;width:0;height:0;transform-style:preserve-3d}
+.mc-rig *{transform-style:preserve-3d}
+.mc-abs{position:absolute;left:0;top:0}
+.mc-f{position:absolute;left:50%;top:50%;backface-visibility:hidden;-webkit-backface-visibility:hidden;image-rendering:pixelated;background-repeat:no-repeat}
+@keyframes swA{0%,100%{transform:rotateX(26deg)}50%{transform:rotateX(-26deg)}}
+@keyframes swB{0%,100%{transform:rotateX(-26deg)}50%{transform:rotateX(26deg)}}
+@keyframes nod{0%,100%{transform:rotateX(0)}50%{transform:rotateX(5deg)}}
+.sw-a{animation:swA 1.3s ease-in-out infinite;transform-origin:0 0}
+.sw-b{animation:swB 1.3s ease-in-out infinite;transform-origin:0 0}
+.sw-n{animation:nod 2.6s ease-in-out infinite;transform-origin:0 0}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mini .tile b{font-size:15px}
+.hist{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 10px;scrollbar-width:none}
+.hist::-webkit-scrollbar{display:none}
+.hthumb{position:relative;flex:none;width:68px;height:116px;border-radius:16px;background:rgba(0,0,0,.35);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;transition:transform .35s var(--spring),border-color .25s,box-shadow .3s}
+.hthumb:hover{transform:translateY(-4px);border-color:var(--line2)}
+.hthumb.cur{border-color:#fff;box-shadow:0 0 24px -6px rgba(255,255,255,.55)}
+.hthumb canvas{width:44px;height:88px;image-rendering:pixelated}
+.hthumb .x{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:#1b1b1f;border:1px solid var(--line2);opacity:0;transform:scale(.7);transition:opacity .2s,transform .3s var(--spring)}
+.hthumb:hover .x{opacity:1;transform:none}
+.hthumb .x svg{width:12px;height:12px}
+.kv{display:flex;flex-direction:column;gap:6px}
+.kvr{display:flex;justify-content:space-between;gap:14px;padding:9px 13px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid var(--line);font-size:12.5px}
+.kvr b{font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kvr span{color:var(--fg3);white-space:nowrap}
+.sec{display:flex;flex-direction:column;gap:9px}
+.sec>.lbl{display:flex;justify-content:space-between;align-items:center}
+
+/* ── окошко добавления аккаунта ── */
+#xmodal{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:110;opacity:0;pointer-events:none;transition:opacity .3s}
+#xmodal.on{opacity:1;pointer-events:auto}
+#xbox{width:min(460px,92vw);padding:26px;border-radius:26px;transform:translateY(14px) scale(.97);transition:transform .5s var(--spring)}
+#xmodal.on #xbox{transform:none}
+#xbox h3{font-size:20px;font-weight:650;margin-bottom:14px;letter-spacing:-.02em}
+#xbox .field{margin-bottom:12px}
+#xbox .btns{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.err{color:#fff;font-size:12.5px;padding:10px 13px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid var(--line2);margin-top:4px}
+
+/* ── карточка мода ── */
+.drawer{position:absolute;top:10px;right:10px;bottom:10px;width:min(640px,94%);z-index:35;border-radius:24px;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(145deg,rgba(255,255,255,.05),rgba(255,255,255,0)),#101012;
+  transform:translateX(40px) scale(.98);opacity:0;pointer-events:none;transition:transform .55s var(--spring),opacity .3s;box-shadow:0 30px 80px -10px rgba(0,0,0,.9)}
+.drawer.on{transform:none;opacity:1;pointer-events:auto}
+.dh{display:flex;align-items:center;gap:14px;padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.dh .meta b{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.dbody{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 22px;display:flex;flex-direction:column;gap:16px;scrollbar-width:none}
+.dbody::-webkit-scrollbar{display:none}
+.gal{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none}
+.gal::-webkit-scrollbar{display:none}
+.gal img{height:150px;border-radius:14px;border:1px solid var(--line);flex:none}
+.md{font-size:13.5px;line-height:1.6;color:var(--fg2);user-select:text}
+.md h1,.md h2,.md h3,.md h4{color:var(--fg);margin:14px 0 6px;font-weight:650;letter-spacing:-.01em}
+.md h1{font-size:19px}.md h2{font-size:17px}.md h3{font-size:15px}.md h4{font-size:14px}
+.md p{margin:6px 0}.md ul,.md ol{margin:6px 0 6px 20px}
+.md img{max-width:100%;border-radius:12px;margin:6px 0;display:block}
+.md code{font-family:var(--mono);font-size:12px;background:var(--fill2);padding:1px 6px;border-radius:6px}
+.md pre{font-family:var(--mono);font-size:12px;background:rgba(0,0,0,.4);border:1px solid var(--line);padding:12px;border-radius:12px;overflow-x:auto;white-space:pre}
+.md a{color:#fff;text-decoration:underline;text-decoration-color:var(--fg3);cursor:pointer}
+.elsewhere{display:inline-block;margin-top:5px;padding:2px 9px;border-radius:20px;background:var(--fill2);border:1px solid var(--line);font-size:10.5px;color:var(--fg2);white-space:nowrap}
+.card{cursor:pointer}
+.updbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;margin-bottom:10px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid var(--line2);animation:up .5s var(--ease) both}
+.sug{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.35);border:1px solid var(--line);margin-top:8px;text-align:left}
+.sug b{display:block;font-size:13.5px;color:var(--fg)}
+.sug small{display:block;color:var(--fg3);font-size:12px;margin-top:2px;line-height:1.4}
+
+#adet .art svg{display:none}
+.mini .tile span{padding-right:0;font-size:9.5px;letter-spacing:.06em}
+.mini .tile b{font-size:14px}
+.vrow{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid var(--line);font-size:12.5px}
+.vrow.rec{border-color:#fff;background:rgba(255,255,255,.09)}
+.vrow .vn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:550}
+.vrow .vd2{color:var(--fg3);white-space:nowrap}
+.tag{display:inline-block;padding:1px 8px;border-radius:20px;background:var(--fill2);border:1px solid var(--line);font-size:10px;color:var(--fg2);margin-left:6px;font-weight:500}
+.srvgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:10px}
+.scard{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:20px;background:rgba(0,0,0,.26);border:1px solid var(--line);animation:rin .5s var(--ease) both;animation-delay:calc(var(--i,0)*40ms);transition:background .3s,border-color .3s,transform .4s var(--ease)}
+.scard:hover{background:rgba(255,255,255,.05);border-color:var(--line2);transform:translateY(-2px)}
+.scard .top{display:flex;align-items:center;gap:12px}
+textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);font-size:12px;line-height:1.5}
+
+/* активный аккаунт внизу панели */
+.rail-acc{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:64px;padding:7px 0 6px;border-radius:18px;transition:background .25s var(--ease)}
+.rail-acc:hover{background:var(--fill)}
+.rail-acc .racc{margin:0;box-shadow:0 8px 18px -8px rgba(0,0,0,.8)}
+.rail-acc>b{font-size:10.5px;font-weight:600;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2);letter-spacing:.01em}
+.rail-acc>i{position:absolute;left:calc(50% + 9px);top:36px;width:12px;height:12px;border-radius:50%;background:var(--fg4);border:2px solid #101012;transition:background .4s,box-shadow .4s}
+.rail-acc>i.on{background:#fff;box-shadow:0 0 10px 2px rgba(255,255,255,.7)}
+.rail-acc>i.busy{background:#fff;animation:blink 1s ease-in-out infinite}
+/* мониторинг аккаунта */
+.chart{display:flex;align-items:flex-end;gap:5px;height:84px;padding:10px 12px 4px;border-radius:16px;background:rgba(0,0,0,.28);border:1px solid var(--line)}
+.chart i{flex:1;min-height:3px;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,#fff,rgba(255,255,255,.35));transform-origin:bottom;animation:bar .8s var(--spring) both;animation-delay:calc(var(--i,0)*30ms);transition:filter .2s}
+.chart i.z{background:var(--fill2)}.chart i:hover{filter:brightness(1.3)}
+@keyframes bar{from{transform:scaleY(0)}to{transform:none}}
+.axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--fg3);padding:4px 4px 0}
+.live{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:30px;background:#fff;color:#050506;font-size:12px;font-weight:650}
+.live i{width:8px;height:8px;border-radius:50%;background:#050506;animation:blink 1.2s ease-in-out infinite}
+.srow{display:grid;grid-template-columns:minmax(0,1.3fr) auto auto;align-items:center;gap:12px;padding:9px 13px;border-radius:12px;background:rgba(0,0,0,.28);border:1px solid var(--line);font-size:12.5px}
+.srow b{display:flex;align-items:center;gap:9px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .sd{width:9px;height:9px;border-radius:50%;background:var(--fg4);flex:none}.srow .sd.on{background:#fff;box-shadow:0 0 8px 1px rgba(255,255,255,.7)}
+.srow .si{color:var(--fg3);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .ctl{display:flex;align-items:center;gap:6px}
+.srow .switch{width:36px;height:22px}.srow .switch::after{width:14px;height:14px;top:3px;left:3px}.srow .switch.on::after{transform:translateX(14px)}
+.pls{font-size:11.5px;color:var(--fg3);white-space:nowrap}.pls.on{color:var(--fg)}
+
+</head>
+<body>
+<div id="bg"><i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i></div>
+<div id="splash">
+  <svg viewBox="0 0 512 512"><path class="f f1" d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path class="f f2" d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path class="f f3" d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg>
+  <div class="wm">NOXEL</div>
+</div>
+<div id="app">
+  <aside class="glass rail">
+    <div class="mark"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg></div>
+    <nav class="nav" id="nav"><i class="nav-pill" id="pill"></i></nav>
+    <div class="grow"></div>
+    <button class="rail-acc" id="railAcc"><span class="racc"><img id="railHead" class="head" alt=""></span><i id="dot"></i><b id="railName"></b><span class="tip" id="railTip"></span></button>
+  </aside>
+  <main id="pages">
+    <section class="page on" id="p-home">
+      <div class="glass list">
+        <div class="lhead"><div class="ltitle"><h2>Профили</h2><button class="ibtn" id="addProfile" title="Добавить версию"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+        <div class="scroll" id="plist"></div>
+      </div>
+      <div class="glass stage" id="hero"></div>
+    </section>
+
+    <section class="page" id="p-versions">
+      <div class="glass list">
+        <div class="lhead">
+          <div class="ltitle"><h2>Версии<small id="vcount"></small></h2><button class="ibtn" id="vrefresh" title="Обновить список"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></div>
+          <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="vq" placeholder="Поиск версии" spellcheck="false"></div>
+          <div class="seg full" id="vseg"></div>
+        </div>
+        <div class="scroll" id="vlist"></div>
+      </div>
+      <div class="glass stage" id="vdetail"></div>
+    </section>
+
+    <section class="page" id="p-mods"><div class="glass sheet" id="mods"></div></section>
+
+    <section class="page" id="p-accounts">
+      <div class="glass list">
+        <div class="lhead"><div class="ltitle"><h2>Аккаунты</h2></div></div>
+        <div class="scroll" id="alist"></div>
+      </div>
+      <div class="glass stage" id="adet"></div>
+    </section>
+
+    <section class="page" id="p-settings"><div class="glass sheet" id="settings"></div></section>
+  </main>
+</div>
+<div id="modal"><div class="glass box"><h3 id="mt"></h3><div class="txt" id="mx"></div><div class="btns" id="mb"></div></div></div>
+<div id="xmodal"><div class="glass" id="xbox"></div></div>
+<div id="toasts"></div>
+
+<script>
+let _errShown = 0;
+function uiError(msg){ if (_errShown++ > 2) return; try { const t = document.createElement('div'); t.className = 'toast'; t.textContent = 'Ошибка интерфейса: ' + msg; document.getElementById('toasts').append(t); setTimeout(() => t.remove(), 12000); } catch (_) {} }
+addEventListener('error', e => uiError(e.message + (e.lineno ? ' (строка ' + e.lineno + ')' : '')));
+addEventListener('unhandledrejection', e => uiError(String((e.reason && e.reason.message) || e.reason)));
+const T = window.__TAURI__;
+const invoke = (c, a) => T.core.invoke(c, a || {});
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const I = {
+  key:'<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l3 3"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  play:'<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  stop:'<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  home:'<svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>',
+  ver:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  mod:'<svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>',
+  gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></svg>',
+  folder:'<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  term:'<svg viewBox="0 0 24 24"><path d="m5 8 4 4-4 4M12 17h7"/><rect x="2.5" y="3.5" width="19" height="17" rx="3"/></svg>',
+  dl:'<svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>',
+  up:'<svg viewBox="0 0 24 24"><path d="M12 16V5m0 0-4 4m4-4 4 4M5 19h14"/></svg>',
+  ext:'<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4 10 14M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+  chev:'<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  info:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>',
+  check:'<svg viewBox="0 0 24 24" style="width:12px;height:12px;display:inline-block;vertical-align:-2px;margin-right:4px"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
+  copy:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+  win:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>',
+};
+const LOADERS = [['vanilla','Vanilla'],['fabric','Fabric'],['quilt','Quilt'],['forge','Forge'],['neoforge','NeoForge'],['optifine','OptiFine']];
+const LNAME = Object.fromEntries(LOADERS);
+const KINDS = [['mod','Моды'],['resourcepack','Ресурспаки'],['shader','Шейдеры']];
+const SORTS = [['relevance','По релевантности'],['downloads','По скачиваниям'],['updated','Недавно обновлённые'],['newest','Новые']];
+const NOMODS = ['vanilla','optifine'];
+const ART = `<div class="art"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#fff"/><path d="M120 170 256 248V420L120 342Z" fill="#aaa"/><path d="M392 170 256 248V420L392 342Z" fill="#555"/></svg></div>`;
+
+const S = {
+  page:'home', profiles:[], sel:null, game:{state:'idle', id:null}, task:null, logOpen:false, accts:[], ms:null, creating:false, cstat:'',
+  versions:null, latest:null, vfilter:'release', vq:'', vsel:null, vloader:'vanilla', vname:'', vlv:'', vpreset:'', presets:[], lv:{},
+  m:{ profile:null, tab:'installed', src:'all', kind:'mod', q:'', sort:'relevance', client:'all', upd:null, warn:[], hits:[], offset:0, total:0, installed:[], loading:false, err:null, busy:new Set() },
+  av:null, det:null, skinModel:'auto',
+  set:null, sys:null,
+};
+
+/* ── утилиты ── */
+function toast(msg){
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; $('#toasts').append(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 3800);
+}
+function modal(title, text, buttons){
+  return new Promise(res => {
+    $('#mt').textContent = title; $('#mx').textContent = text || ''; $('#mx').style.display = text ? '' : 'none';
+    const mb = $('#mb'); mb.innerHTML = '';
+    for (const b of buttons || [{label:'Понятно', val:true, cls:'solid'}]) {
+      const el = document.createElement('button'); el.className = 'minibtn ' + (b.cls || ''); el.textContent = b.label;
+      el.onclick = () => { $('#modal').classList.remove('on'); res(b.val); }; mb.append(el);
+    }
+    $('#modal').classList.add('on');
+  });
+}
+function modalHtml(title, html, buttons){
+  return new Promise(res => {
+    $('#mt').textContent = title; $('#mx').innerHTML = html; $('#mx').style.display = '';
+    const mb = $('#mb'); mb.innerHTML = '';
+    for (const b of buttons || [{label:'Понятно', val:true, cls:'solid'}]) {
+      const el = document.createElement('button'); el.className = 'minibtn ' + (b.cls || ''); el.textContent = b.label;
+      el.onclick = () => { $('#modal').classList.remove('on'); res(b.val); }; mb.append(el);
+    }
+    $('#modal').classList.add('on');
+  });
+}
+const closeX = () => $('#xmodal').classList.remove('on');
+addEventListener('keydown', e => { if (e.key === 'Escape') { $('#modal').classList.remove('on'); closeX(); } });
+$('#xmodal').addEventListener('mousedown', e => { if (e.target.id === 'xmodal') closeX(); });
+function fmtNum(n){ n = +n || 0; if (n >= 1e9) return (n/1e9).toFixed(1)+' млрд'; if (n >= 1e6) return (n/1e6).toFixed(1)+' млн'; if (n >= 1e3) return Math.round(n/1e3)+' тыс.'; return String(n); }
+function fmtSize(b){ if (b >= 1048576) return (b/1048576).toFixed(1)+' МБ'; if (b >= 1024) return Math.round(b/1024)+' КБ'; return b+' Б'; }
+function plural(n, a, b, c){ const m = n % 100, d = n % 10; return (m > 10 && m < 20) ? c : d === 1 ? a : (d >= 2 && d <= 4) ? b : c; }
+function ago(ts){
+  if (!ts) return 'ещё не играл';
+  const d = Math.floor((Date.now()/1000 - ts) / 86400);
+  if (d <= 0) return 'сегодня'; if (d === 1) return 'вчера'; if (d < 30) return d + ' ' + plural(d, 'день','дня','дней') + ' назад';
+  return new Date(ts*1000).toLocaleDateString('ru-RU');
+}
+const pname = p => p ? p.name : '';
+const prof = id => S.profiles.find(p => p.id === id);
+const cur = () => prof(S.sel);
+const active = () => S.accts.find(a => a.selected);
+const sub = p => `${p.mc} · ${LNAME[p.loader] || p.loader}${p.loader_ver ? ' ' + p.loader_ver : ''}`;
+const letter = n => (n || '?')[0].toUpperCase();
+
+/* волна под курсором на кнопках */
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('.minibtn,.play'); if (!b || b.disabled) return;
+  const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2;
+  const s = document.createElement('i'); s.className = 'rip'; s.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d/2}px;top:${e.clientY - r.top - d/2}px`;
+  b.append(s); setTimeout(() => s.remove(), 700);
+});
+function countUp(el, to){
+  if (document.documentElement.classList.contains('still') || !to) { el.textContent = to; return; }
+  const t0 = performance.now();
+  const step = t => { const k = Math.min(1, (t - t0) / 700); el.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+function mkSeg(el, items, value, onchange, na){
+  el.innerHTML = '<i class="thumb"></i>' + items.map(([v, t]) => `<button data-v="${v}" class="${v === value ? 'on' : ''} ${na && na(v) ? 'na' : ''}">${t}</button>`).join('');
+  const place = () => { const b = $('button.on', el); const th = $('.thumb', el); if (!b || !th) return; th.style.width = b.offsetWidth + 'px'; th.style.transform = `translateX(${b.offsetLeft}px)`; };
+  requestAnimationFrame(place); setTimeout(place, 80);
+  $$('button', el).forEach(b => b.onclick = () => onchange(b.dataset.v));
+}
+function mkDd(el, items, value, onchange, opts = {}){
+  const label = (items.find(i => i[0] === value) || [0, opts.placeholder || '—'])[1];
+  el.className = 'dd' + (opts.up ? ' up' : '');
+  el.innerHTML = `<button type="button"><span>${esc(label)}</span>${I.chev}</button><div class="menu">${items.map(([v, t, s]) => `<button data-v="${esc(v)}" class="${v === value ? 'on' : ''}">${esc(t)}${s ? `<small>${esc(s)}</small>` : ''}</button>`).join('') || '<button disabled>Пусто</button>'}</div>`;
+  el.firstElementChild.onclick = e => { e.stopPropagation(); const o = el.classList.contains('open'); $$('.dd.open').forEach(d => d.classList.remove('open')); if (!o) el.classList.add('open'); };
+  $$('.menu button', el).forEach(b => b.onclick = e => { e.stopPropagation(); el.classList.remove('open'); if (b.dataset.v !== undefined) onchange(b.dataset.v); });
+}
+addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('open')));
+document.addEventListener('mousemove', e => { const g = e.target.closest && e.target.closest('.glass'); if (g) { const r = g.getBoundingClientRect(); g.style.setProperty('--mx', (e.clientX - r.left) + 'px'); g.style.setProperty('--my', (e.clientY - r.top) + 'px'); } });
+
+/* ── навигация ── */
+const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+$('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}">${ic}<span class="tip">${t}</span></button>`).join(''));
+$$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
+$('#railAcc').onclick = () => go('accounts');
+function go(p){
+  S.page = p;
+  $$('.page').forEach(x => x.classList.toggle('on', x.id === 'p-' + p));
+  $$('.nbtn').forEach((b, i) => { b.classList.toggle('on', b.dataset.p === p); if (b.dataset.p === p) $('#pill').style.setProperty('--y', (i * 52 + 12) + 'px'); });
+  if (p === 'home') { renderProfiles(); renderHero(); }
+  if (p === 'versions') { loadVersions(); }
+  if (p === 'mods') { initMods(); }
+  if (p === 'accounts') { renderAccounts(); }
+  if (p === 'settings') { renderSettings(); }
+}
+
+/* ── главная ── */
+function renderProfiles(){
+  const el = $('#plist');
+  if (!S.profiles.length) {
+    el.innerHTML = `<div class="empty"><div><h3>Профилей пока нет</h3><p>Выбери версию Minecraft и загрузчик. У каждого профиля будет своя папка с модами, мирами и настройками.</p><button class="minibtn solid" id="emptyAdd">${I.plus} Добавить версию</button></div></div>`;
+    $('#emptyAdd').onclick = () => go('versions'); return;
+  }
+  const sorted = [...S.profiles].sort((a, b) => (b.last_played || 0) - (a.last_played || 0) || b.created - a.created);
+  el.innerHTML = sorted.map((p, i) => {
+    const live = S.game.id === p.id && S.game.state === 'running';
+    return `<div class="row ${p.id === S.sel ? 'sel' : ''} ${live ? 'live' : ''}" data-id="${esc(p.id)}" style="--i:${i}">
+      <div class="avatar">${esc(letter(LNAME[p.loader] || 'V'))}</div>
+      <div class="meta"><b>${esc(p.name)}</b><small>${esc(sub(p))}${p.mods ? ' · ' + p.mods + ' ' + plural(p.mods, 'мод','мода','модов') : ''}</small></div>
+      ${live ? '<span class="badge w">ИГРАЕТ</span>' : !p.installed ? '<span class="badge">НЕ СКАЧАНО</span>' : ''}
+      <div class="acts"><button class="ibtn sm" data-act="dup" title="Создать копию">${I.copy}</button><button class="ibtn sm" data-act="del" title="Удалить">${I.trash}</button></div></div>`;
+  }).join('');
+  $$('.row', el).forEach(r => r.onclick = e => {
+    const id = r.dataset.id;
+    if (e.target.closest('[data-act=dup]')) return invoke('duplicate_profile', {id}).then(async p => { toast(`Копия «${p.name}» создана`); await loadProfiles(); }).catch(x => modal('Не удалось', String(x)));
+    if (e.target.closest('[data-act=del]')) return delProfile(id);
+    S.sel = id; renderProfiles(); renderHero();
+  });
+}
+async function delProfile(id){
+  const p = prof(id); if (!p) return;
+  if (S.game.id === id && S.game.state !== 'idle') return toast('Сначала останови игру');
+  const r = await modal(`Удалить «${p.name}»?`, `Можно убрать только профиль из списка, а можно вместе с его папкой: моды, миры и настройки этого профиля удалятся безвозвратно.`, [
+    {label:'Отмена', val:null}, {label:'Только профиль', val:'keep'}, {label:'Вместе с папкой', val:'all', cls:'solid'}]);
+  if (!r) return;
+  try { await invoke('delete_profile', {id, removeFiles: r === 'all'}); toast('Профиль удалён'); if (S.sel === id) S.sel = null; await loadProfiles(); } catch (e) { toast(e); }
+}
+async function loadProfiles(){
+  S.profiles = await invoke('profiles');
+  if (!prof(S.sel)) {
+    const last = [...S.profiles].sort((a, b) => (b.last_played || 0) - (a.last_played || 0))[0];
+    S.sel = last ? last.id : null;
+  }
+  renderProfiles(); renderHero();
+  if (S.page === 'mods') renderModsHead();
+}
+function renderHero(){
+  const el = $('#hero'); const p = cur();
+  if (!p) { el.innerHTML = ART + `<div class="empty"><div><h3>Добро пожаловать в Noxel</h3><p>Добавь первую версию игры, и она появится здесь. Дальше достаточно одной кнопки «Играть».</p><button class="minibtn solid" id="heroAdd">${I.plus} Добавить версию</button></div></div>`; $('#heroAdd').onclick = () => go('versions'); return; }
+  const mine = S.game.id === p.id, st = mine ? S.game.state : 'idle', other = !mine && S.game.state !== 'idle';
+  const btn = st === 'running' ? `<button class="play stop" id="playBtn">${I.stop} Остановить</button>`
+    : st === 'installing' ? `<button class="play wait" id="playBtn">Подготовка…</button>`
+    : other ? `<button class="play wait" id="playBtn">Занято другим профилем</button>`
+    : `<button class="play" id="playBtn">${I.play} ${p.installed ? 'Играть' : 'Скачать и играть'}</button>`;
+  const a = active();
+  const pr = S.presets.find(x => x.id === p.preset);
+  el.innerHTML = ART + `<div class="hero">
+    <div class="top"><div class="avatar lg">${esc(letter(LNAME[p.loader] || 'V'))}</div><div class="chips"><span class="chip">${esc(p.mc)}</span><span class="chip">${esc(LNAME[p.loader] || p.loader)}${p.loader_ver ? ' ' + esc(p.loader_ver) : ''}</span>${pr ? `<span class="chip">${esc(pr.name)}</span>` : ''}${p.installed ? '' : '<span class="chip">не скачано</span>'}<span class="chip">${esc(ago(p.last_played))}</span></div></div>
+    <h1>${esc(p.name)}</h1>
+    <div class="playrow">${btn}</div>
+    <div class="prog" id="prog"><div class="ph"><b id="pstage"></b><span id="pdetail"></span></div><div class="bar" id="pbar"><i style="width:0"></i></div></div>
+    <div class="tiles">
+      <button class="tile" id="tMods"><span>Моды</span><b><em data-n="${p.mods}" style="font-style:normal">0</em> ${plural(p.mods, 'мод','мода','модов')}</b>${I.mod}</button>
+      <button class="tile" id="tDir"><span>Папка</span><b>Открыть</b>${I.folder}</button>
+      <button class="tile" id="tLog"><span>Консоль</span><b>${S.logOpen ? 'Скрыть' : 'Показать'}</b>${I.term}</button>
+      <button class="tile" id="tAcc"><span>Аккаунт</span><b>${esc(a ? a.name : '—')}</b>${I.user}</button>
+    </div>
+    <div class="console ${S.logOpen ? 'on' : ''}" id="console"><div class="ch"><span>Лог игры</span><span><button class="minibtn sm" id="logWhy" style="margin-right:6px">Разобрать ошибку</button><button class="ibtn sm" id="logCopy" title="Копировать">${I.copy}</button></span></div><pre id="logpre"></pre></div>
+  </div>`;
+  $$('[data-n]', el).forEach(n => countUp(n, +n.dataset.n));
+  $('#playBtn').onclick = () => playClick(p);
+  $('#tMods').onclick = () => { S.m.profile = p.id; go('mods'); };
+  $('#tDir').onclick = () => invoke('open_folder', {profileId: p.id, sub: null}).catch(toast);
+  $('#tAcc').onclick = () => go('accounts');
+  $('#tLog').onclick = () => { S.logOpen = !S.logOpen; $('#console').classList.toggle('on', S.logOpen); $('#tLog b').textContent = S.logOpen ? 'Скрыть' : 'Показать'; if (S.logOpen) fillLog(); };
+  $('#logWhy').onclick = () => crashHelp(false, 0);
+  $('#logCopy').onclick = () => { navigator.clipboard.writeText($('#logpre').textContent).then(() => toast('Лог скопирован')).catch(() => {}); };
+  if (S.logOpen) fillLog();
+  setProgress();
+}
+async function fillLog(){ const pre = $('#logpre'); if (!pre) return; const l = await invoke('get_logs'); pre.textContent = l.join('\n'); pre.scrollTop = pre.scrollHeight; }
+function setProgress(){
+  const pr = $('#prog'); if (!pr) return; const t = S.task; const p = cur();
+  const on = t && p && t.id === p.id && S.game.state === 'installing';
+  pr.classList.toggle('on', !!on); if (!on) return;
+  $('#pstage').textContent = t.stage; $('#pdetail').textContent = t.detail || '';
+  const bar = $('#pbar'); bar.classList.toggle('ind', t.frac < 0); $('i', bar).style.width = Math.max(0, Math.min(1, t.frac)) * 100 + '%';
+}
+async function playClick(p){
+  if (S.game.id === p.id && S.game.state === 'running') return invoke('stop_game');
+  if (S.set.show_console) { S.logOpen = true; }
+  S.game = {id: p.id, state: 'installing'}; S.task = {id: p.id, stage: 'Подготовка', frac: -1, detail: ''}; renderHero(); renderProfiles(); setDot();
+  try { await invoke('launch', {id: p.id}); } catch (e) { S.game = {state: 'idle', id: null}; renderHero(); renderProfiles(); setDot(); modal('Не удалось запустить', String(e)); }
+}
+function setDot(){ const d = $('#dot'); d.className = S.game.state === 'running' ? 'on' : S.game.state === 'installing' ? 'busy' : ''; }
+
+/* ── версии ── */
+async function loadVersions(force){
+  if (S.versions && !force) { renderVersions(); renderVDetail(); return; }
+  $('#vlist').innerHTML = '<div class="sk"></div>'.repeat(9);
+  $('#vrefresh').classList.add('spin');
+  try { const r = await invoke('versions'); S.versions = r.versions; S.latest = r.latest; if (!S.vsel) selectVersion(r.latest.release, true); renderVersions(); }
+  catch (e) { $('#vlist').innerHTML = `<div class="empty"><div><h3>Нет связи</h3><p>${esc(e)}</p><button class="minibtn" id="vretry">Повторить</button></div></div>`; $('#vretry').onclick = () => loadVersions(true); }
+  $('#vrefresh').classList.remove('spin');
+}
+const VTYPES = [['release','Релизы'],['snapshot','Снапшоты'],['old','Старые']];
+const vtype = v => v.type === 'release' ? 'release' : v.type === 'snapshot' ? 'snapshot' : 'old';
+function renderVersions(){
+  mkSeg($('#vseg'), VTYPES, S.vfilter, v => { S.vfilter = v; renderVersions(); });
+  const q = S.vq.trim().toLowerCase();
+  const list = (S.versions || []).filter(v => vtype(v) === S.vfilter && (!q || v.id.toLowerCase().includes(q)));
+  const counts = {}; S.profiles.forEach(p => counts[p.mc] = (counts[p.mc] || 0) + 1);
+  const el = $('#vlist');
+  $('#vcount').textContent = list.length ? `${list.length}` : '';
+  if (!list.length) { el.innerHTML = '<div class="empty"><div><p>Ничего не найдено</p></div></div>'; return; }
+  el.innerHTML = list.slice(0, 500).map((v, i) => `<div class="row ${v.id === S.vsel ? 'sel' : ''}" data-id="${esc(v.id)}" style="--i:${Math.min(i, 14)}">
+    <div class="avatar" style="font-size:11px">${v.type === 'release' ? esc(v.id.split('.').slice(0, 2).join('.')) : v.type === 'snapshot' ? 'SN' : 'OLD'}</div>
+    <div class="meta"><b>${esc(v.id)}</b><small>${new Date(v.time).toLocaleDateString('ru-RU')}${S.latest && v.id === S.latest.release ? ' · последний релиз' : ''}</small></div>
+    ${counts[v.id] ? `<span class="badge">${counts[v.id]} ${plural(counts[v.id], 'профиль','профиля','профилей')}</span>` : ''}</div>`).join('');
+  $$('.row', el).forEach(r => r.onclick = () => selectVersion(r.dataset.id));
+}
+function selectVersion(id, silent){
+  S.vsel = id; S.vname = ''; S.vlv = ''; S.vpreset = '';
+  const known = S.lv[id + '|' + S.vloader];
+  if (S.vloader !== 'vanilla' && Array.isArray(known) && !known.length) S.vloader = 'vanilla';
+  if (!silent) $$('#vlist .row').forEach(r => r.classList.toggle('sel', r.dataset.id === id));
+  renderVDetail();
+  for (const [l] of LOADERS) if (l !== 'vanilla' && S.lv[id + '|' + l] === undefined) {
+    S.lv[id + '|' + l] = null;
+    invoke('loader_versions', {mc: id, loader: l})
+      .then(r => { S.lv[id + '|' + l] = r; if (S.vsel === id) { if (S.vloader === l && !r.length) S.vloader = 'vanilla'; renderVDetail(); } })
+      .catch(() => { S.lv[id + '|' + l] = []; if (S.vsel === id) renderVDetail(); });
+  }
+}
+function renderVDetail(){
+  const el = $('#vdetail'); const id = S.vsel; if (!id) { el.innerHTML = ''; return; }
+  const v = (S.versions || []).find(x => x.id === id) || {id, type:'release', time: ''};
+  const lvs = l => l === 'vanilla' ? [] : (S.lv[id + '|' + l] || []);
+  const loading = l => l !== 'vanilla' && S.lv[id + '|' + l] === null;
+  const none = l => l !== 'vanilla' && Array.isArray(S.lv[id + '|' + l]) && !S.lv[id + '|' + l].length;
+  const list = lvs(S.vloader); if (S.vloader !== 'vanilla' && !list.includes(S.vlv)) S.vlv = list[0] || '';
+  const pre = S.presets.find(x => x.id === S.vpreset);
+  const defName = pre ? `${id} ${pre.name}` : S.vloader === 'vanilla' ? id : `${id} ${LNAME[S.vloader]}`;
+  const dirName = (S.vname.trim() || defName);
+  const fabricOk = !none('fabric');
+  const warnZ = S.vloader === 'forge' && S.sys && S.sys.zlib_ng;
+  const noModsNote = S.vloader === 'optifine' ? 'OptiFine ставится как отдельная версия игры: он не совмещается с модами Fabric и Forge, зато поддерживает шейдеры и ресурспаки.' : '';
+  el.innerHTML = ART + `<div class="vd">
+    <div><div class="lbl">${v.type === 'release' ? 'Релиз' : v.type === 'snapshot' ? 'Снапшот' : 'Старая версия'}</div><h1 style="margin-top:10px">${esc(id)}</h1><div class="sub">${v.time ? 'Вышла ' + new Date(v.time).toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'}) : ''}</div></div>
+    <div class="field"><label>Загрузчик</label><div class="seg" id="lseg" style="align-self:flex-start"></div><div class="hint ${warnZ ? 'warn' : ''}" id="lhint"></div></div>
+    <div class="field"><label>Сборка Noxel · моды ставятся сразу</label><div class="presets">
+      <button class="pre ${S.vpreset ? '' : 'on'}" data-p=""><b>Без сборки</b><small>Чистая версия, моды добавишь сам</small></button>
+      ${S.presets.map(x => `<button class="pre ${S.vpreset === x.id ? 'on' : ''}" data-p="${x.id}" ${fabricOk ? '' : 'disabled style="opacity:.4"'}><b>${esc(x.name)}</b><small>${esc(x.desc)}</small></button>`).join('')}</div></div>
+    <div class="two" style="max-width:600px">
+      <div class="field"><label>Версия загрузчика</label><div id="lvdd"></div></div>
+      <div class="field"><label>Название профиля</label><input class="inp" id="vname" placeholder="${esc(defName)}" value="${esc(S.vname)}" spellcheck="false"></div>
+    </div>
+    <div class="note">${I.info}<div>${noModsNote ? noModsNote + '<br>' : ''}У профиля будет своя папка: моды, миры, ресурспаки и настройки лежат отдельно, при переключении версий ничего удалять не нужно.<br><code>instances/${esc(dirName)}/mods</code></div></div>
+    <div class="acts2"><button class="minibtn solid" id="vCreate" ${S.creating ? 'disabled' : ''}>${I.plus} ${S.creating ? 'Создаю…' : 'Создать профиль'}</button><button class="minibtn" id="vCreateDl" ${S.creating ? 'disabled' : ''}>${I.dl} Создать и скачать</button>${S.creating ? `<span class="wait"><i class="spinner"></i><span id="cstat">${esc(S.cstat)}</span></span>` : ''}</div></div>`;
+  mkSeg($('#lseg'), LOADERS, S.vloader, l => { if (none(l)) return; S.vloader = l; S.vlv = ''; if (l !== 'fabric') S.vpreset = ''; renderVDetail(); }, l => none(l) || loading(l));
+  $('#lhint').textContent = warnZ ? 'В твоей системе стоит zlib-ng: установщики Forge для старых версий игры могут не пройти проверку. NeoForge и Fabric работают без проблем.'
+    : loading(S.vloader) ? 'Проверяю доступность…' : LOADERS.some(([l]) => none(l)) ? 'Затемнённые загрузчики для этой версии недоступны.' : '';
+  $$('.pre', el).forEach(b => b.onclick = () => { if (b.disabled) return; S.vpreset = b.dataset.p; if (S.vpreset) { S.vloader = 'fabric'; S.vlv = ''; } renderVDetail(); });
+  mkDd($('#lvdd'), S.vloader === 'vanilla' ? [['—','Не требуется']] : list.map(x => [x, x]), S.vloader === 'vanilla' ? '—' : S.vlv, x => { S.vlv = x; renderVDetail(); }, {placeholder: loading(S.vloader) ? 'Загрузка…' : 'Нет версий'});
+  $('#vname').oninput = e => { S.vname = e.target.value; const c = $('.note code'); if (c) c.textContent = `instances/${e.target.value.trim() || defName}/mods`; };
+  const create = async dl => {
+    if (S.vloader !== 'vanilla' && !S.vlv) return toast('Загрузчик ещё не готов');
+    S.creating = true; S.cstat = S.vpreset ? 'ставлю моды сборки…' : 'создаю…'; renderVDetail();
+    try {
+      const r = await invoke('create_profile', {mc: id, loader: S.vloader, loaderVer: S.vloader === 'vanilla' ? null : S.vlv, name: S.vname, preset: S.vpreset || null});
+      const p = r.profile; S.sel = p.id; S.creating = false;
+      await loadProfiles(); go('home');
+      toast(r.installed.length ? `Профиль «${p.name}» готов, установлено модов: ${r.installed.length}` : `Профиль «${p.name}» создан`);
+      if (r.skipped.length) modal('Часть сборки не установилась', 'Для этой версии игры нет подходящих файлов:\n\n' + r.skipped.join('\n'));
+      if (dl) { S.game = {id: p.id, state: 'installing'}; S.task = {id: p.id, stage:'Подготовка', frac:-1, detail:''}; renderHero(); renderProfiles(); setDot(); await invoke('install_profile', {id: p.id}); }
+    } catch (e) { S.creating = false; S.game = {state:'idle', id:null}; renderHero(); setDot(); modal('Не получилось', String(e)); }
+    S.creating = false; renderVDetail();
+  };
+  $('#vCreate').onclick = () => create(false); $('#vCreateDl').onclick = () => create(true);
+}
+
+/* ── аккаунты ── */
+const KINDN = {local:'Локальный · без лицензии', microsoft:'Лицензия Microsoft', noxel:'Аккаунт Noxel'};
+const DEFAULT_SKIN = 'assets/default_skin.png';
+const skinCache = {}, headCache = {}, imgCache = {};
+function loadImg(src){ return imgCache[src] || (imgCache[src] = new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; })); }
+async function skinSrc(hash){ if (!hash) return DEFAULT_SKIN; if (skinCache[hash]) return skinCache[hash]; try { return skinCache[hash] = await invoke('skin_data', {hash}); } catch (e) { return DEFAULT_SKIN; } }
+async function headUrl(hash){
+  const k = hash || 'default'; if (headCache[k]) return headCache[k];
+  const img = await loadImg(await skinSrc(hash)); const c = document.createElement('canvas'); c.width = c.height = 8;
+  const g = c.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(img, 8, 8, 8, 8, 0, 0, 8, 8); g.drawImage(img, 40, 8, 8, 8, 0, 0, 8, 8);
+  return headCache[k] = c.toDataURL();
+}
+function fillHeads(root){ $$('img[data-h]', root).forEach(i => headUrl(i.dataset.h || null).then(u => { i.src = u; })); }
+async function drawFront(cv, hash, slim){
+  const img = await loadImg(await skinSrc(hash)); cv.width = 16; cv.height = 32;
+  const g = cv.getContext('2d'); g.imageSmoothingEnabled = false; const aw = slim ? 3 : 4, d = (sx, sy, w, h, x, y) => g.drawImage(img, sx, sy, w, h, x, y, w, h);
+  d(4,20,4,12,4,20); d(4,36,4,12,4,20); d(20,52,4,12,8,20); d(4,52,4,12,8,20);
+  d(20,20,8,12,4,8); d(20,36,8,12,4,8); d(44,20,aw,12,4-aw,8); d(44,36,aw,12,4-aw,8); d(36,52,aw,12,12,8); d(52,52,aw,12,12,8);
+  d(8,8,8,8,4,0); d(40,8,8,8,4,0);
+}
+
+/* 3D-модель игрока на CSS: части тела — коробки, текстуры берутся из скина по стандартной раскладке */
+function skinViewer(host, o){
+  const K = o.scale || 9, slim = o.model === 'slim', aw = slim ? 3 : 4, tex = `url("${o.skin}")`;
+  host.innerHTML = '<div class="mc-stage"><div class="mc-rig"></div></div>';
+  const stage = host.firstChild, rig = stage.firstChild;
+  const mk = (cls, css) => { const d = document.createElement('div'); d.className = cls; if (css) d.style.cssText = css; return d; };
+  function box(u0, v0, w, h, d, g, url, sw, sh){
+    const b = mk('mc-abs'), W = w + g, H = h + g, D = d + g;
+    const faces = [
+      [u0+d, v0+d, w, h, W, H, `translateZ(${D*K/2}px)`],
+      [u0+2*d+w, v0+d, w, h, W, H, `rotateY(180deg) translateZ(${D*K/2}px)`],
+      [u0, v0+d, d, h, D, H, `rotateY(-90deg) translateZ(${W*K/2}px)`],
+      [u0+d+w, v0+d, d, h, D, H, `rotateY(90deg) translateZ(${W*K/2}px)`],
+      [u0+d, v0, w, d, W, D, `rotateX(90deg) translateZ(${H*K/2}px)`],
+      [u0+d+w, v0, w, d, W, D, `rotateX(-90deg) translateZ(${H*K/2}px) scaleY(-1)`],
+    ];
+    for (const [tu, tv, tw, th, dw, dh, tf] of faces) {
+      const kx = dw / tw, ky = dh / th;
+      b.append(mk('mc-f', `width:${dw*K}px;height:${dh*K}px;margin:${-dh*K/2}px 0 0 ${-dw*K/2}px;background-image:${url};background-size:${sw*K*kx}px ${sh*K*ky}px;background-position:${-tu*K*kx}px ${-tv*K*ky}px;transform:${tf}`));
+    }
+    return b;
+  }
+  function part(c){
+    const pos = mk('mc-abs', `transform:translate3d(${c.x*K}px,${c.y*K}px,0)`), sw = mk('mc-abs ' + (c.cls || '')), hold = mk('mc-abs', `transform:translate3d(0,${c.cy*K}px,0)`);
+    hold.append(box(c.u, c.v, c.w, c.h, c.d, 0, tex, 64, 64), box(c.ou, c.ov, c.w, c.h, c.d, c.g || .5, tex, 64, 64));
+    sw.append(hold); pos.append(sw); rig.append(pos);
+  }
+  part({x:0, y:-8, cy:-4, w:8, h:8, d:8, u:0, v:0, ou:32, ov:0, g:1, cls:'sw-n'});
+  part({x:0, y:-8, cy:6, w:8, h:12, d:4, u:16, v:16, ou:16, ov:32});
+  part({x:-(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:40, v:16, ou:40, ov:32, cls:'sw-a'});
+  part({x:(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:32, v:48, ou:48, ov:48, cls:'sw-b'});
+  part({x:-2, y:4, cy:6, w:4, h:12, d:4, u:0, v:16, ou:0, ov:32, cls:'sw-b'});
+  part({x:2, y:4, cy:6, w:4, h:12, d:4, u:16, v:48, ou:0, ov:48, cls:'sw-a'});
+  if (o.cape) {
+    const pos = mk('mc-abs', `transform:translate3d(0,${-8*K}px,${-2*K}px) rotateX(-9deg)`), hold = mk('mc-abs', `transform:translate3d(0,${8*K}px,${-.5*K}px) rotateY(180deg)`);
+    hold.append(box(0, 0, 10, 16, 1, 0, `url("${o.cape}")`, 64, 32)); pos.append(hold); rig.append(pos);
+  }
+  let ang = window.__ANG !== undefined ? window.__ANG : -30, drag = false, lx = 0, last = performance.now();
+  const tick = t => {
+    if (!host.isConnected) return; const dt = t - last; last = t;
+    if (!drag && window.__ANG === undefined && !document.documentElement.classList.contains('still')) ang += dt * 0.022;
+    rig.style.transform = `rotateX(-7deg) rotateY(${ang}deg)`; requestAnimationFrame(tick);
+  };
+  stage.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; stage.setPointerCapture(e.pointerId); });
+  stage.addEventListener('pointermove', e => { if (drag) { ang += (e.clientX - lx) * .6; lx = e.clientX; } });
+  stage.addEventListener('pointerup', () => { drag = false; });
+  requestAnimationFrame(tick);
+}
+
+async function loadAccounts(){
+  S.accts = await invoke('accounts_list');
+  if (!S.av || !S.accts.some(a => a.id === S.av)) S.av = (active() || S.accts[0]).id;
+  renderRailAcc(); if (S.page === 'accounts') renderAccounts(); if (S.page === 'home') renderHero();
+}
+function renderRailAcc(){
+  const a = active(); headUrl(a && a.skin ? a.skin.hash : null).then(u => { $('#railHead').src = u; });
+  $('#railName').textContent = a ? a.name : '';
+  $('#railTip').textContent = a ? `${a.name} · ${({local:'локальный', microsoft:'лицензия', noxel:'Noxel'})[a.kind]}` : 'Аккаунты';
+}
+function analytics(raw){
+  raw = raw || []; const N = 14, now = new Date(), day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() / 1000, from = day0 - (N - 1) * 86400;
+  const b = Array(N).fill(0), days = new Set(); let longest = 0, total = 0;
+  raw.forEach(([st, sec]) => { const i = Math.floor((st - from) / 86400); if (i >= 0 && i < N) b[i] += sec; days.add(new Date(st * 1000).toDateString()); longest = Math.max(longest, sec); total += sec; });
+  return {b, longest, avg: raw.length ? total / raw.length : 0, days: days.size, from};
+}
+function chartHtml(a){
+  const max = Math.max(...a.b, 1); const dl = i => new Date((a.from + i * 86400) * 1000).toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'});
+  return `<div class="chart">${a.b.map((v, i) => `<i class="${v ? '' : 'z'}" style="height:${v ? Math.max(8, v / max * 100) : 4}%;--i:${i}" title="${dl(i)}: ${fmtDur(v)}"></i>`).join('')}</div><div class="axis"><span>${dl(0)}</span><span>${dl(13)}</span></div>`;
+}
+const ping = {};
+async function fillStatus(root){
+  for (const el of $$('[data-host]', root)) {
+    const host = el.dataset.host; let r = ping[host]; if (!r || Date.now() - r.t > 60000) { r = ping[host] = {t: Date.now(), v: await invoke('server_status', {host}).catch(() => ({online: false}))}; }
+    const v = r.v, dot = $('.sd', el), info = $('.si', el) || $('.pls', el);
+    if (dot) dot.classList.toggle('on', !!v.online); if (info) { info.classList.toggle('on', !!v.online); info.textContent = v.online ? `${v.players ?? '?'} из ${v.max ?? '?'} онлайн${v.ping != null ? ' · ' + v.ping + ' мс' : ''}` : 'не отвечает'; if (v.online && v.motd) info.title = v.motd; }
+  }
+}
+setInterval(() => { const t = $('#liveT'); if (t && S.runStart) { const s = Math.floor((Date.now() - S.runStart) / 1000); t.textContent = [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(x => String(x).padStart(2, '0')).join(':'); } }, 1000);
+function fmtDur(s){ s = +s || 0; const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} ч ${m} м` : m ? `${m} мин` : s ? `${s} с` : '0 мин'; }
+function renderAccounts(){
+  const el = $('#alist');
+  el.innerHTML = S.accts.map((a, i) => `<div class="row ${a.id === S.av ? 'sel' : ''}" data-id="${esc(a.id)}" style="--i:${i}">
+    <div class="avatar skin"><img class="head" data-h="${a.skin ? a.skin.hash : ''}" alt=""></div>
+    <div class="meta"><b>${esc(a.name)}</b><small>${KINDN[a.kind] || a.kind}</small></div>
+    ${a.selected ? '<span class="badge w">АКТИВЕН</span>' : ''}
+    <div class="acts"><button class="ibtn sm" data-act="del" title="Удалить">${I.trash}</button></div></div>`).join('') + `<button class="addrow" id="addAcc">${I.plus} Добавить аккаунт</button>`;
+  fillHeads(el);
+  $$('.row', el).forEach(r => r.onclick = async e => {
+    if (e.target.closest('[data-act=del]')) {
+      const a = S.accts.find(x => x.id === r.dataset.id);
+      const ok = await modal(`Удалить «${a.name}»?`, a.kind === 'noxel' ? 'Аккаунт останется на сервере, в лаунчере нужно будет войти заново.' : a.kind === 'microsoft' ? 'Вход в этот аккаунт нужно будет пройти заново.' : 'История скинов этого аккаунта удалится из лаунчера.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]);
+      if (!ok) return;
+      try { S.accts = await invoke('account_remove', {id: r.dataset.id}); if (S.av === r.dataset.id) S.av = null; await loadAccounts(); } catch (x) { toast(x); }
+      return;
+    }
+    if (S.av !== r.dataset.id) selectAcc(r.dataset.id);
+  });
+  $('#addAcc').onclick = () => openAddAccount('local');
+  if (!S.det || S.det.id !== S.av) { S.det = null; renderDetails(); loadDetails(S.av, false).then(() => { const a = S.accts.find(x => x.id === S.av); if (a && a.kind !== 'local') loadDetails(S.av, true); }); }
+  else renderDetails();
+}
+function selectAcc(id){ S.av = id; S.det = null; S._dj = ''; renderAccounts(); }
+async function loadDetails(id, refresh){
+  try {
+    const d = await invoke('account_details', {id, refresh});
+    if (S.av !== id) return;
+    const j = JSON.stringify(d); if (j === S._dj && S.det) return; S._dj = j; S.det = d; renderDetails();
+  } catch (e) { if (!refresh) toast(e); }
+}
+async function skinAction(fn, ok){
+  try { await fn(); if (ok) toast(ok); S._dj = ''; await loadAccounts(); await loadDetails(S.av, false); }
+  catch (e) { modal('Не получилось', String(e)); }
+}
+async function pickPng(title){ const r = await T.dialog.open({multiple: false, title, filters: [{name: 'Картинка PNG', extensions: ['png']}]}); return Array.isArray(r) ? r[0] : r; }
+async function renderDetails(){
+  const el = $('#adet'), d = S.det;
+  if (!d) { el.innerHTML = ART + '<div class="adetail"><div class="ainfo"><div class="sk" style="height:70px"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div></div>'; return; }
+  const a = S.accts.find(x => x.id === d.id) || {}, st = d.stats || {}, slim = d.skin && d.skin.model === 'slim', noxel = d.kind === 'noxel';
+  const row = (k, v) => `<div class="kvr"><b>${esc(k)}</b><span>${esc(v)}</span></div>`;
+  const an = analytics(st.raw);
+  const skip = (S.set && S.set.auto_skip) || [];
+  const note = d.kind === 'local' ? `Скин хранится в лаунчере. Чтобы его видели другие игроки через SkinsRestorer, подключи аккаунт Noxel: скин загрузится на сервер.` : d.kind === 'microsoft' ? 'Скин сохраняется прямо на серверах Mojang, его видят все игроки.' : 'Скины и плащи хранятся на сервере Noxel. Ссылка на скин подходит для команды SkinsRestorer.';
+  el.innerHTML = ART + `<div class="adetail"><div class="ainfo">
+    <div><div class="lbl">${KINDN[d.kind]}</div><h1 class="gh" style="font-size:42px;margin-top:8px">${esc(d.name)}</h1>
+      <div class="chips" style="margin-top:12px"><span class="chip num" id="uuidChip" title="Скопировать UUID" style="cursor:pointer">${esc(d.uuid)}</span>${d.skin ? `<span class="chip">${slim ? 'Тонкие руки' : 'Классические руки'}</span>` : '<span class="chip">Скин по умолчанию</span>'}${d.cape ? '<span class="chip">Плащ</span>' : ''}${(S.game.state === 'running' && a.selected) ? '<span class="live"><i></i>В игре <span id="liveT" class="num">00:00:00</span></span>' : ''}</div></div>
+    <div class="mrow"><button class="minibtn ${a.selected ? '' : 'solid'}" id="bAct" ${a.selected ? 'disabled' : ''}>${a.selected ? 'Активный аккаунт' : 'Играть этим аккаунтом'}</button>
+      <button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><div class="seg" id="mseg"></div>
+      ${noxel ? `<button class="minibtn" id="bCape">Плащ…</button>${d.cape ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}${d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}` : ''}
+      ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}</div>
+    <div class="hint" style="max-width:560px">${note}</div>
+    <div class="mini"><div class="tile"><span>Наиграно</span><b>${esc(fmtDur(st.total_secs))}</b></div><div class="tile"><span>Запусков</span><b>${st.sessions || 0}</b></div><div class="tile"><span>Был в игре</span><b>${esc(st.last ? ago(st.last) : 'ещё не играл')}</b></div></div>
+    <div class="mini"><div class="tile"><span>Самая долгая</span><b>${esc(fmtDur(an.longest))}</b></div><div class="tile"><span>В среднем</span><b>${esc(fmtDur(an.avg))}</b></div><div class="tile"><span>Дней в игре</span><b>${an.days}</b></div></div>
+    <div class="sec"><div class="lbl"><span>Активность за 14 дней</span><span class="cnt">${esc(fmtDur(an.b.reduce((x, y) => x + y, 0)))}</span></div>${chartHtml(an)}</div>
+    <div class="sec"><div class="lbl"><span>История скинов</span><span class="cnt">${d.history.length ? 'клик — вернуть' : ''}</span></div>
+      ${d.history.length ? `<div class="hist">${d.history.map(h => `<div class="hthumb ${h.current ? 'cur' : ''}" data-id="${h.id}" title="${new Date(h.created * 1000).toLocaleString('ru-RU')}"><canvas data-hash="${h.hash}" data-slim="${h.model === 'slim' ? 1 : 0}"></canvas><button class="ibtn sm x" data-del="${h.id}" title="Удалить из истории">${I.x}</button></div>`).join('')}</div>` : '<div class="hint">Загруженные скины появятся здесь. Перетащи PNG-файл в окно, чтобы загрузить новый.</div>'}</div>
+    <div class="sec"><div class="lbl"><span>Серверы</span><span class="cnt">пинг, онлайн, автовход</span></div>${st.servers && st.servers.length ? `<div class="kv">${st.servers.map(x => `<div class="srow" data-host="${esc(x.host)}"><b><i class="sd"></i>${esc(x.host)}</b><span class="si">${x.joins} ${plural(x.joins, 'заход', 'захода', 'заходов')} · ${esc(ago(x.last))}</span><span class="ctl"><button class="ibtn sm" data-pw="${esc(x.host)}" title="Скопировать пароль для этого сервера">${I.key}</button><button class="switch ${skip.includes(x.host) ? '' : 'on'}" data-auto="${esc(x.host)}" title="Автовход на этом сервере"></button></span></div>`).join('')}</div>` : '<div class="hint">Здесь появятся серверы, на которые ты заходил.</div>'}</div>
+    <div class="sec"><div class="lbl"><span>Версии игры</span></div>${st.versions && st.versions.length ? `<div class="kv">${st.versions.map(x => row(x.mc, fmtDur(x.secs))).join('')}</div>` : '<div class="hint">Пока нет данных.</div>'}</div>
+    <div class="sec"><div class="lbl"><span>Локальные миры</span></div>${d.worlds && d.worlds.length ? `<div class="kv">${d.worlds.map(x => row(x.name, `${x.mc} · ${ago(x.modified)}`)).join('')}</div>` : '<div class="hint">Миры из одиночной игры покажутся здесь.</div>'}</div>
+  </div><div class="aview" id="aviewer"></div></div>`;
+  mkSeg($('#mseg'), [['auto','Авто'],['classic','Классика'],['slim','Тонкие']], S.skinModel, v => { S.skinModel = v; renderDetails(); });
+  $('#uuidChip').onclick = () => navigator.clipboard.writeText(d.uuid).then(() => toast('UUID скопирован')).catch(() => {});
+  $('#bAct').onclick = async () => { try { S.accts = await invoke('account_select', {id: d.id}); renderRailAcc(); renderAccounts(); toast(`Играешь как ${d.name}`); } catch (x) { toast(x); } };
+  $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
+  if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
+  if ($('#bCape')) $('#bCape').onclick = async () => { const f = await pickPng('Выбери плащ (PNG 64×32)'); if (f) skinAction(() => invoke('cape_apply', {id: d.id, path: f}), 'Плащ загружен'); };
+  if ($('#bCapeOff')) $('#bCapeOff').onclick = () => skinAction(() => invoke('cape_clear', {id: d.id}), 'Плащ убран');
+  if ($('#bCmd')) $('#bCmd').onclick = () => navigator.clipboard.writeText(`/skin url ${d.skin.url}`).then(() => toast('Команда скопирована: вставь её в чат сервера со SkinsRestorer')).catch(() => {});
+  $$('.hthumb', el).forEach(t => t.onclick = e => { if (e.target.closest('[data-del]')) return; if (!t.classList.contains('cur')) skinAction(() => invoke('skin_use', {id: d.id, entry: +t.dataset.id}), 'Скин возвращён'); });
+  $$('[data-del]', el).forEach(b => b.onclick = () => skinAction(() => invoke('skin_remove', {id: d.id, entry: +b.dataset.del}), 'Удалено из истории'));
+  $$('.hthumb canvas', el).forEach(c => drawFront(c, c.dataset.hash, c.dataset.slim === '1'));
+  fillStatus(el);
+  $$('[data-pw]', el).forEach(b => b.onclick = async () => { try { const pw = await invoke('server_password', {accountId: d.id, host: b.dataset.pw}); await navigator.clipboard.writeText(pw); toast('Пароль для ' + b.dataset.pw + ' скопирован'); } catch (x) { toast(x); } });
+  $$('[data-auto]', el).forEach(b => b.onclick = async () => { S.set.auto_skip = await invoke('autoauth_toggle', {host: b.dataset.auto}); b.classList.toggle('on', !S.set.auto_skip.includes(b.dataset.auto)); toast(b.classList.contains('on') ? 'Автовход на ' + b.dataset.auto + ' включён' : 'Автовход на ' + b.dataset.auto + ' выключен'); });
+  const skin = await skinSrc(d.skin && d.skin.hash), cape = d.cape ? await skinSrc(d.cape) : null;
+  if (S.det !== d || !$('#aviewer')) return;
+  skinViewer($('#aviewer'), {skin, model: d.skin ? d.skin.model : 'classic', cape});
+}
+
+/* окно добавления аккаунта */
+function openAddAccount(tab){
+  const box = $('#xbox'); S.xtab = tab;
+  box.innerHTML = `<h3>Новый аккаунт</h3><div class="seg full" id="xseg" style="margin-bottom:18px"></div><div id="xbody"></div>`;
+  mkSeg($('#xseg'), [['local','Локальный'],['noxel','Noxel'],['ms','Microsoft']], tab, t => openAddAccount(t));
+  const b = $('#xbody'), err = m => { let e = $('#xerr'); if (!e) { e = document.createElement('div'); e.id = 'xerr'; e.className = 'err'; b.append(e); } e.textContent = m; };
+  const done = async (msg) => { closeX(); S.det = null; S._dj = ''; await loadAccounts(); S.av = (active() || {}).id; renderAccounts(); toast(msg); };
+  if (tab === 'local') {
+    b.innerHTML = `<div class="field"><label>Никнейм</label><input class="inp" id="xn" maxlength="16" placeholder="Например, Steve_2000" spellcheck="false"></div>
+      <div class="hint">Для одиночной игры и серверов без проверки лицензии. От 3 до 16 символов: латиница, цифры и _. Скин хранится только в лаунчере.</div>
+      <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="xok">Создать</button></div>`;
+    const go1 = async () => { try { S.accts = await invoke('account_add_local', {name: $('#xn').value}); await done('Аккаунт создан'); } catch (e) { err(String(e)); } };
+    $('#xok').onclick = go1; $('#xn').onkeydown = e => { if (e.key === 'Enter') go1(); }; setTimeout(() => $('#xn').focus(), 50);
+  } else if (tab === 'noxel') {
+    b.innerHTML = `<div class="field"><label>Никнейм</label><input class="inp" id="xn" maxlength="16" placeholder="Твой ник" spellcheck="false"></div>
+      <div class="field"><label>Пароль</label><input class="inp" id="xp" type="password" placeholder="Не короче 6 символов"></div>
+      <div class="hint">Аккаунт Noxel хранится на сервере mr1s.site: пароль только в виде хеша. Скины и плащ, время игры и список профилей подтянутся на любом устройстве.</div>
+      <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn" id="xin">Войти</button><button class="minibtn solid" id="xreg">Создать аккаунт</button></div>`;
+    const auth = async reg => { try { $('#xin').disabled = $('#xreg').disabled = true; S.accts = await invoke('noxel_auth', {name: $('#xn').value, password: $('#xp').value, register: reg}); await done(reg ? 'Аккаунт Noxel создан' : 'Вход выполнен'); } catch (e) { err(String(e)); $('#xin').disabled = $('#xreg').disabled = false; } };
+    $('#xin').onclick = () => auth(false); $('#xreg').onclick = () => auth(true); $('#xp').onkeydown = e => { if (e.key === 'Enter') auth(false); }; setTimeout(() => $('#xn').focus(), 50);
+  } else {
+    b.innerHTML = S.ms ? `<div class="hint">Открой страницу входа и введи этот код:</div><div class="code" style="margin:12px 0">${esc(S.ms.user_code)}</div>
+        <div class="wait"><i class="spinner"></i>Жду подтверждения входа…</div>
+        <div class="btns"><button class="minibtn" id="msCopy">${I.copy} Код</button><button class="minibtn" id="msOpen">${I.ext} Страница входа</button><button class="minibtn" id="msCancel">Отмена</button></div>`
+      : `<div class="hint">Нужна купленная Minecraft: Java Edition. Вход идёт по коду на сайте Microsoft, пароль в лаунчер не вводится. Требуется Client ID приложения Azure: он задаётся в настройках, раздел «Лицензия Microsoft».</div>
+        <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="xms">${I.win} Войти через Microsoft</button></div>`;
+    if (S.ms) { $('#msOpen').onclick = () => invoke('open_url', {url: S.ms.verification_uri}).catch(toast); $('#msCopy').onclick = () => navigator.clipboard.writeText(S.ms.user_code).then(() => toast('Код скопирован')).catch(() => {}); $('#msCancel').onclick = () => invoke('ms_login_cancel'); }
+    else $('#xms').onclick = () => msLogin(done, err);
+  }
+  if ($('#xc')) $('#xc').onclick = closeX;
+  $('#xmodal').classList.add('on');
+}
+async function msLogin(done, err){
+  try {
+    const r = await invoke('ms_login_start'); S.ms = r; openAddAccount('ms'); invoke('open_url', {url: r.verification_uri}).catch(() => {});
+    S.accts = await invoke('ms_login_wait', {deviceCode: r.device_code, interval: r.interval || 5, expiresIn: r.expires_in || 900});
+    S.ms = null; await done('Аккаунт Microsoft добавлен');
+  } catch (e) {
+    S.ms = null; if (String(e) === 'Отменено') { openAddAccount('ms'); return; }
+    openAddAccount('ms'); const st = String(e).includes('Client ID');
+    const el = document.createElement('div'); el.className = 'err'; el.textContent = String(e); $('#xbody').append(el);
+    if (st) { const bt = document.createElement('button'); bt.className = 'minibtn solid'; bt.style.marginTop = '10px'; bt.textContent = 'Открыть настройки'; bt.onclick = () => { closeX(); go('settings'); }; $('#xbody').append(bt); }
+  }
+}
+
+/* ── моды ── */
+function initMods(){
+  if (!S.m.profile || !prof(S.m.profile)) S.m.profile = S.sel && prof(S.sel) ? S.sel : (S.profiles[0] && S.profiles[0].id) || null;
+  renderModsHead(); refreshMods();
+}
+function renderModsHead(){
+  const el = $('#mods'); const m = S.m; const p = prof(m.profile);
+  if (!S.profiles.length) { el.innerHTML = `<div class="empty"><div><h3>Сначала нужен профиль</h3><p>Моды ставятся в папку конкретного профиля. Создай профиль с Fabric, Quilt, Forge или NeoForge.</p><button class="minibtn solid" id="mAdd">${I.plus} Добавить версию</button></div></div>`; $('#mAdd').onclick = () => go('versions'); return; }
+  const cat = m.tab === 'catalog';
+  const noLoader = m.kind === 'mod' && p && NOMODS.includes(p.loader);
+  el.innerHTML = `<div id="drop"><div>${I.up}Отпусти, чтобы добавить в профиль<small>${m.kind === 'mod' ? 'файлы .jar' : 'файлы .zip'} · «${esc(pname(p))}»</small></div></div><div class="mhead">
+    <div class="mrow"><div class="ltitle" style="margin-right:6px"><h2>${KINDS.find(k => k[0] === m.kind)[1]}</h2></div><div id="mprof" style="min-width:230px"></div><div class="grow"></div><div class="seg" id="mtab"></div></div>
+    <div class="mrow">${m.tab === 'servers' ? '' : '<div class="seg" id="mkind"></div>'}${cat ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="mq" placeholder="Искать: ${({all:'Modrinth и CurseForge', modrinth:'Modrinth', curseforge:'CurseForge'})[m.src]}…" value="${esc(m.q)}" spellcheck="false"></div><div id="msort"></div>` : '<div class="grow"></div>'}
+      ${cat ? '<div class="seg" id="msrc"></div>' : ''}
+      ${cat && m.src !== 'curseforge' && m.kind === 'mod' ? '<div class="seg" id="mclient" title="Клиентские моды работают на любом сервере: подсветка, миникарта, оптимизация, интерфейс"></div>' : ''}
+      ${m.tab === 'installed' && m.kind === 'mod' && !noLoader ? `<button class="minibtn" id="mupd">${I.dl} Обновления</button>` : ''}
+      <button class="minibtn" id="madd" ${noLoader ? 'disabled' : ''}>${I.up} Свой файл</button>
+      <button class="minibtn" id="mdir">${I.folder} Папка</button></div></div>
+    <div class="mbody" id="mbody"></div><aside class="drawer glass" id="drawer"></aside>`;
+  const reset = () => { m.hits = []; m.offset = 0; m.err = null; };
+  mkDd($('#mprof'), S.profiles.map(x => [x.id, x.name, sub(x)]), m.profile, id => { m.profile = id; reset(); m.upd = null; renderModsHead(); refreshMods(); }, {});
+  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
+  if ($('#mkind')) mkSeg($('#mkind'), KINDS, m.kind, k => { m.kind = k; reset(); m.upd = null; renderModsHead(); refreshMods(); });
+  if (cat) {
+    mkDd($('#msort'), SORTS, m.sort, s => { m.sort = s; reset(); renderModsHead(); searchMods(); }, {});
+    let t; $('#mq').oninput = e => { m.q = e.target.value; clearTimeout(t); t = setTimeout(() => { reset(); searchMods(); }, 380); };
+  }
+  if ($('#mclient')) mkSeg($('#mclient'), [['all','Все моды'],['client','Клиентские']], m.client, v => { m.client = v; reset(); renderModsHead(); searchMods(); });
+  if ($('#msrc')) mkSeg($('#msrc'), [['all','Все источники'],['modrinth','Modrinth'],['curseforge','CurseForge']], m.src, v => { m.src = v; reset(); renderModsHead(); searchMods(); });
+  if ($('#mupd')) $('#mupd').onclick = checkUpdates;
+  $('#mdir').onclick = () => invoke('open_folder', {profileId: m.profile, sub: m.kind}).catch(toast);
+  $('#madd').onclick = pickOwn;
+}
+async function pickOwn(){
+  const m = S.m;
+  try {
+    const r = await T.dialog.open({multiple: true, title: m.kind === 'mod' ? 'Выбери моды (.jar)' : 'Выбери файлы (.zip)', filters: [{name: m.kind === 'mod' ? 'Моды' : 'Архивы', extensions: [m.kind === 'mod' ? 'jar' : 'zip']}]});
+    if (!r) return; await addOwn(Array.isArray(r) ? r : [r]);
+  } catch (e) { toast(e); }
+}
+async function addOwn(paths){
+  const m = S.m; if (!m.profile) return;
+  if (m.kind === 'mod' && NOMODS.includes((prof(m.profile) || {}).loader)) return toast('У этого профиля нет загрузчика модов');
+  try { const r = await invoke('mods_add', {profileId: m.profile, kind: m.kind, paths}); toast(`Добавлено: ${r.length} ${plural(r.length, 'файл','файла','файлов')}`); await loadProfiles(); await refreshMods(); }
+  catch (e) { modal('Не удалось добавить', String(e)); }
+}
+async function refreshMods(){
+  const m = S.m; if (!m.profile) return;
+  try { m.installed = await invoke('mods_list', {profileId: m.profile, kind: m.kind}); } catch (e) { m.installed = []; }
+  if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
+}
+const PROV = {modrinth:'Modrinth', curseforge:'CurseForge', local:'Свой файл'};
+function elsewhereText(list){
+  const o = (list || []).filter(x => x.profile !== S.m.profile); if (!o.length) return '';
+  const f = o[0]; return `Скачано на ${f.mc} ${LNAME[f.loader] || f.loader}${f.version ? ' · ' + f.version : ''}${o.length > 1 ? ` и ещё ${o.length - 1}` : ''}`;
+}
+async function checkUpdates(){
+  const m = S.m, b = $('#mupd'); if (b) { b.disabled = true; b.textContent = 'Проверяю…'; }
+  try { m.upd = await invoke('mods_check_updates', {profileId: m.profile}); toast(m.upd.length ? `Доступно обновлений: ${m.upd.length}` : 'Все моды актуальны'); }
+  catch (e) { modal('Не удалось проверить', String(e)); }
+  renderModsHead(); renderInstalled();
+}
+async function doUpdate(ids){
+  const m = S.m;
+  try { const r = await invoke('mods_update', {profileId: m.profile, projectIds: ids}); toast(`Обновлено: ${r.length}`); m.upd = (m.upd || []).filter(u => !ids.includes(u.project_id)); await loadProfiles(); await refreshMods(); }
+  catch (e) { modal('Не удалось обновить', String(e)); }
+}
+function renderInstalled(){
+  const m = S.m; const el = $('#mbody'); if (!el) return; const p = prof(m.profile);
+  if (m.kind === 'mod' && p && NOMODS.includes(p.loader)) { el.innerHTML = `<div class="empty"><div><h3>У этого профиля нет модов</h3><p>${p.loader === 'optifine' ? 'OptiFine работает отдельно от загрузчиков модов.' : 'Ванильная версия не загружает моды.'} Создай профиль с Fabric, Quilt, Forge или NeoForge, и у него появится своя папка с модами.</p><button class="minibtn solid" id="goV">${I.plus} Добавить версию</button></div></div>`; $('#goV').onclick = () => go('versions'); return; }
+  if (!m.installed.length) { el.innerHTML = `<div class="empty"><div><h3>Здесь пока пусто</h3><p>Найди ${m.kind === 'mod' ? 'моды' : m.kind === 'shader' ? 'шейдеры' : 'ресурспаки'} на Modrinth или CurseForge, либо перетащи свои файлы прямо в это окно: они лягут в папку профиля «${esc(pname(p))}».</p><button class="minibtn solid" id="goM">Открыть каталог</button></div></div>`; $('#goM').onclick = () => { m.tab = 'catalog'; renderModsHead(); refreshMods(); }; return; }
+  const upd = m.upd || [], updBy = Object.fromEntries(upd.map(u => [u.file, u]));
+  el.innerHTML = (upd.length ? `<div class="updbar"><span>Доступно обновлений: <b>${upd.length}</b></span><button class="minibtn solid sm" id="updAll">Обновить всё</button></div>` : '') +
+    `<div class="mgrid">${m.installed.map((x, i) => `<div class="card ${x.enabled ? '' : 'off'}" data-pid="${esc(x.project_id || '')}" data-prov="${esc(x.provider || '')}" style="--i:${Math.min(i, 16)}">
+    ${x.icon ? `<img class="ico" src="${esc(x.icon)}" loading="lazy">` : `<div class="ico">${esc(letter(x.title || x.name))}</div>`}
+    <div class="meta"><b>${esc(x.title || x.name)}</b><small style="-webkit-line-clamp:1">${esc(x.name)} · ${fmtSize(x.size)}${x.provider ? ' · ' + (PROV[x.provider] || x.provider) : ''}${x.version ? ' · ' + esc(x.version) : ''}</small>${updBy[x.name] ? `<span class="elsewhere" style="background:#fff;color:#050506">Обновление: ${esc(updBy[x.name].new)}</span>` : ''}</div>
+    ${updBy[x.name] ? `<button class="minibtn sm solid" data-up="${esc(x.project_id)}">Обновить</button>` : ''}
+    <button class="switch ${x.enabled ? 'on' : ''}" data-f="${esc(x.file)}" data-a="t" title="${x.enabled ? 'Выключить' : 'Включить'}"></button>
+    <button class="ibtn sm" data-f="${esc(x.file)}" data-a="d" title="Удалить">${I.trash}</button></div>`).join('')}</div>
+    <div class="more"><span class="cnt">${m.installed.length} ${plural(m.installed.length, 'файл','файла','файлов')} в папке профиля «${esc(pname(p))}»</span></div>`;
+  if ($('#updAll')) $('#updAll').onclick = () => doUpdate(upd.map(u => u.project_id));
+  $$('[data-up]', el).forEach(b => b.onclick = e => { e.stopPropagation(); doUpdate([b.dataset.up]); });
+  $$('.card', el).forEach(c => c.onclick = e => { if (e.target.closest('button')) return; if (c.dataset.pid && (c.dataset.prov === 'modrinth' || c.dataset.prov === 'curseforge')) openDrawer([{provider: c.dataset.prov, id: c.dataset.pid}]); else toast('Для своего файла описания нет'); });
+  $$('[data-a]', el).forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    try {
+      if (b.dataset.a === 't') await invoke('mods_toggle', {profileId: m.profile, kind: m.kind, file: b.dataset.f});
+      else { const ok = await modal('Удалить файл?', b.dataset.f, [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; await invoke('mods_remove', {profileId: m.profile, kind: m.kind, file: b.dataset.f}); }
+      await loadProfiles(); await refreshMods();
+    } catch (x) { toast(x); }
+  });
+}
+async function searchMods(more){
+  const m = S.m; if (m.loading) return; m.loading = true; m.err = null;
+  const el = $('#mbody'); if (el && !more) el.innerHTML = '<div class="mgrid">' + '<div class="sk"></div>'.repeat(8) + '</div>';
+  const snap = [m.profile, m.src, m.kind, m.client];
+  try {
+    const r = await invoke('mods_search', {provider: m.src, kind: m.kind, query: m.q, profileId: m.profile, sort: m.sort, offset: m.offset, clientOnly: m.client === 'client' && m.src !== 'curseforge'});
+    if (snap[0] !== m.profile || snap[1] !== m.src || snap[2] !== m.kind || snap[3] !== m.client) { m.loading = false; return searchMods(); }
+    m.hits = more ? m.hits.concat(r.hits) : r.hits; m.total = r.total || 0; m.offset = m.hits.length; m.warn = r.warn || [];
+  } catch (e) { m.err = String(e); }
+  m.loading = false; renderCatalog();
+}
+const srcName = p => p === 'modrinth' ? 'Modrinth' : 'CurseForge';
+function renderCatalog(){
+  const m = S.m; const el = $('#mbody'); if (!el || m.tab !== 'catalog') return;
+  if (m.err) { el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(m.err)}</p></div></div>`; return; }
+  if (!m.hits.length) { el.innerHTML = (m.warn.length ? `<div class="updbar"><span>${esc(m.warn.join(' · '))}</span></div>` : '') + '<div class="empty"><div><h3>Ничего не найдено</h3><p>Для этой версии и загрузчика совпадений нет. Попробуй другой запрос.</p></div></div>'; return; }
+  const have = new Set(m.installed.map(x => x.project_id).filter(Boolean));
+  const isHave = h => (h.sources || [{id: h.id}]).some(s => have.has(s.id));
+  const top = el.scrollTop;
+  el.innerHTML = (m.warn.length ? `<div class="updbar"><span>${esc(m.warn.join(' · '))}. Показаны результаты остальных источников.</span></div>` : '') + `<div class="mgrid">${m.hits.map((h, i) => {
+    const srcs = (h.sources || [{provider: h.provider, id: h.id}]); const busy = srcs.some(s => m.busy.has(s.provider + s.id));
+    return `<div class="card" data-i="${i}" style="--i:${Math.min(i, 16)}">
+    ${h.icon ? `<img class="ico" src="${esc(h.icon)}" loading="lazy">` : `<div class="ico">${esc(letter(h.title))}</div>`}
+    <div class="meta"><b>${esc(h.title)}</b><small>${esc(h.desc)}</small><span class="by">${esc(h.author)} · ${fmtNum(h.downloads)} скачиваний · ${esc(srcs.map(s => srcName(s.provider)).join(' + '))}</span>${elsewhereText(h.installed_in) ? `<span class="elsewhere">${esc(elsewhereText(h.installed_in))}</span>` : ''}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none">
+      ${isHave(h) ? `<span class="badge w">${I.check}Установлено</span>` : `<button class="minibtn solid sm" data-inst="${i}">${busy ? 'Ставлю…' : 'Установить'}</button>`}
+      ${(srcs[0].url || h.url) ? `<button class="ibtn sm" data-u="${esc(srcs[0].url || h.url)}" title="Открыть на сайте">${I.ext}</button>` : ''}</div></div>`; }).join('')}</div>
+    ${m.hits.length < m.total ? `<div class="more"><button class="minibtn" id="moreBtn">Показать ещё</button></div>` : ''}`;
+  el.scrollTop = top;
+  $$('[data-inst]', el).forEach(b => b.onclick = e => { e.stopPropagation(); const h = m.hits[+b.dataset.inst], s0 = (h.sources || [{provider: h.provider, id: h.id}])[0]; doInstall(s0.provider, s0.id, null); });
+  $$('[data-u]', el).forEach(b => b.onclick = e => { e.stopPropagation(); invoke('open_url', {url: b.dataset.u}).catch(toast); });
+  $$('.card', el).forEach(c => c.onclick = () => { const h = m.hits[+c.dataset.i]; openDrawer(h.sources || [{provider: h.provider, id: h.id}]); });
+  const mb = $('#moreBtn'); if (mb) mb.onclick = () => searchMods(true);
+}
+async function doInstall(provider, id, vid){
+  const m = S.m, key = provider + id; if (m.busy.has(key)) return; m.busy.add(key); renderCatalog();
+  try {
+    const r = await invoke('mods_install', {provider, kind: m.kind, projectId: id, profileId: m.profile, version: vid || null});
+    toast(r.length > 1 ? `Установлено: ${r[0]} и ещё ${r.length - 1} ${plural(r.length - 1, 'зависимость','зависимости','зависимостей')}` : `Установлено: ${r[0]}`);
+    await loadProfiles();
+  } catch (e) { modal('Не удалось установить', String(e)); }
+  m.busy.delete(key);
+  try { m.installed = await invoke('mods_list', {profileId: m.profile, kind: m.kind}); } catch (e) {}
+  const pr = prof(m.profile);
+  m.hits.forEach(h => { if ((h.sources || []).some(s => s.id === id)) h.installed_in = (h.installed_in || []).filter(x => x.profile !== m.profile).concat([{profile: m.profile, name: pr.name, mc: pr.mc, loader: pr.loader, version: ''}]); });
+  if (m.tab === 'catalog') renderCatalog(); else if (m.tab === 'installed') renderInstalled();
+  if (S.drawerSrc && $('#drawer') && $('#drawer').classList.contains('on')) openDrawer(S.drawerSrc, true);
+}
+
+/* описание мода прямо в лаунчере */
+function md(src){
+  let t = String(src || '');
+  t = t.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi, '\n![]($1)\n').replace(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|h\d|li|tr)>/gi, '\n').replace(/<h(\d)[^>]*>/gi, (m, n) => '\n' + '#'.repeat(+n) + ' ').replace(/<li[^>]*>/gi, '\n- ').replace(/<\/?[a-z][^>]*>/gi, '');
+  const blocks = [];
+  t = t.replace(/```[^\n]*\n([\s\S]*?)```/g, (m, c) => { blocks.push(c); return `\n@@B${blocks.length - 1}@@\n`; });
+  const inl = x => x.replace(/!\[([^\]]*)\]\((https?:[^)\s]+)[^)]*\)/g, '<img src="$2" alt="$1" loading="lazy">').replace(/\[([^\]]+)\]\((https?:[^)\s]+)[^)]*\)/g, '<a data-u="$2">$1</a>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<i>$2</i>');
+  const out = []; let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of esc(t).split('\n')) {
+    const line = raw.trim(); let m;
+    if (!line) { close(); continue; }
+    if ((m = line.match(/^@@B(\d+)@@$/))) { close(); out.push(`<pre>${esc(blocks[+m[1]])}</pre>`); continue; }
+    if ((m = line.match(/^(#{1,4})\s+(.*)$/))) { close(); out.push(`<h${m[1].length}>${inl(m[2])}</h${m[1].length}>`); continue; }
+    if ((m = line.match(/^[-*+]\s+(.*)$/))) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inl(m[1])}</li>`); continue; }
+    if ((m = line.match(/^\d+[.)]\s+(.*)$/))) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inl(m[1])}</li>`); continue; }
+    close(); out.push(`<p>${inl(line)}</p>`);
+  }
+  close(); return out.join('');
+}
+async function openDrawer(sources, quiet){
+  const dr = $('#drawer'); if (!dr) return; S.drawerSrc = sources; dr.classList.add('on');
+  if (!quiet) dr.innerHTML = '<div class="dh"><div class="sk" style="height:56px;flex:1;margin:0"></div></div><div class="dbody"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>';
+  try { const d = await invoke('mod_details_all', {kind: S.m.kind, sources, profileId: S.m.profile}); if (S.drawerSrc !== sources) return; renderDrawer(d); }
+  catch (e) { dr.innerHTML = `<div class="dh"><div class="meta"><b>Не получилось открыть</b></div><button class="ibtn" id="dClose">${I.x}</button></div><div class="dbody"><p class="hint">${esc(e)}</p></div>`; $('#dClose').onclick = () => dr.classList.remove('on'); }
+}
+function renderDrawer(d){
+  const dr = $('#drawer'), p = prof(S.m.profile), inst = d.installed_in || [], here = inst.find(x => x.profile === S.m.profile);
+  const side = v => ({required:'обязателен', optional:'необязателен', unsupported:'не нужен'})[v] || v;
+  const chan = {release:'Релиз', beta:'Бета', alpha:'Альфа'}, vs = d.versions || [];
+  const rec = vs.find(v => v.type === 'release') || vs[0], newest = vs[0], srcId = pr => ((d.sources || []).find(s => s.provider === pr) || {}).id;
+  const both = (d.sources || []).length > 1;
+  dr.innerHTML = `<div class="dh">${d.icon ? `<img class="ico" src="${esc(d.icon)}">` : `<div class="ico">${esc(letter(d.title))}</div>`}
+      <div class="meta"><b>${esc(d.title)}</b><small>${esc(d.author || '')}${d.author ? ' · ' : ''}${fmtNum(d.downloads)} скачиваний${d.followers ? ' · ' + fmtNum(d.followers) + ' подписчиков' : ''}</small></div>
+      ${here ? `<span class="badge w">${I.check}Установлено</span>` : rec ? `<button class="minibtn solid" id="dInst">Установить</button>` : ''}
+      <button class="ibtn" id="dClose" title="Закрыть">${I.x}</button></div>
+    <div class="dbody">
+      <div class="chips">${(d.sources || []).map(s => `<span class="chip">${srcName(s.provider)}</span>`).join('')}${(d.categories || []).slice(0, 7).map(c => `<span class="chip">${esc(c)}</span>`).join('')}${d.client_side ? `<span class="chip">Клиент: ${esc(side(d.client_side))}</span>` : ''}${d.server_side ? `<span class="chip">Сервер: ${esc(side(d.server_side))}</span>` : ''}${d.license ? `<span class="chip">${esc(d.license)}</span>` : ''}</div>
+      ${(d.warn || []).length ? `<div class="updbar"><span>${esc(d.warn.join(' · '))}</span></div>` : ''}
+      <div class="hint" style="font-size:13px;color:var(--fg2)">${esc(d.desc || '')}</div>
+      ${vs.length ? `<div class="sec"><div class="lbl"><span>Версии для ${esc(p ? p.mc + ' ' + (LNAME[p.loader] || '') : '')}${both ? ' · с двух сайтов' : ''}</span></div>
+        ${newest && rec && newest !== rec ? `<div class="hint warn">Есть более новая ${esc(chan[newest.type] || newest.type).toLowerCase()} на ${srcName(newest.provider)}: ${esc(newest.name || newest.number)}. Рекомендуем последний релиз.</div>` : ''}
+        <div class="kv">${vs.map((v, i) => `<div class="vrow ${v === rec ? 'rec' : ''}"><span class="vn">${esc(v.name || v.number)}<span class="tag">${esc(chan[v.type] || v.type)}</span><span class="tag">${srcName(v.provider)}</span></span><span class="vd2">${v.date ? new Date(v.date).toLocaleDateString('ru-RU') : ''}</span><button class="minibtn sm ${v === rec ? 'solid' : ''}" data-v="${i}">Установить</button></div>`).join('')}</div></div>`
+        : '<div class="hint">Для этой версии игры и загрузчика файлов нет ни на одном из сайтов.</div>'}
+      ${inst.length ? `<div class="sec"><div class="lbl"><span>Уже скачано</span></div><div class="kv">${inst.map(x => `<div class="kvr"><b>${esc(x.name)}${x.profile === S.m.profile ? ' · этот профиль' : ''}</b><span>${esc(x.mc)} ${esc(LNAME[x.loader] || x.loader)}${x.version ? ' · ' + esc(x.version) : ''}</span></div>`).join('')}</div></div>` : ''}
+      ${(d.gallery || []).length ? `<div class="gal">${d.gallery.map(g => `<img src="${esc(g.url)}" alt="" loading="lazy">`).join('')}</div>` : ''}
+      <div class="md" id="dMd"></div>
+      <div class="mrow">${(d.sources || []).map(s => s.url ? `<button class="minibtn" data-l="${esc(s.url)}">${I.ext} ${srcName(s.provider)}</button>` : '').join('')}${d.links && d.links.source ? `<button class="minibtn" data-l="${esc(d.links.source)}">Исходный код</button>` : ''}${d.links && d.links.issues ? `<button class="minibtn" data-l="${esc(d.links.issues)}">Баги</button>` : ''}${d.links && d.links.wiki ? `<button class="minibtn" data-l="${esc(d.links.wiki)}">Вики</button>` : ''}${d.links && d.links.discord ? `<button class="minibtn" data-l="${esc(d.links.discord)}">Discord</button>` : ''}</div>
+    </div>`;
+  const body = $('#dMd'); if (d.body_kind === 'md') body.innerHTML = md(d.body); else body.innerHTML = (d.body || '').split('\n').filter(x => x.trim()).map(x => `<p>${esc(x)}</p>`).join('');
+  $$('a[data-u]', body).forEach(a => a.onclick = () => invoke('open_url', {url: a.dataset.u}).catch(toast));
+  $$('[data-l]', dr).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.l}).catch(toast));
+  $('#dClose').onclick = () => dr.classList.remove('on');
+  const inst1 = v => { const id = srcId(v.provider); if (id) doInstall(v.provider, id, v.vid); };
+  if ($('#dInst')) $('#dInst').onclick = () => { $('#dInst').disabled = true; $('#dInst').textContent = 'Ставлю…'; inst1(rec); };
+  $$('[data-v]', dr).forEach(b => b.onclick = () => { b.disabled = true; b.textContent = 'Ставлю…'; inst1(vs[+b.dataset.v]); });
+}
+
+/* рекомендуемые моды для серверов: список лежит на сервере Noxel */
+async function renderServers(force){
+  const el = $('#mbody'); if (!el) return;
+  if (!S.srv || force) {
+    el.innerHTML = '<div class="srvgrid">' + '<div class="sk" style="height:200px"></div>'.repeat(4) + '</div>';
+    try { S.srv = await invoke('servers_list'); } catch (e) { el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(e)}</p><button class="minibtn" id="srvRetry">Повторить</button></div></div>`; $('#srvRetry').onclick = () => renderServers(true); return; }
+  }
+  const admin = !!(S.set && S.set.admin_token), list = S.srv.servers || [], p = prof(S.m.profile), can = p && !NOMODS.includes(p.loader);
+  el.innerHTML = `<div class="updbar"><span>Рекомендуемые моды для серверов. Список хранится на сервере Noxel и обновляется без переустановки лаунчера.</span><span style="display:flex;gap:8px"><button class="minibtn sm" id="srvRef">Обновить</button>${admin ? `<button class="minibtn solid sm" id="srvAdd">${I.plus} Добавить сервер</button>` : ''}</span></div>
+    ${list.length ? `<div class="srvgrid">${list.map((s, i) => `<div class="scard" style="--i:${i}">
+      <div class="top" ${s.host ? `data-host="${esc(s.host)}"` : ''}><div class="avatar">${esc(letter(s.name))}</div><div class="meta"><b>${esc(s.name)}</b><small>${esc(s.host || 'любой сервер')}</small></div>${s.official ? '<span class="badge w">ОФИЦИАЛЬНО</span>' : ''}${s.host ? '<span class="pls"></span>' : ''}</div>
+      <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(s.desc)}</div>
+      ${(s.tags || []).length ? `<div class="chips">${s.tags.map(t => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : ''}
+      <div class="chips">${(s.mods || []).map(x => `<span class="chip">${x.required ? '★ ' : ''}${esc(x.name || x.id)} · ${srcName(x.provider)}</span>`).join('') || '<span class="hint">Моды не нужны</span>'}</div>
+      <div class="mrow">${(s.mods || []).length ? `<button class="minibtn solid sm" data-si="${i}" ${can ? '' : 'disabled'} title="${can ? '' : 'Выбери профиль с Fabric, Quilt, Forge или NeoForge'}">${I.dl} Поставить в «${esc(p ? p.name : 'профиль')}»</button>` : ''}
+        ${s.host ? `<button class="minibtn sm" data-sc="${i}">Адрес</button>` : ''}${s.link ? `<button class="minibtn sm" data-sl="${esc(s.link)}">${I.ext} Сайт</button>` : ''}
+        ${admin ? `<button class="ibtn sm" data-se="${i}" title="Изменить">${I.gear}</button><button class="ibtn sm" data-sd="${i}" title="Удалить">${I.trash}</button>` : ''}</div></div>`).join('')}</div>` : '<div class="empty"><div><h3>Список пока пуст</h3><p>Администратор ещё не добавил рекомендации.</p></div></div>'}`;
+  fillStatus(el);
+  $('#srvRef').onclick = () => { for (const k in ping) delete ping[k]; renderServers(true); };
+  if ($('#srvAdd')) $('#srvAdd').onclick = () => editServer(-1);
+  $$('[data-si]', el).forEach(b => b.onclick = async () => {
+    const s = list[+b.dataset.si]; b.disabled = true; b.textContent = 'Ставлю…';
+    try { const r = await invoke('servers_install', {profileId: S.m.profile, serverId: s.id}); toast(r.installed.length ? `Установлено модов: ${r.installed.length}` : 'Всё нужное уже стоит'); if (r.skipped.length) modal('Часть модов не поставилась', 'Для этой версии игры нет подходящих файлов:\n\n' + r.skipped.join('\n')); await loadProfiles(); }
+    catch (e) { modal('Не удалось установить', String(e)); }
+    renderServers();
+  });
+  $$('[data-sc]', el).forEach(b => b.onclick = () => navigator.clipboard.writeText(list[+b.dataset.sc].host).then(() => toast('Адрес скопирован')).catch(() => {}));
+  $$('[data-sl]', el).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.sl}).catch(toast));
+  $$('[data-se]', el).forEach(b => b.onclick = () => editServer(+b.dataset.se));
+  $$('[data-sd]', el).forEach(b => b.onclick = async () => { const s = list[+b.dataset.sd]; const ok = await modal(`Удалить «${s.name}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; saveServers(list.filter((_, i) => i !== +b.dataset.sd)); });
+}
+async function saveServers(list){
+  try { await invoke('servers_save', {list: {servers: list}}); toast('Список сохранён на сервере'); S.srv = null; renderServers(true); }
+  catch (e) { modal('Не удалось сохранить', String(e)); }
+}
+function editServer(idx){
+  const list = (S.srv && S.srv.servers) || [], s = idx >= 0 ? list[idx] : {name:'', host:'', desc:'', tags:[], link:'', official:false, mods:[]};
+  const box = $('#xbox'); let off = !!s.official;
+  box.innerHTML = `<h3>${idx >= 0 ? 'Изменить сервер' : 'Новый сервер'}</h3>
+    <div class="two"><div class="field"><label>Название</label><input class="inp" id="eN" value="${esc(s.name)}"></div><div class="field"><label>Адрес</label><input class="inp" id="eH" value="${esc(s.host)}" placeholder="play.example.com"></div></div>
+    <div class="field"><label>Описание</label><input class="inp" id="eD" value="${esc(s.desc)}"></div>
+    <div class="two"><div class="field"><label>Теги через запятую</label><input class="inp" id="eT" value="${esc((s.tags || []).join(', '))}"></div><div class="field"><label>Сайт</label><input class="inp" id="eL" value="${esc(s.link || '')}" placeholder="https://"></div></div>
+    <div class="field"><label>Моды: по одному в строке</label><textarea class="inp" id="eM" spellcheck="false" placeholder="modrinth:sodium Sodium&#10;*modrinth:fabric-api Fabric API&#10;curseforge:238222 Just Enough Items"></textarea></div>
+    <div class="hint">Формат: <code>источник:slug или id</code> и название. Звёздочка в начале: мод обязателен.</div>
+    <div class="opt" style="margin-top:12px"><div class="t"><b>Официальный список сервера</b><small>Отметь, только если сервер сам рекомендует эти моды</small></div><button class="switch ${off ? 'on' : ''}" id="eO"></button></div>
+    <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="eS">Сохранить</button></div>`;
+  $('#eM').value = (s.mods || []).map(m => `${m.required ? '*' : ''}${m.provider}:${m.id} ${m.name || ''}`.trim()).join('\n');
+  $('#eO').onclick = () => { off = !off; $('#eO').classList.toggle('on', off); };
+  $('#xc').onclick = closeX;
+  $('#eS').onclick = () => {
+    const mods = $('#eM').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const req = l.startsWith('*'); const [src, ...nm] = l.replace(/^\*/, '').split(/\s+/); const [provider, id] = src.split(':'); return {provider, id, name: nm.join(' ') || id, required: req}; }).filter(m => (m.provider === 'modrinth' || m.provider === 'curseforge') && m.id);
+    const ent = {...s, name: $('#eN').value.trim(), host: $('#eH').value.trim(), desc: $('#eD').value.trim(), tags: $('#eT').value.split(',').map(x => x.trim()).filter(Boolean), link: $('#eL').value.trim(), official: off, mods};
+    if (!ent.name) return toast('Нужно название');
+    const next = [...list]; if (idx >= 0) next[idx] = ent; else next.push(ent); closeX(); saveServers(next);
+  };
+  $('#xmodal').classList.add('on');
+}
+
+/* обновление лаунчера с сервера */
+async function checkLauncher(silent){
+  try { const r = await invoke('launcher_check'); S.lupd = r; if (r.newer) openUpdate(r); else if (!silent) toast(`У тебя последняя версия: ${r.current}`); }
+  catch (e) { if (!silent) toast(e); }
+}
+function openUpdate(r){
+  const box = $('#xbox'), notes = [].concat(r.notes || []).filter(Boolean);
+  box.innerHTML = `<h3>Доступно обновление Noxel ${esc(r.latest)}</h3><div class="hint" style="margin-bottom:12px">Сейчас у тебя ${esc(r.current)}. Скачается ${r.size ? fmtSize(r.size) : 'новая версия'}, подпись автора проверится автоматически. Профили, аккаунты и моды не затрагиваются.</div>
+    ${notes.length ? `<div class="kv">${notes.map(n => `<div class="kvr"><b style="white-space:normal">${esc(n)}</b></div>`).join('')}</div>` : ''}
+    <div class="btns"><button class="minibtn" id="uLater">Позже</button><button class="minibtn solid" id="uGo">Обновить сейчас</button></div>`;
+  $('#uLater').onclick = closeX;
+  $('#uGo').onclick = async () => {
+    $('#uGo').disabled = true; $('#uGo').textContent = 'Скачиваю…';
+    try { const v = await invoke('launcher_update'); box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Чтобы изменения заработали, перезапусти лаунчер.</div><div class="btns"><button class="minibtn" id="uLater2">Позже</button><button class="minibtn solid" id="uRe">Перезапустить</button></div>`; $('#uLater2').onclick = closeX; $('#uRe').onclick = () => invoke('launcher_restart').catch(toast); }
+    catch (e) { closeX(); modal('Не удалось обновить', String(e)); }
+  };
+  $('#xmodal').classList.add('on');
+}
+async function showNews(){
+  try {
+    const r = await invoke('launcher_check'), news = [].concat(r.news || []);
+    $('#xbox').innerHTML = `<h3>Новости Noxel</h3>${news.length ? `<div class="kv">${news.map(n => `<div class="kvr" style="flex-direction:column;gap:4px"><b style="white-space:normal">${esc(n.title || '')}</b><span style="white-space:normal">${esc(n.text || '')}${n.date ? ' · ' + esc(n.date) : ''}</span></div>`).join('')}</div>` : '<div class="hint">Пока новостей нет.</div>'}<div class="btns"><button class="minibtn" id="xc">Закрыть</button></div>`;
+    $('#xc').onclick = closeX; $('#xmodal').classList.add('on');
+  } catch (e) { toast(e); }
+}
+
+/* разбор вылетов: ищем в логе, чего не хватает, и предлагаем найти нужный мод */
+function analyzeCrash(t){
+  const out = [], seen = new Set(); let m;
+  const add = (kind, key, o) => { if (seen.has(kind + key)) return; seen.add(kind + key); out.push({kind, key, ...o}); };
+  const reInst = /(?:^|\n)\s*-\s*Install ([A-Za-z0-9_.\-]+)/g;
+  while ((m = reInst.exec(t))) add('missing', m[1], {title: `Нужен мод «${m[1]}»`, text: 'Загрузчик подсказывает, что этот мод нужно установить.', q: m[1]});
+  const reReq = /Mod '([^']+)' \(([^)]+)\)[^\n]*?requires[^\n]*?mod '([^']+)' \(([^)]+)\)/g;
+  while ((m = reReq.exec(t))) add('missing', m[4], {title: `Моду «${m[1]}» нужен «${m[3]}»`, text: 'Без этого мода игра не запустится. Установи его или убери «' + m[1] + '».', q: m[3]});
+  const reRep = /(?:Replace|Update) mod '([^']+)' \(([^)]+)\)/g;
+  while ((m = reRep.exec(t))) add('update', m[2], {title: `Мод «${m[1]}» устарел или не подходит`, text: 'Найди версию, подходящую под эту версию игры, или удали мод.', q: m[1]});
+  const reForge = /Mod ID: '([^']+)', Requested by: '([^']+)', Expected range: '([^']+)', Actual version: '([^']+)'/g;
+  while ((m = reForge.exec(t))) { if (/MISSING/i.test(m[4])) add('missing', m[1], {title: `Моду «${m[2]}» нужен «${m[1]}»`, text: 'Требуемый мод не установлен.', q: m[1]}); else add('update', m[1], {title: `Мод «${m[1]}» не той версии`, text: `«${m[2]}» ждёт версию ${m[3]}, а стоит ${m[4]}.`, q: m[1]}); }
+  const reMix = /Mixin (?:apply|transformation|config)[^\n]*?(?:mod|from|for) ['"]?([A-Za-z0-9_.\-]+)/g;
+  while ((m = reMix.exec(t))) add('mixin', m[1], {title: `Конфликт мода «${m[1]}»`, text: 'Мод не смог встроиться в игру: обычно помогает обновление или удаление конфликтующего мода.', q: m[1]});
+  if (/OutOfMemoryError/.test(t)) add('ram', 'oom', {title: 'Не хватило памяти', text: 'Увеличь объём ОЗУ для игры в настройках.'});
+  if (/UnsupportedClassVersionError|class file version \d+/.test(t)) add('java', 'ver', {title: 'Мод требует более новую Java', text: 'Один из модов собран под другую версию Java. Обнови мод или смени версию игры.'});
+  if (/GLFW error|Pixel format not accelerated|GLX|failed to create (?:the )?window/i.test(t)) add('gl', 'gl', {title: 'Проблема с графикой', text: 'Игра не смогла создать окно OpenGL. Проверь драйвер видеокарты и попробуй отключить шейдеры и OptiFine.'});
+  return out;
+}
+async function crashHelp(auto, code){
+  let text = ''; try { text = (await invoke('get_logs')).join('\n'); } catch (e) {}
+  const sugs = analyzeCrash(text), pid = S.sel;
+  if (!sugs.length) { if (auto) modal('Игра закрылась с ошибкой', `Код выхода: ${code}. Подробности в консоли на главной странице.`); else toast('Явных причин в логе не нашлось'); return; }
+  const html = sugs.map((x, i) => `<div class="sug"><div><b>${esc(x.title)}</b><small>${esc(x.text)}</small></div>${x.kind === 'ram' ? '<button class="minibtn solid sm" data-set>Настройки</button>' : x.q ? `<button class="minibtn solid sm" data-find="${i}">Найти мод</button>` : ''}</div>`).join('');
+  const ready = modalHtml(auto ? 'Игра закрылась с ошибкой' : 'Что нашлось в логе', `<div class="hint" style="margin-bottom:6px">Вот что похоже на причину:</div>${html}`, [{label:'Закрыть', val:true}]);
+  setTimeout(() => {
+    $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'all', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
+    $$('#mx [data-set]').forEach(b => b.onclick = () => { $('#modal').classList.remove('on'); go('settings'); });
+  }, 30);
+  await ready;
+}
+
+/* ── настройки ── */
+const GC = [['g1','G1 · по умолчанию','-XX:+UseG1GC'],['aikar','Aikar · для модов','-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:InitiatingHeapOccupancyPercent=15'],['zgc','ZGC · малые паузы','-XX:+UseZGC -XX:+ZGenerational']];
+function renderSettings(){
+  const s = S.set; if (!s) return; const total = S.sys ? S.sys.total_ram_mb : 16384;
+  const sw = (id, t, d, on) => `<div class="opt"><div class="t"><b>${t}</b><small>${d}</small></div><button class="switch ${on ? 'on' : ''}" id="${id}"></button></div>`;
+  const gcNow = (GC.find(g => g[2] === s.jvm_args) || ['custom'])[0];
+  $('#settings').innerHTML = `<div class="mhead"><div class="ltitle"><h2>Настройки</h2><span class="cnt" id="saved">Сохраняется автоматически</span></div></div>
+  <div class="mbody"><div class="sgrid">
+    <div class="glass panel" style="--i:0"><h3>Память<small>Сколько ОЗУ отдавать игре</small></h3>
+      <div class="big num" id="sRamV">${(s.ram_mb / 1024).toFixed(1)}<small>ГБ</small></div>
+      <input type="range" id="sRam" min="1024" max="${Math.max(2048, Math.floor(total * 0.85 / 512) * 512)}" step="512" value="${s.ram_mb}">
+      <div class="hint">Всего в системе ${(total / 1024).toFixed(1)} ГБ. Для сборок с модами обычно хватает 4–6 ГБ.</div></div>
+    <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
+      ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
+      ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}
+      ${sw('sAA', 'Автовход на серверах', 'Сам вводит /register и /login, когда сервер просит. Пароль у каждого сервера свой', s.auto_auth)}
+      ${sw('sAS', 'Автоустановка скина', 'Отправляет команду SkinsRestorer со ссылкой на твой скин (аккаунты Noxel)', s.auto_skin)}
+      <div class="opt"><div class="t"><b>Окно лаунчера</b><small>Что делать после запуска игры</small></div><div id="sOn" style="width:190px"></div></div></div>
+    <div class="glass panel" style="--i:2"><h3>Java<small>По умолчанию Noxel сам скачивает нужную версию Java для каждой версии игры</small></h3>
+      <div class="field"><label>Сборщик мусора</label><div id="sGc"></div></div>
+      <div class="field"><label>Аргументы JVM</label><input class="inp" id="sJvm" value="${esc(s.jvm_args)}" spellcheck="false"></div>
+      <div class="field"><label>Свой путь к java (необязательно)</label><input class="inp" id="sJava" placeholder="Автоматически" value="${esc(s.java_path)}" spellcheck="false"></div></div>
+    <div class="glass panel" style="--i:3"><h3>Окно игры и загрузка<small>0 — размер окна по умолчанию</small></h3>
+      <div class="two"><div class="field"><label>Ширина</label><input class="inp num" id="sW" type="number" min="0" value="${s.width}"></div><div class="field"><label>Высота</label><input class="inp num" id="sH" type="number" min="0" value="${s.height}"></div></div>
+      <div class="field"><label>Потоков загрузки: <span id="sThV" class="num">${s.threads}</span></label><input type="range" id="sTh" min="2" max="24" step="1" value="${s.threads}"></div></div>
+    <div class="glass panel" style="--i:4"><h3>Лицензия Microsoft<small>Для входа в лицензионный аккаунт нужен Client ID приложения Azure</small></h3>
+      <div class="field"><label>Client ID</label><input class="inp" id="sMs" placeholder="00000000-0000-0000-0000-000000000000" value="${esc(s.ms_client_id)}" spellcheck="false"></div>
+      <div class="hint">Зарегистрируй публичное приложение на portal.azure.com, включи «разрешить публичные клиентские потоки» и получи доступ к API Minecraft у Mojang. Подробности в README.</div></div>
+    <div class="glass panel" style="--i:5"><h3>Каталоги модов<small>Modrinth и CurseForge подключены и объединены в одном поиске</small></h3>
+      <div class="hint">CurseForge работает через сервер Noxel: отдельный ключ не нужен, и в лаунчере его нет.</div>
+      <div class="hint">Список рекомендуемых серверов и обновления лаунчера тоже приходят с сервера Noxel, поэтому переустанавливать лаунчер не нужно.</div></div>
+    <div class="glass panel" style="--i:6"><h3>Лаунчер<small>Внешний вид</small></h3>
+      ${sw('sAnim', 'Анимации', 'Плавные переходы, свечение и живой фон', s.animations)}
+      <div class="opt"><div class="t"><b>Версия ${esc(S.sys ? S.sys.version : '')}</b><small>Обновления берутся с сервера Noxel и проверяются подписью</small></div><div style="display:flex;gap:8px"><button class="minibtn sm" id="sUpd">Проверить</button><button class="minibtn sm" id="sNews">Новости</button></div></div></div>
+    <div class="glass panel" style="--i:7"><h3>Данные<small>Здесь лежат профили, моды, миры и Java</small></h3>
+      <div class="chip" style="align-self:flex-start;max-width:100%;user-select:text"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.sys ? S.sys.data_dir : '')}</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="minibtn" id="sDir">${I.folder} Открыть папку</button><button class="minibtn" id="sClr">${I.trash} Очистить кэш установщиков</button></div></div>
+    <div class="glass panel" style="--i:8"><h3>Администратор<small>Для владельца сервера Noxel: позволяет менять список рекомендуемых серверов</small></h3>
+      <div class="field"><label>Токен администратора</label><input class="inp" id="sAdm" type="password" placeholder="Оставь пустым, если ты не администратор" value="${esc(s.admin_token || '')}" spellcheck="false"></div>
+      <div class="hint">Токен лежит на сервере в файле /etc/noxel/admin.token. С ним на вкладке «Серверы» появятся кнопки добавления и правки.</div></div>
+  </div></div>`;
+  let t; const save = () => { clearTimeout(t); t = setTimeout(async () => {
+    S.set = await invoke('settings_set', {s: {...S.set, ram_mb: +$('#sRam').value, java_path: $('#sJava').value, jvm_args: $('#sJvm').value, width: +$('#sW').value || 0, height: +$('#sH').value || 0, ms_client_id: $('#sMs').value, admin_token: $('#sAdm').value, threads: +$('#sTh').value}});
+    const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
+  }, 450); };
+  const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sAnim', 'animations', applyAnim);
+  mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
+  mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
+  const rg = $('#sRam'); const rp = () => { rg.style.setProperty('--p', ((rg.value - rg.min) / (rg.max - rg.min) * 100) + '%'); $('#sRamV').innerHTML = `${(rg.value / 1024).toFixed(1)}<small>ГБ</small>`; };
+  rp(); rg.oninput = () => { rp(); save(); };
+  const th = $('#sTh'); const tp = () => { th.style.setProperty('--p', ((th.value - th.min) / (th.max - th.min) * 100) + '%'); $('#sThV').textContent = th.value; }; tp(); th.oninput = () => { tp(); save(); };
+  ['sJava','sJvm','sW','sH','sMs','sAdm'].forEach(id => $('#' + id).oninput = save);
+  $('#sUpd').onclick = () => checkLauncher(false);
+  $('#sNews').onclick = showNews;
+  $('#sDir').onclick = () => invoke('open_folder', {profileId: null, sub: null});
+  $('#sClr').onclick = async () => { try { const n = await invoke('clear_cache'); toast(n ? `Освобождено ${fmtSize(n)}` : 'Кэш уже пуст'); } catch (e) { toast(e); } };
+}
+function applyAnim(){ document.documentElement.classList.toggle('still', !(S.set && S.set.animations)); }
+
+/* ── события ── */
+T.event.listen('task', ({payload: t}) => {
+  if (String(t.id).startsWith('mod:')) { if (S.creating && t.detail) { S.cstat = 'ставлю: ' + t.detail; const c = $('#cstat'); if (c) c.textContent = S.cstat; } return; }
+  S.task = t; setProgress();
+});
+T.event.listen('game', ({payload: g}) => {
+  if (g.state === 'installing') S.game = {id: g.id, state: 'installing'};
+  else if (g.state === 'running') { S.game = {id: g.id, state: 'running'}; S.runStart = Date.now(); }
+  else if (g.state === 'exited') { S.game = {id: null, state: 'idle'}; if (g.code && g.code !== 0) { S.logOpen = true; crashHelp(true, g.code); } else toast('Игра закрыта'); }
+  else if (g.state === 'installed') { S.game = {id: null, state: 'idle'}; toast('Версия скачана и готова к запуску'); }
+  else if (g.state === 'error') { S.game = {id: null, state: 'idle'}; modal('Что-то пошло не так', g.message); }
+  setDot(); renderProfiles(); renderHero();
+});
+T.event.listen('log', ({payload: lines}) => {
+  const pre = $('#logpre'); if (!pre) return;
+  const atEnd = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+  pre.append(document.createTextNode((pre.textContent ? '\n' : '') + lines.join('\n')));
+  if (pre.textContent.length > 400000) pre.textContent = pre.textContent.slice(-300000);
+  if (atEnd) pre.scrollTop = pre.scrollHeight;
+});
+T.event.listen('profiles-changed', () => loadProfiles());
+T.event.listen('autoauth', ({payload: p}) => toast(p.kind === 'register' ? `Автовход: регистрация на ${p.host}` : p.kind === 'login' ? `Автовход: вход на ${p.host}` : `Скин отправлен на ${p.host}`));
+/* перетаскивание своих файлов */
+T.event.listen('tauri://drag-enter', () => { if (S.page === 'mods') { const d = $('#drop'); if (d) d.classList.add('on'); } });
+T.event.listen('tauri://drag-leave', () => { const d = $('#drop'); if (d) d.classList.remove('on'); });
+T.event.listen('tauri://drag-drop', ({payload}) => {
+  const d = $('#drop'); if (d) d.classList.remove('on'); const ps = payload.paths || []; if (!ps.length) return;
+  if (S.page === 'mods') addOwn(ps);
+  else if (S.page === 'accounts' && S.av) { if (/\.png$/i.test(ps[0])) skinAction(() => invoke('skin_apply', {id: S.av, path: ps[0], model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); else toast('Нужен PNG-файл со скином'); }
+});
+
+/* ── старт ── */
+$('#addProfile').onclick = () => go('versions');
+$('#vq').oninput = e => { S.vq = e.target.value; renderVersions(); };
+$('#vrefresh').onclick = () => loadVersions(true);
+(async () => {
+  const t0 = performance.now();
+  try {
+    S.set = await invoke('settings_get'); S.sys = await invoke('sys_info'); applyAnim();
+    S.presets = await invoke('presets');
+    S.sel = S.set.last_profile || null;
+    const st = await invoke('game_status');
+    if (st.busy) S.game = {id: st.running, state: st.running ? 'running' : 'installing'};
+    await loadAccounts(); await loadProfiles(); go(S.sys.start_page || 'home'); setDot();
+  } catch (e) { modal('Ошибка запуска', String(e)); }
+  setTimeout(() => checkLauncher(true), 5000);
+  const wait = S.set && S.set.animations ? Math.max(0, 1500 - (performance.now() - t0)) : 0;
+  setTimeout(() => { const s = $('#splash'); s.classList.add('gone'); setTimeout(() => s.remove(), 800); }, wait);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+[Unit]
+Description=Noxel API (аккаунты, скины, плащи)
+After=network.target
+
+[Service]
+User=noxel
+Group=noxel
+Environment=NOXEL_DATA=/var/lib/noxel
+Environment=NOXEL_BASE=https://mr1s.site/noxel
+Environment=NOXEL_HOST=127.0.0.1
+Environment=NOXEL_PORT=8730
+ExecStart=/usr/bin/python3 /opt/noxel/noxel-server.py
+Restart=always
+RestartSec=2
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/noxel
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

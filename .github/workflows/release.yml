@@ -1,0 +1,70 @@
+# Сборка Noxel и установщика для Linux и Windows.
+# Запуск вручную (Actions → release → Run workflow) или по тегу v*: тогда файлы прикрепляются к релизу.
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Системные библиотеки
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            исходники/src-tauri
+            установщик/src-tauri
+      - name: Сборка лаунчера
+        run: cargo build --release --features custom-protocol
+        working-directory: исходники/src-tauri
+      - name: Сборка установщика
+        run: cargo build --release --features custom-protocol
+        working-directory: установщик/src-tauri
+      - run: |
+          mkdir out
+          cp исходники/src-tauri/target/release/noxel out/Noxel
+          cp установщик/src-tauri/target/release/noxel-setup out/noxel-setup-linux-x86_64
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: out/* }
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            исходники/src-tauri
+            установщик/src-tauri
+      - name: Сборка лаунчера
+        run: cargo build --release --features custom-protocol
+        working-directory: исходники/src-tauri
+      - name: Сборка установщика
+        run: cargo build --release --features custom-protocol
+        working-directory: установщик/src-tauri
+      - shell: bash
+        run: |
+          mkdir out
+          cp исходники/src-tauri/target/release/noxel.exe out/Noxel.exe
+          cp установщик/src-tauri/target/release/noxel-setup.exe out/noxel-setup-windows-x86_64.exe
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: out/* }
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with: { files: dist/* }

@@ -1,0 +1,20 @@
+{"version": 1, "updated": 1, "servers": [
+ {"id": "any-client", "name": "Любой сервер: клиентские улучшения", "host": "", "official": false,
+  "desc": "Моды, которые работают на любых серверах без установки чего-либо на сервер: оптимизация, шейдеры, удобство.",
+  "tags": ["клиентские", "оптимизация"], "mc": "", "loader": "fabric", "link": "",
+  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
+           {"provider": "modrinth", "id": "sodium", "name": "Sodium", "required": false},
+           {"provider": "modrinth", "id": "lithium", "name": "Lithium", "required": false},
+           {"provider": "modrinth", "id": "iris", "name": "Iris Shaders", "required": false},
+           {"provider": "modrinth", "id": "modmenu", "name": "Mod Menu", "required": false}]},
+ {"id": "hypixel", "name": "Hypixel", "host": "mc.hypixel.net", "official": false,
+  "desc": "Крупнейший сервер мини-игр. Для входа модов не нужно. Это пример записи: разрешённые моды проверь в правилах на hypixel.net и отредактируй список.",
+  "tags": ["мини-игры"], "mc": "", "loader": "fabric", "link": "https://hypixel.net",
+  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
+           {"provider": "modrinth", "id": "sodium", "name": "Sodium", "required": false}]},
+ {"id": "wynncraft", "name": "Wynncraft", "host": "play.wynncraft.com", "official": false,
+  "desc": "MMORPG-сервер. Популярное дополнение от сообщества: Wynntils (карта, чат, таймеры). Это пример записи: проверь правила сервера на wynncraft.com.",
+  "tags": ["MMORPG"], "mc": "", "loader": "fabric", "link": "https://wynncraft.com",
+  "mods": [{"provider": "modrinth", "id": "fabric-api", "name": "Fabric API", "required": true},
+           {"provider": "modrinth", "id": "wynntils", "name": "Wynntils", "required": false}]}
+]}
