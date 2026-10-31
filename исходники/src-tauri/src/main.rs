@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod accounts;
+mod dav;
 mod autoauth;
 mod ping;
 mod mc;
+mod localapi;
 mod mods;
 mod packs;
 mod remote;
@@ -185,6 +187,7 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
             });
             let child = mc::spawn_game(&game, &pr, emit_log, on_line)?;
             *game.running.lock().unwrap() = Some(id.clone());
+            *mc::RUNNING.lock().unwrap() = Some(id.clone());
             *game.child.lock().unwrap() = Some(child);
             let _ = app.emit("profiles-changed", ());
             let now = now();
@@ -226,6 +229,18 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                         }
                         tunnel::LAN_PORT.store(0, Ordering::Relaxed);
                         tunnel::host_close();
+                        {
+                            // автосинхронизация миров в своё облако после игры
+                            let s = load_settings();
+                            if s.dav_auto && !s.dav_url.is_empty() {
+                                let pid = id.clone();
+                                std::thread::spawn(move || match dav::sync_changed(&pid) {
+                                    Ok(n) if n > 0 => eprintln!("[облако] синхронизировано миров: {n}"),
+                                    Err(x) => eprintln!("[облако] {x}"),
+                                    _ => {}
+                                });
+                            }
+                        }
                         ev("exited", json!({"code": code}));
                         break;
                     }
@@ -252,6 +267,7 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
             Err(x) => ev("error", json!({"message": x})),
         }
         *game.running.lock().unwrap() = None;
+        *mc::RUNNING.lock().unwrap() = None;
         game.busy.store(false, Ordering::SeqCst);
         if let Some(w) = app.get_webview_window("main") {
             let _ = w.unminimize();
@@ -519,49 +535,70 @@ fn cloud_delete(id: String, cloud_id: u64) -> R<Value> {
     social::cloud_delete(&accounts::noxel_token(&id)?, cloud_id)
 }
 
+#[tauri::command(async)]
+fn cloud_share(id: String, cloud_id: u64) -> R<Value> {
+    social::cloud_share(&accounts::noxel_token(&id)?, cloud_id)
+}
+
+#[tauri::command(async)]
+fn cloud_unshare(id: String, cloud_id: u64) -> R<Value> {
+    social::cloud_unshare(&accounts::noxel_token(&id)?, cloud_id)
+}
+
+#[tauri::command(async)]
+fn share_info(link: String) -> R<Value> {
+    social::share_info(&link)
+}
+
+#[tauri::command(async)]
+fn share_import(profile_id: String, link: String, name: String) -> R<Value> {
+    social::share_import(&profile_id, &link, &name)
+}
+
+#[tauri::command(async)]
+fn dav_test() -> R<Value> {
+    dav::test()
+}
+
+#[tauri::command(async)]
+fn dav_list(profile_id: String) -> R<Value> {
+    dav::list(&profile_id)
+}
+
+#[tauri::command(async)]
+fn dav_upload(profile_id: String, world: String) -> R<u64> {
+    dav::upload_world(&profile_id, &world)
+}
+
+#[tauri::command(async)]
+fn dav_download(profile_id: String, world: String) -> R<Value> {
+    dav::download_world(&profile_id, &world)
+}
+
+#[tauri::command(async)]
+fn dav_sync(profile_id: String) -> R<u32> {
+    dav::sync_changed(&profile_id)
+}
+
 #[tauri::command]
 fn room_state() -> Value {
     tunnel::state()
 }
 
-/// Открывает запущенный одиночный мир для друзей: агент публикует мир на свободном порту, лаунчер соединяет порт с сервером.
+/// Открывает запущенный одиночный мир для друзей.
 #[tauri::command(async)]
 fn room_open(game: State<'_, Game>, id: String, profile_id: String) -> R<Value> {
     let token = accounts::noxel_token(&id)?;
     if game.running.lock().unwrap().as_deref() != Some(profile_id.as_str()) {
         return Err("Сначала запусти этот профиль и зайди в одиночный мир".into());
     }
-    let dir = mc::inst_dir(&profile_id);
-    let port = std::net::TcpListener::bind("127.0.0.1:0").map_err(util::e)?.local_addr().map_err(util::e)?.port();
-    let cid = autoauth::control(&dir, &format!("!publish {port}"));
-    match autoauth::wait_ack(&dir, &cid, 6).as_deref() {
-        Some("sent") => {
-            tunnel::host_open(&token, port)?;
-            Ok(json!({"port": port, "how": "auto"}))
-        }
-        Some("error:no-world") => Err("Зайди в одиночный мир (не на сервер) и повтори".into()),
-        other => {
-            // версии без читаемых имён классов: пользователь открывает мир сам (Esc → «Открыть для сети»), порт берём из лога
-            let lan = tunnel::LAN_PORT.load(std::sync::atomic::Ordering::Relaxed);
-            if lan > 0 {
-                tunnel::host_open(&token, lan)?;
-                Ok(json!({"port": lan, "how": "lan"}))
-            } else {
-                Err(format!("Эта версия игры не умеет открывать мир сама ({}). В игре нажми Esc → «Открыть для сети», потом повтори", other.unwrap_or("нет ответа")))
-            }
-        }
-    }
+    tunnel::open_world(&token, &profile_id)
 }
 
 #[tauri::command(async)]
 fn room_close(game: State<'_, Game>) -> R<()> {
-    if let Some(pid) = game.running.lock().unwrap().clone() {
-        if tunnel::host_port().is_some() {
-            autoauth::control(&mc::inst_dir(&pid), "!unpublish");
-        }
-    }
-    tunnel::host_close();
-    tunnel::guest_close();
+    let pid = game.running.lock().unwrap().clone();
+    tunnel::close_world(pid.as_deref());
     Ok(())
 }
 
@@ -809,6 +846,7 @@ fn main() {
         let _ = fs::remove_file(exe.with_extension("old"));
     }
     let _ = fs::create_dir_all(data_dir());
+    localapi::start();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(Game::default())
@@ -832,6 +870,15 @@ fn main() {
             cloud_download,
             cloud_delete,
             room_state,
+            dav_test,
+            dav_list,
+            dav_upload,
+            dav_download,
+            dav_sync,
+            cloud_share,
+            cloud_unshare,
+            share_info,
+            share_import,
             room_open,
             room_close,
             room_join,

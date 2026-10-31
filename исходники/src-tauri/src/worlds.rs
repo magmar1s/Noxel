@@ -67,7 +67,7 @@ pub fn list(profile: &str) -> R<Value> {
 }
 
 fn add_dir(zw: &mut zip::ZipWriter<fs::File>, root: &Path, cur: &Path, prefix: &str) -> R<()> {
-    let opt = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let opt = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated).compression_level(Some(9));
     for ent in fs::read_dir(cur).map_err(e)?.flatten() {
         let p = ent.path();
         let rel = p.strip_prefix(root).map_err(e)?.to_string_lossy().replace('\\', "/");
@@ -107,10 +107,26 @@ pub fn backup(profile: &str, world: &str) -> R<Value> {
     fs::create_dir_all(&dir).map_err(e)?;
     let file = format!("{world}-{stamp}.zip");
     let out = dir.join(&file);
-    let mut zw = zip::ZipWriter::new(fs::File::create(&out).map_err(e)?);
+    zip_world(profile, world, &out)?;
+    Ok(json!({"file": file, "size": fs::metadata(&out).map(|m| m.len()).unwrap_or(0)}))
+}
+
+/// Упаковывает мир в zip по указанному пути (папка мира внутри архива называется как мир).
+pub fn zip_world(profile: &str, world: &str, out: &Path) -> R<()> {
+    let world = safe_name(world)?;
+    let src = mc::inst_dir(profile).join("saves").join(world);
+    if !src.join("level.dat").exists() {
+        return Err("мир не найден".into());
+    }
+    let mut zw = zip::ZipWriter::new(fs::File::create(out).map_err(e)?);
     add_dir(&mut zw, &src, &src, world)?;
     zw.finish().map_err(e)?.flush().map_err(e)?;
-    Ok(json!({"file": file, "size": fs::metadata(&out).map(|m| m.len()).unwrap_or(0)}))
+    Ok(())
+}
+
+/// Время последнего сохранения мира (для автосинхронизации).
+pub fn world_mtime(profile: &str, world: &str) -> u64 {
+    mtime(&mc::inst_dir(profile).join("saves").join(world).join("level.dat"))
 }
 
 pub fn restore(profile: &str, file: &str) -> R<Value> {

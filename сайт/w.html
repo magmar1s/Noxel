@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Мир Minecraft от друга — Noxel</title>
+<meta name="robots" content="noindex">
+<meta property="og:title" content="Тебе поделились миром Minecraft">
+<meta property="og:description" content="Скачай мир и открой его в Noxel: лаунчере, где у каждой версии свои моды.">
+<link rel="icon" href="/assets/favicon.png">
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.share{max-width:760px;margin:0 auto;padding:130px 0 40px}
+.sc{border-radius:28px;padding:34px;background:rgba(255,255,255,.05);border:1px solid var(--line);backdrop-filter:blur(18px)}
+.sc h1{font-size:clamp(26px,4vw,38px);margin:10px 0 6px;letter-spacing:-.02em}
+.sc .by{color:var(--fg2);font-size:16px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.facts span{padding:6px 14px;border-radius:20px;border:1px solid var(--line2);font-size:13.5px;color:var(--fg2)}
+.acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px}
+.how{margin-top:22px;padding-top:20px;border-top:1px solid var(--line);color:var(--fg2);line-height:1.6;font-size:14.5px}
+.how ol{margin:8px 0 0 18px;padding:0}
+.promo{margin-top:26px;border-radius:28px;padding:30px;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03));border:1px solid var(--line2)}
+.promo h2{margin:0 0 6px;font-size:24px}
+.pl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:18px 0}
+.pl div{padding:14px 16px;border-radius:16px;background:rgba(0,0,0,.28);border:1px solid var(--line);font-size:14px;color:var(--fg2)}
+.pl b{display:block;color:var(--fg);margin-bottom:4px;font-size:15px}
+.err{color:var(--fg2);text-align:center;padding:30px 0}
+</style>
+</head>
+<body>
+<div id="bg"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+<nav class="top"><div class="wrap in">
+  <a class="brand" href="/"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg>NOXEL</a>
+  <div class="links"><a href="/docs.html" class="keep">Документация</a></div>
+  <a class="btn solid sm" href="#download">Скачать Noxel</a>
+</div></nav>
+
+<main class="wrap share">
+  <div class="sc" id="card"><div class="err" id="load">Загружаю информацию о мире…</div></div>
+
+  <div class="promo" id="download">
+    <h2>Noxel: лаунчер Minecraft, где у каждой версии свои моды</h2>
+    <div class="hint" style="color:var(--fg2)">Бесплатный, без рекламы и без регистрации на чужих сайтах. Мир другу можно открыть, только установив Noxel: он сам поставит нужную версию игры.</div>
+    <div class="pl">
+      <div><b>У каждой версии свои моды</b>Переключайся между версиями и сборками, ничего не удаляя и не ломая.</div>
+      <div><b>Два каталога в одном поиске</b>Modrinth и CurseForge вперемешку, сборки ставятся одним нажатием.</div>
+      <div><b>Друзья и общий мир</b>Открой свой мир, и друзья зайдут к тебе как по локальной сети, даже без лицензии.</div>
+      <div><b>Облачные миры и ссылки</b>Сохраняй мир в облако и делись им ссылкой, как этой.</div>
+      <div><b>3D-скины и плащи</b>Скин по нику, готовые плащи, история скинов, автоустановка на серверах.</div>
+      <div><b>Обновление в один клик</b>Лаунчер обновляется сам, а профили и миры остаются на месте.</div>
+    </div>
+    <div class="acts">
+      <a class="btn solid" data-lin aria-disabled="true" href="#download">Скачать для Linux</a>
+      <a class="btn solid" data-win aria-disabled="true" href="#download" data-label="Скачать для Windows (бета)">Скачать для Windows (бета)</a>
+      <a class="btn" href="/">Подробнее о Noxel</a>
+    </div>
+  </div>
+</main>
+
+<footer><div class="wrap in">
+  <a class="brand" href="/"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg>NOXEL</a>
+  <span>Minecraft принадлежит Mojang и Microsoft. Noxel с ними не связан.</span>
+  <div class="links"><a href="/docs.html">Документация</a><a href="/">Главная</a></div>
+</div></footer>
+<script src="/assets/app.js"></script>
+<script>
+(() => {
+  const token = location.pathname.split('/').filter(Boolean).pop();
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  const card = document.getElementById('card');
+  const size = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' МБ' : Math.max(1, Math.round(b / 1024)) + ' КБ';
+  fetch('/noxel/v1/share/' + encodeURIComponent(token)).then(async r => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'ссылка недействительна');
+    document.title = 'Мир «' + d.name + '» от ' + d.owner + ' — Noxel';
+    const date = new Date(d.created * 1000).toLocaleDateString('ru-RU', {day: 'numeric', month: 'long', year: 'numeric'});
+    card.innerHTML = `<div class="by"><b>${esc(d.owner)}</b> поделился с вами миром</div>
+      <h1>${esc(d.name)}</h1>
+      <div class="facts">${d.mc ? `<span>Minecraft ${esc(d.mc)}</span>` : ''}<span>${size(d.size)}</span><span>сохранён ${date}</span><span>скачали: ${d.downloads}</span></div>
+      <div class="acts"><a class="btn solid" href="/noxel/v1/share/${encodeURIComponent(token)}/download">Скачать мир (.zip)</a><button class="btn" id="cp">Скопировать ссылку для Noxel</button></div>
+      <div class="how"><b style="color:var(--fg)">Как открыть мир в Noxel</b><ol>
+        <li>Установи Noxel (кнопки ниже) и запусти лаунчер.</li>
+        <li>Создай профиль с версией <b>${d.mc ? esc(d.mc) : 'игры, как у автора'}</b>.</li>
+        <li>На главной нажми плитку «Миры», найди раздел «Облако Noxel» и выбери «Добавить по ссылке». Вставь скопированную ссылку: мир скачается в профиль.</li></ol>
+        Можно и вручную: скачай .zip, распакуй в папку <code>saves</code> профиля.</div>`;
+    document.getElementById('cp').onclick = e => { navigator.clipboard.writeText(location.href).then(() => { e.target.textContent = 'Ссылка скопирована'; }).catch(() => { e.target.textContent = location.href; }); };
+  }).catch(e => { card.innerHTML = `<div class="err"><h2 style="color:var(--fg)">Мир недоступен</h2>${esc(e.message || e)}<br><br>Попроси автора прислать новую ссылку.</div>`; });
+})();
+</script>
+</body>
+</html>

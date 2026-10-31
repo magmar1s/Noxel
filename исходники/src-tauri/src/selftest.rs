@@ -522,7 +522,27 @@ fn social_flow() {
     std::fs::write(w.join("level.dat"), b"changed").unwrap();
     social::cloud_download(a, &p.id, wid, "Облачный мир").expect("скачивание из облака");
     assert_eq!(std::fs::read(w.join("level.dat")).unwrap(), b"cloud-dat");
-    social::cloud_delete(a, wid).unwrap();
+    // общая ссылка: информация без входа и скачивание другим игроком
+    let sh = social::cloud_share(a, wid).unwrap();
+    let url = sh["url"].as_str().unwrap().to_string();
+    assert!(url.contains("/w/"), "{url}");
+    let info = social::share_info(&url).unwrap();
+    assert_eq!(info["owner"], names[0].as_str());
+    std::fs::write(w.join("level.dat"), b"changed2").unwrap();
+    social::share_import(&p.id, &url, "Облачный мир").expect("мир по ссылке");
+    assert_eq!(std::fs::read(w.join("level.dat")).unwrap(), b"cloud-dat");
+    println!("ссылка работает: {url}, автор {}", info["owner"]);
+    // в облаке Noxel один мир: новый заменяет старый, старая ссылка перестаёт работать
+    let w2 = crate::mc::inst_dir(&p.id).join("saves").join("Второй мир");
+    std::fs::create_dir_all(&w2).unwrap();
+    std::fs::write(w2.join("level.dat"), b"second").unwrap();
+    social::cloud_upload(a, &p.id, "1.21.1", "Второй мир").expect("второй мир");
+    let l = social::cloud_list(a).unwrap();
+    assert_eq!(l["worlds"].as_array().unwrap().len(), 1);
+    assert_eq!(l["worlds"][0]["name"], "Второй мир");
+    assert!(social::share_info(&url).is_err(), "старая ссылка осталась рабочей");
+    println!("один мир в облаке: старый заменён, старая ссылка отозвана");
+    social::cloud_delete(a, l["worlds"][0]["id"].as_u64().unwrap()).unwrap();
     assert!(social::cloud_list(a).unwrap()["worlds"].as_array().unwrap().is_empty());
     println!("облако работает");
     // уборка тестовых аккаунтов
@@ -586,7 +606,9 @@ fn room_flow() {
     let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
     pr.args.extend(["--quickPlaySingleplayer".to_string(), "RoomWorld".to_string()]);
     let game = mc::Game::default();
-    let mut child = mc::spawn_game(&game, &pr, Arc::new(|_| {}), Arc::new(|_| {})).unwrap();
+    let hlog = Arc::new(Mutex::new(Vec::<String>::new()));
+    let h2 = hlog.clone();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |l| h2.lock().unwrap().extend(l)), Arc::new(|_| {})).unwrap();
     let gpid = child.id() as u64;
     std::thread::spawn(move || {
         for _ in 0..800 {
@@ -631,10 +653,151 @@ fn room_flow() {
     let via = ping::status(&format!("127.0.0.1:{gp}"));
     println!("пинг через ретранслятор: {via}");
     assert_eq!(via["online"], true, "мир не виден через ретранслятор");
+    // настоящий второй клиент заходит в мир друга по туннелю
+    let _ = accounts::add_local("RoomGuest");
+    accounts::select("local-roomguest").unwrap();
+    let pg = mc::create_profile(&ver, &loader, None, "roomguest", None).unwrap();
+    let gacct = accounts::active_fresh().unwrap();
+    let mut gr = mc::prepare(&pg, &st, &gacct, &|_: &str, _: f64, _: &str| {}).expect("подготовка гостя");
+    let _ = std::fs::write(gr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
+    gr.args.extend(["--quickPlayMultiplayer".to_string(), format!("127.0.0.1:{gp}")]);
+    let ggame = mc::Game::default();
+    let mut gchild = mc::spawn_game(&ggame, &gr, Arc::new(|_| {}), Arc::new(|_| {})).unwrap();
+    let gpid2 = gchild.id() as u64;
+    std::thread::spawn(move || {
+        for _ in 0..800 {
+            std::thread::sleep(Duration::from_millis(250));
+            if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
+                if v["pid"].as_u64() == Some(gpid2) {
+                    if let Some(addr) = v["address"].as_str() {
+                        let _ = Command::new("hyprctl").args(["dispatch", &format!("hl.dsp.window.move({{ workspace = \"6\", follow = false, window = \"address:{addr}\" }})")]).output();
+                    }
+                }
+            }
+        }
+    });
+    let t = Instant::now();
+    let mut joined = None;
+    while t.elapsed() < Duration::from_secs(240) {
+        if let Some(l) = hlog.lock().unwrap().iter().find(|l| l.contains("RoomGuest joined the game")) { joined = Some(l.clone()); break; }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    println!("вход гостя в мир друга: {:?}", joined);
+    let _ = gchild.kill();
     tunnel::guest_close();
     tunnel::host_close();
+    let _ = child.kill();
+    assert!(joined.is_some(), "второй клиент не зашёл в мир по туннелю");
+    for t in [&ta, &tb] {
+        let _ = crate::skins::call("DELETE", "/account", Some(t), crate::skins::Body::Json(serde_json::json!({"password": "test-pass-123"})));
+    }
+}
+
+/// Своё облако по WebDAV: проверка на локальном мини-сервере (логин, выгрузка, список, возврат мира, автосинхронизация только изменённых).
+#[test]
+#[ignore]
+fn dav_flow() {
+    use std::process::{Command, Stdio};
+    let dir = data_dir().join("dav-test-root");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let mut srv = Command::new("python3").arg(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/webdav_mini.py")).arg(port.to_string()).arg(&dir).arg("user:app-pass").stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(800));
+    let mut st = load_settings();
+    st.dav_url = format!("http://127.0.0.1:{port}");
+    st.dav_user = "user".into();
+    st.dav_pass = "wrong".into();
+    save_settings(&st);
+    let bad = crate::dav::test();
+    println!("с неверным паролем: {bad:?}");
+    assert!(bad.is_err());
+    st.dav_pass = "app-pass".into();
+    save_settings(&st);
+    crate::dav::test().expect("подключение");
+    let p = crate::mc::create_profile("1.21.1", "vanilla", None, "dav-test", None).unwrap();
+    let w = crate::mc::inst_dir(&p.id).join("saves").join("Мир для облака");
+    std::fs::create_dir_all(w.join("region")).unwrap();
+    std::fs::write(w.join("level.dat"), b"dav-dat").unwrap();
+    std::fs::write(w.join("region/r.0.0.mca"), vec![5u8; 100_000]).unwrap();
+    assert_eq!(crate::dav::sync_changed(&p.id).unwrap(), 1);
+    assert_eq!(crate::dav::sync_changed(&p.id).unwrap(), 0, "не изменённый мир выгружен повторно");
+    let l = crate::dav::list(&p.id).unwrap();
+    println!("в облаке: {l}");
+    assert_eq!(l[0]["name"], "Мир для облака");
+    std::fs::write(w.join("level.dat"), b"changed").unwrap();
+    crate::dav::download_world(&p.id, "Мир для облака").expect("возврат из облака");
+    assert_eq!(std::fs::read(w.join("level.dat")).unwrap(), b"dav-dat");
+    println!("своё облако работает");
+    let _ = srv.kill();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Мод Noxel в настоящей игре 26.2: лаунчер сам ставит мод, мод находит локальный API, открывает экран друзей и получает список с сервера.
+#[test]
+#[ignore]
+fn mod_flow() {
+    use crate::{accounts, localapi, mc, social};
+    use std::process::Command;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+    let ver = "26.2";
+    mc::prefetch(ver, 8, false, &|_, _, _| {}).expect("предзагрузка игры");
+    localapi::start();
+    let sfx = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % 0xfffffff);
+    let (na, nb) = (format!("tma{sfx}"), format!("tmb{sfx}"));
+    accounts::noxel_auth(&nb, "test-pass-123", true).unwrap();
+    accounts::noxel_auth(&na, "test-pass-123", true).unwrap();   // активным остаётся A: от его имени играет клиент
+    let ta = accounts::noxel_token(&format!("noxel-{}", na.to_lowercase())).unwrap();
+    let tb = accounts::noxel_token(&format!("noxel-{}", nb.to_lowercase())).unwrap();
+    social::friend_action(&ta, "add", &nb).unwrap();
+    social::friend_action(&tb, "accept", &na).unwrap();
+    let p = mc::create_profile(ver, "fabric", None, "modtest", None).unwrap();
+    let mods = mc::inst_dir(&p.id).join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    let api = std::fs::read_dir("/mnt/D/project/Noxel/данные/instances").unwrap().flatten().flat_map(|e| std::fs::read_dir(e.path().join("mods")).into_iter().flatten().flatten()).find(|f| f.file_name().to_string_lossy().starts_with("fabric-api")).expect("fabric-api в папках модов").path();
+    std::fs::copy(&api, mods.join(api.file_name().unwrap())).unwrap();
+    accounts::select(&format!("noxel-{}", na.to_lowercase())).unwrap();
+    let st = load_settings();
+    let acct = accounts::active_fresh().unwrap();
+    assert_eq!(acct.kind, "noxel");
+    let mut pr = mc::prepare(&p, &st, &acct, &|_: &str, _: f64, _: &str| {}).expect("подготовка игры");
+    assert!(mods.join("noxel-client.jar").exists(), "лаунчер не поставил мод");
+    assert!(pr.args.iter().any(|a| a.starts_with("-Dnoxel.api=")), "игре не передан адрес API");
+    pr.args.insert(0, "-Dnoxel.selftest=1".to_string());
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let l2 = log.clone();
+    let game = mc::Game::default();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |l| l2.lock().unwrap().extend(l)), Arc::new(|_| {})).unwrap();
+    let gpid = child.id() as u64;
+    std::thread::spawn(move || {
+        for _ in 0..800 {
+            std::thread::sleep(Duration::from_millis(250));
+            if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
+                if v["pid"].as_u64() == Some(gpid) {
+                    if let Some(addr) = v["address"].as_str() {
+                        let _ = Command::new("hyprctl").args(["dispatch", &format!("hl.dsp.window.move({{ workspace = \"6\", follow = false, window = \"address:{addr}\" }})")]).output();
+                    }
+                }
+            }
+        }
+    });
+    let want = ["[Noxel] мод запущен", "[Noxel] друзей загружено: 1", "[Noxel] экран друзей отрисован"];
+    let t = Instant::now();
+    let mut found = [false; 3];
+    while t.elapsed() < Duration::from_secs(240) && !found.iter().all(|x| *x) {
+        for (i, w) in want.iter().enumerate() {
+            if log.lock().unwrap().iter().any(|l| l.contains(w)) { found[i] = true; }
+        }
+        if child.try_wait().ok().flatten().is_some() { break; }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    let crashed = log.lock().unwrap().iter().any(|l| l.contains("Crash") || l.contains("FATAL"));
+    println!("мод: запущен={} друзья={} экран={} падение={}", found[0], found[1], found[2], crashed);
     let _ = child.kill();
     for t in [&ta, &tb] {
         let _ = crate::skins::call("DELETE", "/account", Some(t), crate::skins::Body::Json(serde_json::json!({"password": "test-pass-123"})));
     }
+    assert!(found.iter().all(|x| *x), "мод не отработал: {:?}", found);
 }

@@ -225,6 +225,13 @@ pub struct Settings {
     pub game_icon: bool,
     /// Автовход и автоскин теперь выключены по умолчанию; у уже установленных копий сбрасываем один раз.
     pub opt_in_v2: bool,
+    /// Своё облако по WebDAV (Яндекс Диск: https://webdav.yandex.ru, логин и пароль приложения). Хранится только на этом компьютере.
+    pub dav_url: String,
+    pub dav_user: String,
+    pub dav_pass: String,
+    pub dav_auto: bool,
+    /// Ставить мод Noxel (кнопка «Друзья» в игре) в профили Fabric для 26.x
+    pub noxel_mod: bool,
     pub auto_skip: Vec<String>,
     pub on_launch: String,
     pub fullscreen: bool,
@@ -252,6 +259,11 @@ impl Default for Settings {
             auto_skin: false,
             game_icon: true,
             opt_in_v2: false,
+            dav_url: String::new(),
+            dav_user: String::new(),
+            dav_pass: String::new(),
+            dav_auto: false,
+            noxel_mod: true,
             auto_skip: vec![],
             on_launch: "keep".into(),
             fullscreen: false,

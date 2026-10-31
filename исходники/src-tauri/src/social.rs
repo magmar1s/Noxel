@@ -72,3 +72,42 @@ pub fn cloud_download(token: &str, profile_id: &str, id: u64, world: &str) -> R<
 pub fn cloud_delete(token: &str, id: u64) -> R<Value> {
     call("DELETE", &format!("/world/{id}"), Some(token), Body::None)
 }
+
+pub fn cloud_share(token: &str, id: u64) -> R<Value> {
+    call("POST", &format!("/world/{id}/share"), Some(token), Body::None)
+}
+
+pub fn cloud_unshare(token: &str, id: u64) -> R<Value> {
+    call("DELETE", &format!("/world/{id}/share"), Some(token), Body::None)
+}
+
+/// Из ссылки вида https://mr1s.site/w/<код> (или просто кода) достаёт код.
+fn share_token(link: &str) -> R<String> {
+    let t = link.trim().trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
+    if t.len() < 10 || t.len() > 40 || !t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err("это не ссылка на мир Noxel".into());
+    }
+    Ok(t)
+}
+
+pub fn share_info(link: &str) -> R<Value> {
+    call("GET", &format!("/share/{}", share_token(link)?), None, Body::None)
+}
+
+/// Скачивает мир по общей ссылке и ставит его в профиль.
+pub fn share_import(profile_id: &str, link: &str, name: &str) -> R<Value> {
+    let t = share_token(link)?;
+    let tmp = data_dir().join("cache").join(format!("share-{t}.zip"));
+    fs::create_dir_all(tmp.parent().unwrap()).map_err(e)?;
+    let r = long_agent().get(&format!("{API}/share/{t}/download")).call().map_err(|x| match x {
+        ureq::Error::Status(404, _) => "ссылка недействительна: автор удалил мир или отозвал её".to_string(),
+        ureq::Error::Status(429, _) => "слишком много скачиваний, подожди минуту".to_string(),
+        x => format!("не удалось скачать мир: {x}"),
+    })?;
+    let mut out = fs::File::create(&tmp).map_err(e)?;
+    std::io::copy(&mut r.into_reader(), &mut out).map_err(e)?;
+    out.flush().map_err(e)?;
+    let res = crate::worlds::restore_from(profile_id, &tmp, name);
+    let _ = fs::remove_file(&tmp);
+    res
+}

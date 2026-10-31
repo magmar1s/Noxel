@@ -225,3 +225,36 @@ pub fn state() -> Value {
         "guest": GUEST.lock().unwrap().as_ref().map(|(_, n, p)| serde_json::json!({"host": n, "port": p})),
     })
 }
+
+/// Открывает запущенный одиночный мир для друзей: агент публикует мир на свободном порту, лаунчер соединяет порт с сервером.
+pub fn open_world(token: &str, profile_id: &str) -> R<Value> {
+    use crate::autoauth;
+    let dir = crate::mc::inst_dir(profile_id);
+    let port = TcpListener::bind("127.0.0.1:0").map_err(e)?.local_addr().map_err(e)?.port();
+    let cid = autoauth::control(&dir, &format!("!publish {port}"));
+    match autoauth::wait_ack(&dir, &cid, 6).as_deref() {
+        Some("sent") => {
+            host_open(token, port)?;
+            Ok(serde_json::json!({"port": port, "how": "auto"}))
+        }
+        Some("error:no-world") => Err("Зайди в одиночный мир (не на сервер) и повтори".into()),
+        other => {
+            // версии без читаемых имён классов: пользователь открывает мир сам (Esc → «Открыть для сети»), порт берём из лога
+            let lan = LAN_PORT.load(Ordering::Relaxed);
+            if lan > 0 {
+                host_open(token, lan)?;
+                Ok(serde_json::json!({"port": lan, "how": "lan"}))
+            } else {
+                Err(format!("Эта версия игры не умеет открывать мир сама ({}). В игре нажми Esc → «Открыть для сети», потом повтори", other.unwrap_or("нет ответа")))
+            }
+        }
+    }
+}
+
+pub fn close_world(profile_id: Option<&str>) {
+    if let (Some(pid), Some(_)) = (profile_id, host_port()) {
+        crate::autoauth::control(&crate::mc::inst_dir(pid), "!unpublish");
+    }
+    host_close();
+    guest_close();
+}

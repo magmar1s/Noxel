@@ -25,8 +25,8 @@ SERVERS = os.path.join(DATA, "servers.json")
 LAUNCHER = os.path.join(DATA, "launcher.json")
 NEWS = os.path.join(DATA, "news.json")
 WORLDS = os.path.join(DATA, "worlds")
-WORLD_MAX = 300 * 1024 * 1024          # один мир в облаке
-WORLD_QUOTA = 1024 * 1024 * 1024       # всего на аккаунт
+WORLD_MAX = 300 * 1024 * 1024          # размер мира в облаке
+WORLD_QUOTA = WORLD_MAX                # в облаке Noxel хранится один мир на аккаунт (новый заменяет старый)
 RELAY_PORT = int(os.environ.get("NOXEL_RELAY_PORT", "8731"))
 RELAY_HOST = os.environ.get("NOXEL_RELAY_HOST", "mr1s.site")
 # через прокси разрешены только безопасные запросы на чтение
@@ -72,6 +72,9 @@ def init():
       id INTEGER PRIMARY KEY, account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       name TEXT NOT NULL, mc TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL, created INTEGER NOT NULL, file TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS worlds_acc ON worlds(account, created);
+    CREATE TABLE IF NOT EXISTS shares(
+      token TEXT PRIMARY KEY, world INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+      account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, created INTEGER NOT NULL, downloads INTEGER NOT NULL DEFAULT 0);
     """)
     c.commit()
 
@@ -494,6 +497,34 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, raw=hit[1])
         raise Err(502, "CurseForge временно недоступен, попробуй чуть позже")
 
+    def share_public(self, token, download):
+        """Общая ссылка на облачный мир: сведения для страницы и скачивание без входа."""
+        if not throttle(("share", self.ip()), 30 if not download else 6):
+            raise Err(429, "слишком много запросов, подожди минуту")
+        r = db().execute("SELECT s.token, s.downloads, w.id wid, w.name, w.mc, w.size, w.created, w.file, w.account, a.name owner FROM shares s JOIN worlds w ON w.id=s.world JOIN accounts a ON a.id=s.account WHERE s.token=?", (token,)).fetchone()
+        if not r:
+            raise Err(404, "ссылка недействительна: автор удалил мир или отозвал ссылку")
+        if not download:
+            return self.send(200, {"name": r["name"], "mc": r["mc"], "size": r["size"], "created": r["created"], "owner": r["owner"], "downloads": r["downloads"]})
+        try:
+            f = open(os.path.join(WORLDS, str(r["account"]), r["file"]), "rb")
+        except OSError:
+            raise Err(404, "файл мира потерян")
+        db().execute("UPDATE shares SET downloads=downloads+1 WHERE token=?", (token,))
+        db().commit()
+        with f:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Length", str(r["size"]))
+            self.send_header("Content-Disposition", "attachment; filename=\"noxel-world.zip\"")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            while True:
+                chunk = f.read(65536)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+
     def cf_batch(self):
         """Пакетный запрос описаний файлов CurseForge (для установки сборок): POST /cf/mods/files {"fileIds": [...]}."""
         key = read_secret(CF_KEY_FILE)
@@ -588,8 +619,10 @@ class H(BaseHTTPRequestHandler):
             return True
         # облачные миры
         if method == "GET" and p == "/worlds":
-            rows = db().execute("SELECT id, name, mc, size, created FROM worlds WHERE account=? ORDER BY created DESC", (a["id"],)).fetchall()
-            self.send(200, {"worlds": [dict(r) for r in rows], "used": sum(r["size"] for r in rows), "quota": WORLD_QUOTA, "max": WORLD_MAX})
+            rows = db().execute("SELECT w.id, w.name, w.mc, w.size, w.created, s.token, COALESCE(s.downloads,0) downloads FROM worlds w LEFT JOIN shares s ON s.world=w.id WHERE w.account=? ORDER BY w.created DESC", (a["id"],)).fetchall()
+            base = BASE.rsplit("/noxel", 1)[0]
+            self.send(200, {"worlds": [dict(id=r["id"], name=r["name"], mc=r["mc"], size=r["size"], created=r["created"], downloads=r["downloads"], share=("%s/w/%s" % (base, r["token"])) if r["token"] else None) for r in rows],
+                            "used": sum(r["size"] for r in rows), "quota": WORLD_QUOTA, "max": WORLD_MAX})
             return True
         if method == "POST" and p == "/world":
             q = parse_qs(urlparse(self.path).query)
@@ -601,9 +634,6 @@ class H(BaseHTTPRequestHandler):
                 raise Err(400, "нужны имя мира и файл")
             if n > WORLD_MAX:
                 raise Err(413, "мир больше %d МБ" % (WORLD_MAX // 1048576))
-            used = db().execute("SELECT COALESCE(SUM(size),0) FROM worlds WHERE account=?", (a["id"],)).fetchone()[0]
-            if used + n > WORLD_QUOTA:
-                raise Err(413, "в облаке нет места: занято %d МБ из %d" % (used // 1048576, WORLD_QUOTA // 1048576))
             d = os.path.join(WORLDS, str(a["id"]))
             os.makedirs(d, exist_ok=True)
             fid = secrets.token_hex(12) + ".zip"
@@ -624,8 +654,9 @@ class H(BaseHTTPRequestHandler):
             os.replace(tmp, os.path.join(d, fid))
             c = db()
             c.execute("INSERT INTO worlds(account,name,mc,size,created,file) VALUES(?,?,?,?,?,?)", (a["id"], name, mc, n, int(now), fid))
-            old = c.execute("SELECT id, file FROM worlds WHERE account=? AND name=? ORDER BY created DESC, id DESC LIMIT -1 OFFSET 3", (a["id"], name)).fetchall()
-            for r in old:                                  # хранится 3 последние копии одного мира
+            new_id = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+            old = c.execute("SELECT id, file FROM worlds WHERE account=? AND id<>?", (a["id"], new_id)).fetchall()
+            for r in old:                                  # в облаке Noxel один мир: новый заменяет прежний
                 c.execute("DELETE FROM worlds WHERE id=?", (r["id"],))
                 try:
                     os.remove(os.path.join(d, r["file"]))
@@ -634,6 +665,22 @@ class H(BaseHTTPRequestHandler):
             c.commit()
             self.close_connection = False
             self.send(200, {"ok": True, "size": n})
+            return True
+        m = re.match(r"^/world/(\d+)/share$", p)
+        if m and method in ("POST", "DELETE"):
+            r = db().execute("SELECT id FROM worlds WHERE id=? AND account=?", (int(m.group(1)), a["id"])).fetchone()
+            if not r:
+                raise Err(404, "мира нет в облаке")
+            if method == "DELETE":
+                db().execute("DELETE FROM shares WHERE world=?", (r["id"],))
+                db().commit()
+                return self.send(200, {"ok": True}) or True
+            row = db().execute("SELECT token FROM shares WHERE world=?", (r["id"],)).fetchone()
+            token = row["token"] if row else secrets.token_urlsafe(12)
+            if not row:
+                db().execute("INSERT INTO shares(token,world,account,created) VALUES(?,?,?,?)", (token, r["id"], a["id"], int(now)))
+                db().commit()
+            self.send(200, {"token": token, "url": "%s/w/%s" % (BASE.rsplit("/noxel", 1)[0], token)})
             return True
         m = re.match(r"^/world/(\d+)$", p)
         if m and method in ("GET", "DELETE"):
@@ -708,6 +755,9 @@ class H(BaseHTTPRequestHandler):
                     raise Err(403, "неверный ник или пароль")
             return self.send(200, {"token": self.new_token(a["id"]), "account": self.view(a)})
 
+        m = re.match(r"^/share/([A-Za-z0-9_-]{10,40})(/download)?$", p)
+        if method == "GET" and m:
+            return self.share_public(m.group(1), bool(m.group(2)))
         if method == "POST" and p == "/cf/mods/files":
             return self.cf_batch()
         m = re.match(r"^/cf/(.+)$", p)

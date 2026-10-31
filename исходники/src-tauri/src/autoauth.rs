@@ -25,6 +25,7 @@ pub fn install_agent() -> R<PathBuf> {
     Ok(p)
 }
 
+const MOD_JAR: &[u8] = include_bytes!("../assets/noxel-client.jar");
 const ICON_256: &[u8] = include_bytes!("../assets/game-icon-256.png");
 const ICON_64: &[u8] = include_bytes!("../assets/game-icon-64.png");
 
@@ -192,4 +193,20 @@ pub fn wait_ack(gamedir: &Path, id: &str, secs: u64) -> Option<String> {
         std::thread::sleep(Duration::from_millis(150));
     }
     None
+}
+
+/// Кладёт мод Noxel в папку модов профиля Fabric (26.x), если там есть Fabric API: без него мод не запустится.
+pub fn install_mod(p: &crate::mc::Profile, gamedir: &Path) {
+    let mods = gamedir.join("mods");
+    let target = mods.join("noxel-client.jar");
+    let supported = p.loader == "fabric" && p.mc.split('.').next().and_then(|m| m.parse::<u32>().ok()).map(|m| m >= 26).unwrap_or(false);
+    let has_api = fs::read_dir(&mods).map(|r| r.flatten().any(|e| e.file_name().to_string_lossy().to_lowercase().starts_with("fabric-api"))).unwrap_or(false);
+    if !supported || !has_api {
+        let _ = fs::remove_file(&target); // не оставляем мод там, где он не сможет запуститься
+        return;
+    }
+    if fs::read(&target).map(|b| b != MOD_JAR).unwrap_or(true) {
+        let _ = fs::create_dir_all(&mods);
+        let _ = fs::write(&target, MOD_JAR);
+    }
 }

@@ -856,6 +856,8 @@ pub fn prefetch(version: &str, threads: usize, java_only: bool, cb: Cb) -> R<Str
 
 /// сервер, на который надо зайти сразу после запуска (ставит лаунчер, забирает prepare)
 pub static JOIN: Mutex<Option<String>> = Mutex::new(None);
+/// профиль запущенной сейчас игры (для локального API мода)
+pub static RUNNING: Mutex<Option<String>> = Mutex::new(None);
 
 pub struct Prepared {
     pub java: PathBuf,
@@ -1052,6 +1054,14 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
         if let Ok(agent) = crate::autoauth::install_agent() {
             args.push(format!("-javaagent:{}={}", agent.display(), gamedir.display()));
         }
+    }
+    // мод Noxel (кнопка «Друзья» в игре) и адрес локального API лаунчера
+    if let Some((port, key)) = crate::localapi::info() {
+        args.push(format!("-Dnoxel.api=http://127.0.0.1:{port}"));
+        args.push(format!("-Dnoxel.key={key}"));
+    }
+    if st.noxel_mod {
+        crate::autoauth::install_mod(p, &gamedir);
     }
     if let Some(a) = log_arg {
         args.push(a);
