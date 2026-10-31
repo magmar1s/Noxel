@@ -68,6 +68,7 @@ fn skin_store() -> PathBuf {
 pub struct Auth {
     acct: String,
     secret: String,
+    custom: String,
     gamedir: PathBuf,
     skin: Option<(String, String)>, // (хеш скина, команда)
     host: Option<String>,
@@ -83,7 +84,7 @@ pub struct Auth {
 impl Auth {
     pub fn new(acct: &str, gamedir: &Path, notify: Box<dyn Fn(&str, &str) + Send + Sync>) -> R<Auth> {
         let secret = accounts::ensure_secret(acct)?;
-        Ok(Auth { acct: acct.into(), secret, gamedir: gamedir.into(), skin: accounts::skin_command(acct), host: None, joined: None, last_auth: None, last_cmd: HashMap::new(), sent: 0, skin_done: false, seq: 0, notify })
+        Ok(Auth { acct: acct.into(), secret, custom: accounts::server_pw_get(acct).unwrap_or_default(), gamedir: gamedir.into(), skin: accounts::skin_command(acct), host: None, joined: None, last_auth: None, last_cmd: HashMap::new(), sent: 0, skin_done: false, seq: 0, notify })
     }
 
     fn allowed(&self, skin: bool) -> bool {
@@ -130,7 +131,7 @@ impl Auth {
             return;
         }
         let host = self.host.clone().unwrap();
-        let pw = server_password(&self.secret, &host);
+        let pw = if self.custom.is_empty() { server_password(&self.secret, &host) } else { self.custom.clone() };
         let text = if kind == 1 {
             let after = &low[low.find("/reg").unwrap()..];
             if after.matches('<').count() == 1 && after.matches('>').count() == 1 { format!("/register {pw}") } else { format!("/register {pw} {pw}") }

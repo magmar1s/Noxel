@@ -384,6 +384,23 @@ fn cape_apply(id: String, path: String) -> R<()> {
 }
 
 #[tauri::command(async)]
+fn cape_apply_data(id: String, b64: String) -> R<()> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).map_err(|_| "повреждённая картинка")?;
+    accounts::cape_apply_bytes(&id, &bytes)
+}
+
+#[tauri::command(async)]
+fn ms_capes(id: String) -> R<Value> {
+    accounts::ms_capes(&id)
+}
+
+#[tauri::command(async)]
+fn ms_cape_set(id: String, cape: Option<String>) -> R<()> {
+    accounts::ms_cape_set(&id, cape)
+}
+
+#[tauri::command(async)]
 fn cape_clear(id: String) -> R<()> {
     accounts::cape_clear(&id)
 }
@@ -398,9 +415,19 @@ fn server_status(host: String) -> Value {
     ping::status(&host)
 }
 
+#[tauri::command]
+fn server_pw_get(id: String) -> R<String> {
+    accounts::server_pw_get(&id)
+}
+
+#[tauri::command]
+fn server_pw_set(id: String, pw: String) -> R<()> {
+    accounts::server_pw_set(&id, &pw)
+}
+
 #[tauri::command(async)]
 fn server_password(account_id: String, host: String) -> R<String> {
-    Ok(autoauth::server_password(&accounts::ensure_secret(&account_id)?, &host))
+    accounts::server_password_for(&account_id, &host)
 }
 
 #[tauri::command]
@@ -660,6 +687,8 @@ fn main() {
             server_status,
             launch_to,
             server_password,
+            server_pw_get,
+            server_pw_set,
             autoauth_toggle,
             servers_save,
             servers_install,
@@ -673,6 +702,9 @@ fn main() {
             skin_use,
             skin_remove,
             cape_apply,
+            cape_apply_data,
+            ms_capes,
+            ms_cape_set,
             cape_clear,
             duplicate_profile,
             account_add_local,

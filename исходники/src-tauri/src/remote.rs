@@ -43,8 +43,9 @@ pub fn servers_save(list: Value) -> R<Value> {
 /// Есть ли новая версия лаунчера и что нового.
 pub fn check() -> R<Value> {
     let m = call("GET", "/launcher", None, Body::None)?;
-    let latest = m["version"].as_str().unwrap_or("").to_string();
     let file = m["files"][PLATFORM].clone();
+    // у каждой системы своя версия (выпуск только для Linux не трогает Windows); старый манифест хранит одну общую
+    let latest = file["version"].as_str().or(m["version"].as_str()).unwrap_or("").to_string();
     let newer = !latest.is_empty() && !file.is_null() && ver_tuple(&latest) > ver_tuple(VERSION);
     Ok(json!({"current": VERSION, "latest": latest, "newer": newer, "notes": m["notes"], "news": m["news"], "size": file["size"]}))
 }
@@ -52,8 +53,8 @@ pub fn check() -> R<Value> {
 /// Скачивает сборку из манифеста и проверяет контрольную сумму и подпись автора. Возвращает версию.
 pub fn fetch_verified(dest: &std::path::Path) -> R<String> {
     let m = call("GET", "/launcher", None, Body::None)?;
-    let version = m["version"].as_str().ok_or("в манифесте нет версии")?.to_string();
     let f = &m["files"][PLATFORM];
+    let version = f["version"].as_str().or(m["version"].as_str()).ok_or("в манифесте нет версии")?.to_string();
     let (url, sha, sig) = (f["url"].as_str().ok_or("в манифесте нет ссылки")?, f["sha256"].as_str().unwrap_or(""), f["sig"].as_str().unwrap_or(""));
     if !url.starts_with("https://") {
         return Err("ссылка на обновление должна быть https".into());

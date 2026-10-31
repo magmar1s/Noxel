@@ -22,15 +22,24 @@ if [[ -n "${WIN_BIN:-}" ]]; then
   WNAME="noxel-windows-x86_64-$VER.exe"
   WSHA=$(sha256sum "$WIN_BIN" | cut -d' ' -f1)
   WSIG=$(openssl pkeyutl -sign -rawin -inkey "$KEY" -in "$WIN_BIN" | od -An -tx1 | tr -d ' \n')
-  WIN=$(python3 -c 'import json,sys; print(json.dumps({"url": sys.argv[1], "sha256": sys.argv[2], "sig": sys.argv[3], "size": int(sys.argv[4])}))' "$BASE/dl/$WNAME" "$WSHA" "$WSIG" "$(stat -c %s "$WIN_BIN")")
+  WIN=$(python3 -c 'import json,sys; print(json.dumps({"version": sys.argv[5], "url": sys.argv[1], "sha256": sys.argv[2], "sig": sys.argv[3], "size": int(sys.argv[4])}))' "$BASE/dl/$WNAME" "$WSHA" "$WSIG" "$(stat -c %s "$WIN_BIN")" "$VER")
   scp -q "${SO[@]}" "$WIN_BIN" "$HOST:/tmp/$WNAME"
   ssh "${SO[@]}" "$HOST" "install -m 644 -o noxel -g noxel /tmp/$WNAME /var/lib/noxel/dl/$WNAME && rm -f /tmp/$WNAME"
 fi
-python3 - "$VER" "$SHA" "$SIG" "$SIZE" "$BASE/dl/$NAME" "$NOTES" "$NEWS" "$WIN" > /tmp/noxel-launcher.json <<'PY'
+# без WIN_BIN запись Windows остаётся прежней (с её собственной версией), чтобы выпуск для Linux не ломал обновление на Windows
+OLD=$(ssh "${SO[@]}" "$HOST" "cat /var/lib/noxel/launcher.json 2>/dev/null || echo {}")
+python3 - "$VER" "$SHA" "$SIG" "$SIZE" "$BASE/dl/$NAME" "$NOTES" "$NEWS" "$WIN" "$OLD" > /tmp/noxel-launcher.json <<'PY'
 import json, sys
-ver, sha, sig, size, url, notes, news, win = sys.argv[1:9]
-files = {"linux-x86_64": {"url": url, "sha256": sha, "sig": sig, "size": int(size)}}
-if json.loads(win): files["windows-x86_64"] = json.loads(win)
+ver, sha, sig, size, url, notes, news, win, old = sys.argv[1:10]
+files = {"linux-x86_64": {"version": ver, "url": url, "sha256": sha, "sig": sig, "size": int(size)}}
+if json.loads(win):
+    files["windows-x86_64"] = json.loads(win)
+else:
+    o = json.loads(old or "{}")
+    keep = (o.get("files") or {}).get("windows-x86_64")
+    if keep:
+        keep.setdefault("version", o.get("version", ""))
+        files["windows-x86_64"] = keep
 print(json.dumps({"version": ver, "notes": json.loads(notes), "news": json.loads(news), "files": files}, ensure_ascii=False, indent=1))
 PY
 scp -q "${SO[@]}" "$BIN" "$HOST:/tmp/$NAME"

@@ -39,7 +39,7 @@ html.still *,html.still *::before,html.still *::after{animation:none!important;t
 #bg::after{content:"";position:absolute;inset:0;opacity:.5;
   background-image:linear-gradient(rgba(255,255,255,.026) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.026) 1px,transparent 1px);
   background-size:56px 56px;-webkit-mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent)}
-#app{position:relative;height:100%;display:grid;grid-template-columns:72px 1fr;gap:14px;padding:14px}
+#app{position:relative;height:100%;display:grid;grid-template-columns:90px 1fr;gap:14px;padding:14px}
 
 /* ── заставка ── */
 #splash{position:fixed;inset:0;z-index:300;display:grid;place-items:center;align-content:center;gap:22px;background:#050506;transition:opacity .7s var(--ease),visibility .7s}
@@ -67,18 +67,23 @@ html.still *,html.still *::before,html.still *::after{animation:none!important;t
 .mark{width:36px;height:36px;margin-bottom:14px;transition:transform .6s var(--spring)}
 .mark:hover{transform:rotate(-8deg) scale(1.12)}
 .mark svg{width:36px;height:36px;stroke:none}
-.nav{position:relative;display:flex;flex-direction:column;gap:6px}
-.nav-pill{position:absolute;left:-12px;top:0;width:3px;height:22px;border-radius:3px;background:var(--fg);box-shadow:0 0 14px rgba(255,255,255,.7);
+.nav{position:relative;display:flex;flex-direction:column;gap:4px}
+.nav-pill{position:absolute;left:-8px;top:0;width:3px;height:22px;border-radius:3px;background:var(--fg);box-shadow:0 0 14px rgba(255,255,255,.7);
   transition:transform .5s var(--spring);transform:translateY(var(--y,13px))}
-.nbtn.upd{color:#fff;background:rgba(255,255,255,.14);margin-bottom:10px;animation:updp 2.2s ease-in-out infinite}
+.nbtn.upd{color:#fff;background:rgba(255,255,255,.14);margin-bottom:6px;animation:updp 2.2s ease-in-out infinite}
 .nbtn.upd[hidden]{display:none}
 @keyframes updp{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}50%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
 .nbtn.has-new::after{content:'';position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
 .ncard{padding:18px 20px;border-radius:18px;background:rgba(255,255,255,.045);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .ncard.imp{border-color:rgba(255,255,255,.4)}.ncard.pin{background:rgba(255,255,255,.08)}
 .ncard h3{margin:0;font-size:17px}.ncard .nb{white-space:pre-wrap;color:var(--fg2);font-size:13.5px;line-height:1.5;user-select:text}
-.nbtn{position:relative;width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:var(--fg3);
+.nbtn{position:relative;width:70px;height:58px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--fg3);
   transition:background .25s var(--ease),color .25s var(--ease),transform .35s var(--spring)}
+.rail{overflow-y:auto;scrollbar-width:none}
+@media (max-height:780px){.nbtn{height:50px;gap:3px}.mark{margin-bottom:8px}.rail{padding:12px 0}}
+.nbtn .lbl{font-size:10.5px;font-weight:600;letter-spacing:.01em;line-height:1;white-space:nowrap}
+.nbtn .tip{display:none}
+.nbtn[data-p=home]:not(.on){color:#fff;background:rgba(255,255,255,.1);box-shadow:0 0 20px -4px rgba(255,255,255,.4)}
 .nbtn svg{width:21px;height:21px;transition:transform .35s var(--spring)}
 .nbtn:hover{background:var(--fill2);color:var(--fg)}
 .nbtn:hover svg{transform:scale(1.14) translateY(-1px)}
@@ -443,10 +448,10 @@ button.tile:hover{border-color:var(--line2)}
 textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);font-size:12px;line-height:1.5}
 
 /* активный аккаунт внизу панели */
-.rail-acc{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:64px;padding:7px 0 6px;border-radius:18px;transition:background .25s var(--ease)}
+.rail-acc{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;width:78px;padding:7px 0 6px;border-radius:18px;transition:background .25s var(--ease)}
 .rail-acc:hover{background:var(--fill)}
 .rail-acc .racc{margin:0;box-shadow:0 8px 18px -8px rgba(0,0,0,.8)}
-.rail-acc>b{font-size:10.5px;font-weight:600;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2);letter-spacing:.01em}
+.rail-acc>b{font-size:10.5px;font-weight:600;max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2);letter-spacing:.01em}
 .rail-acc>i{position:absolute;left:calc(50% + 9px);top:36px;width:12px;height:12px;border-radius:50%;background:var(--fg4);border:2px solid #101012;transition:background .4s,box-shadow .4s}
 .rail-acc>i.on{background:#fff;box-shadow:0 0 10px 2px rgba(255,255,255,.7)}
 .rail-acc>i.busy{background:#fff;animation:blink 1s ease-in-out infinite}
@@ -478,7 +483,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
     <div class="mark"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg></div>
     <nav class="nav" id="nav"><i class="nav-pill" id="pill"></i></nav>
     <div class="grow"></div>
-    <button class="nbtn upd" id="railUpd" hidden><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span class="tip" id="railUpdTip"></span></button>
+    <button class="nbtn upd" id="railUpd" hidden><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg><span class="lbl">Обновить</span><span class="tip" id="railUpdTip"></span></button>
     <button class="rail-acc" id="railAcc"><span class="racc"><img id="railHead" class="head" alt=""></span><i id="dot"></i><b id="railName"></b><span class="tip" id="railTip"></span></button>
   </aside>
   <main id="pages">
@@ -649,13 +654,13 @@ document.addEventListener('mousemove', e => { const g = e.target.closest && e.ta
 
 /* ── навигация ── */
 const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
-$('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}">${ic}<span class="tip">${t}</span></button>`).join(''));
+$('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}" title="${t}">${ic}<span class="lbl">${t}</span></button>`).join(''));
 $$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
 $('#railAcc').onclick = () => go('accounts');
 function go(p){
   S.page = p;
   $$('.page').forEach(x => x.classList.toggle('on', x.id === 'p-' + p));
-  $$('.nbtn').forEach((b, i) => { b.classList.toggle('on', b.dataset.p === p); if (b.dataset.p === p) $('#pill').style.setProperty('--y', (i * 52 + 12) + 'px'); });
+  $$('.nbtn').forEach((b, i) => { b.classList.toggle('on', b.dataset.p === p); if (b.dataset.p === p) $('#pill').style.setProperty('--y', (b.offsetTop + (b.offsetHeight - 22) / 2) + 'px'); });
   if (p === 'home') { renderProfiles(); renderHero(); }
   if (p === 'versions') { loadVersions(); }
   if (p === 'mods') { initMods(); }
@@ -974,6 +979,38 @@ async function skinAction(fn, ok){
   try { await fn(); if (ok) toast(ok); S._dj = ''; await loadAccounts(); await loadDetails(S.av, false); }
   catch (e) { modal('Не получилось', String(e)); }
 }
+/* плащи: готовые варианты Noxel, свой файл и официальные плащи Mojang */
+const capeCss = (src, k = 5) => `width:${10 * k}px;height:${16 * k}px;border-radius:4px;background:url(${src}) -${12 * k}px -${1 * k}px/${64 * k}px ${32 * k}px no-repeat;image-rendering:pixelated;box-shadow:0 6px 16px -6px rgba(0,0,0,.8);border:1px solid var(--line)`;
+async function capeGallery(d){
+  const box = $('#xbox'), noxel = d.kind === 'noxel';
+  box.innerHTML = '<h3>Плащи</h3><div class="hint">Загружаю…</div>'; $('#xmodal').classList.add('on');
+  let presets = [], ms = [];
+  try { presets = await (await fetch('assets/capes/index.json')).json(); } catch (e) {}
+  if (d.kind === 'microsoft') { try { ms = await invoke('ms_capes', {id: d.id}); } catch (e) { toast(e); } }
+  const msImgs = await Promise.all(ms.map(c => skinSrc(c.hash)));
+  const cell = (inner, label, attrs, on) => `<button class="capecell ${on ? 'on' : ''}" ${attrs} style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 10px;border-radius:14px;background:var(--fill);border:1px solid ${on ? 'var(--fg2)' : 'var(--line)'}">${inner}<small style="font-size:11.5px;color:var(--fg2)">${esc(label)}</small></button>`;
+  box.innerHTML = `<h3>Плащи</h3>
+    ${noxel ? `<div class="hint" style="margin-bottom:10px">Выбери готовый плащ или загрузи свой. Плащ хранится на сервере Noxel и виден в лаунчере. На чужих серверах его показывает мод Noxel (он в разработке): обычный клиент сторонние плащи не рисует.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;max-height:340px;overflow:auto;scrollbar-width:none;padding:2px">
+        ${presets.map(p => cell(`<div style="${capeCss('assets/capes/' + p.id + '.png')}"></div>`, p.name, `data-cp="${p.id}"`, false)).join('')}
+        ${cell('<div style="width:50px;height:80px;display:grid;place-items:center;font-size:26px;color:var(--fg3);border:1px dashed var(--line2);border-radius:4px">+</div>', 'Свой файл…', 'data-cf="1"', false)}
+      </div>` : `<div class="hint" style="margin-bottom:10px">Официальные плащи выдаёт Mojang (Migrator, Vanilla, MineCon и другие), поэтому показаны только те, что есть на твоём аккаунте. Выбранный плащ видят все игроки на любом сервере.</div>
+      ${ms.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;max-height:340px;overflow:auto;scrollbar-width:none;padding:2px">
+        ${ms.map((c, i) => cell(`<div style="${capeCss(msImgs[i])}"></div>`, c.alias || 'Плащ', `data-mc="${esc(c.id)}"`, c.active)).join('')}</div>` : '<div class="empty" style="padding:24px 0"><div><h3>Плащей Mojang нет</h3><p>Получить их нельзя: Mojang выдаёт плащи только за события.</p></div></div>'}`}
+    <div class="btns">${ms.some(c => c.active) ? '<button class="minibtn" id="cOff">Снять плащ</button>' : ''}<button class="minibtn solid" id="xc">Готово</button></div>`;
+  $('#xc').onclick = closeX;
+  const done = msg => { toast(msg); closeX(); S._dj = ''; loadAccounts().then(() => loadDetails(S.av, false)); };
+  $$('[data-cp]', box).forEach(b => b.onclick = async () => {
+    try {
+      const blob = await (await fetch('assets/capes/' + b.dataset.cp + '.png')).blob();
+      const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
+      b.disabled = true; await invoke('cape_apply_data', {id: d.id, b64}); done('Плащ надет');
+    } catch (e) { b.disabled = false; modal('Не получилось', String(e)); }
+  });
+  $$('[data-cf]', box).forEach(b => b.onclick = async () => { const f = await pickPng('Выбери плащ (PNG 64×32)'); if (f) { closeX(); skinAction(() => invoke('cape_apply', {id: d.id, path: f}), 'Плащ загружен'); } });
+  $$('[data-mc]', box).forEach(b => b.onclick = async () => { try { b.disabled = true; await invoke('ms_cape_set', {id: d.id, cape: b.dataset.mc}); done('Плащ надет'); } catch (e) { b.disabled = false; modal('Не получилось', String(e)); } });
+  if ($('#cOff')) $('#cOff').onclick = async () => { try { await invoke('ms_cape_set', {id: d.id, cape: null}); done('Плащ снят'); } catch (e) { modal('Не получилось', String(e)); } };
+}
 async function pickPng(title){ const r = await T.dialog.open({multiple: false, title, filters: [{name: 'Картинка PNG', extensions: ['png']}]}); return Array.isArray(r) ? r[0] : r; }
 async function renderDetails(){
   const el = $('#adet'), d = S.det;
@@ -988,9 +1025,14 @@ async function renderDetails(){
       <div class="chips" style="margin-top:12px"><span class="chip num" id="uuidChip" title="Скопировать UUID" style="cursor:pointer">${esc(d.uuid)}</span>${d.skin ? `<span class="chip">${slim ? 'Тонкие руки' : 'Классические руки'}</span>` : '<span class="chip">Скин по умолчанию</span>'}${d.cape ? '<span class="chip">Плащ</span>' : ''}${(S.game.state === 'running' && a.selected) ? '<span class="live"><i></i>В игре <span id="liveT" class="num">00:00:00</span></span>' : ''}</div></div>
     <div class="mrow"><button class="minibtn ${a.selected ? '' : 'solid'}" id="bAct" ${a.selected ? 'disabled' : ''}>${a.selected ? 'Активный аккаунт' : 'Играть этим аккаунтом'}</button>
       <button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><div class="seg" id="mseg"></div>
-      ${noxel ? `<button class="minibtn" id="bCape">Плащ…</button>${d.cape ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}${d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}` : ''}
+      ${noxel || d.kind === 'microsoft' ? `<button class="minibtn" id="bCape">Плащи</button>${d.cape && noxel ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}` : ''}${noxel && d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}
       ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}</div>
     <div class="hint" style="max-width:560px">${note}</div>
+    <div class="pwbox" style="max-width:560px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--fill);border:1px solid var(--line)">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Пароль на серверах (для автовхода)</div>
+      <div class="hint" style="margin-bottom:8px">По умолчанию для каждого сервера создаётся свой пароль. Можно задать один свой пароль, например такой же, как от аккаунта Noxel. Тогда его можно вводить вручную, но сервер, на котором ты зарегистрируешься, узнает его, и он подойдёт ко всем твоим серверам сразу.</div>
+      <div style="display:flex;gap:8px"><input class="inp" id="pwIn" type="password" autocomplete="off" placeholder="Авто: свой пароль для каждого сервера" style="flex:1"><button class="minibtn" id="pwSave">Сохранить</button></div>
+    </div>
     <div class="mini"><div class="tile"><span>Наиграно</span><b>${esc(fmtDur(st.total_secs))}</b></div><div class="tile"><span>Запусков</span><b>${st.sessions || 0}</b></div><div class="tile"><span>Был в игре</span><b>${esc(st.last ? ago(st.last) : 'ещё не играл')}</b></div></div>
     <div class="mini"><div class="tile"><span>Самая долгая</span><b>${esc(fmtDur(an.longest))}</b></div><div class="tile"><span>В среднем</span><b>${esc(fmtDur(an.avg))}</b></div><div class="tile"><span>Дней в игре</span><b>${an.days}</b></div></div>
     <div class="sec"><div class="lbl"><span>Активность за 14 дней</span><span class="cnt">${esc(fmtDur(an.b.reduce((x, y) => x + y, 0)))}</span></div>${chartHtml(an)}</div>
@@ -1005,8 +1047,10 @@ async function renderDetails(){
   $('#bAct').onclick = async () => { try { S.accts = await invoke('account_select', {id: d.id}); renderRailAcc(); renderAccounts(); toast(`Играешь как ${d.name}`); } catch (x) { toast(x); } };
   $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
   if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
-  if ($('#bCape')) $('#bCape').onclick = async () => { const f = await pickPng('Выбери плащ (PNG 64×32)'); if (f) skinAction(() => invoke('cape_apply', {id: d.id, path: f}), 'Плащ загружен'); };
+  if ($('#bCape')) $('#bCape').onclick = () => capeGallery(d);
   if ($('#bCapeOff')) $('#bCapeOff').onclick = () => skinAction(() => invoke('cape_clear', {id: d.id}), 'Плащ убран');
+  invoke('server_pw_get', {id: d.id}).then(v => { if ($('#pwIn')) $('#pwIn').value = v || ''; }).catch(() => {});
+  if ($('#pwSave')) $('#pwSave').onclick = async () => { try { await invoke('server_pw_set', {id: d.id, pw: $('#pwIn').value}); toast($('#pwIn').value.trim() ? 'Свой пароль сохранён' : 'Будет использоваться свой пароль для каждого сервера'); } catch (e) { modal('Не сохранилось', String(e)); } };
   if ($('#bCmd')) $('#bCmd').onclick = () => navigator.clipboard.writeText(`/skin url "${d.skin.url}" ${d.skin.model === 'slim' ? 'slim' : 'classic'}`).then(() => toast('Команда скопирована: вставь её в чат сервера со SkinsRestorer')).catch(() => {});
   $$('.hthumb', el).forEach(t => t.onclick = e => { if (e.target.closest('[data-del]')) return; if (!t.classList.contains('cur')) skinAction(() => invoke('skin_use', {id: d.id, entry: +t.dataset.id}), 'Скин возвращён'); });
   $$('[data-del]', el).forEach(b => b.onclick = () => skinAction(() => invoke('skin_remove', {id: d.id, entry: +b.dataset.del}), 'Удалено из истории'));

@@ -51,6 +51,9 @@ pub struct Account {
     /// Секрет для паролей на серверах (автовход). Не покидает лаунчер, у аккаунта Noxel хранится и в облаке.
     #[serde(default)]
     pub server_secret: String,
+    /// Свой пароль для серверов (необязательно, хранится только на этом компьютере и в облако не уходит).
+    #[serde(default)]
+    pub server_pw: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -375,6 +378,56 @@ pub fn cape_apply(id: &str, file: &str) -> R<()> {
     Ok(())
 }
 
+/// Готовый плащ из набора лаунчера (байты PNG приходят из интерфейса).
+pub fn cape_apply_bytes(id: &str, bytes: &[u8]) -> R<()> {
+    let a = refresh_if_needed(get(id)?)?;
+    skins::check_cape(bytes)?;
+    match a.kind.as_str() {
+        "noxel" => {
+            skins::call("POST", "/cape", Some(&a.token), Body::Bytes(bytes.to_vec()))?;
+        }
+        _ => return Err("Готовые плащи Noxel доступны для аккаунтов Noxel. У лицензионного аккаунта плащи выдаёт Mojang".into()),
+    }
+    let h = skins::store(bytes)?;
+    mutate(id, |a| a.cape = Some(h))?;
+    Ok(())
+}
+
+/// Плащи лицензионного аккаунта (выдаёт Mojang): список с картинками и отметкой активного.
+pub fn ms_capes(id: &str) -> R<Value> {
+    let a = refresh_if_needed(get(id)?)?;
+    if a.kind != "microsoft" {
+        return Err("Только для лицензионного аккаунта".into());
+    }
+    let prof: Value = agent().get("https://api.minecraftservices.com/minecraft/profile").set("Authorization", &format!("Bearer {}", a.access_token)).call().map_err(e)?.into_json().map_err(e)?;
+    let mut out = vec![];
+    for c in prof["capes"].as_array().cloned().unwrap_or_default() {
+        let hash = skins::fetch_png(c["url"].as_str().unwrap_or("")).and_then(|b| skins::store(&b)).ok();
+        out.push(json!({"id": c["id"], "alias": c["alias"], "active": c["state"] == "ACTIVE", "hash": hash}));
+    }
+    Ok(json!(out))
+}
+
+/// Надеть плащ Mojang по id или снять (None).
+pub fn ms_cape_set(id: &str, cape: Option<String>) -> R<()> {
+    let a = refresh_if_needed(get(id)?)?;
+    if a.kind != "microsoft" {
+        return Err("Только для лицензионного аккаунта".into());
+    }
+    let url = "https://api.minecraftservices.com/minecraft/profile/capes/active";
+    let req = match &cape {
+        Some(c) => agent().put(url).set("Authorization", &format!("Bearer {}", a.access_token)).send_json(json!({"capeId": c})),
+        None => agent().delete(url).set("Authorization", &format!("Bearer {}", a.access_token)).call(),
+    };
+    match req {
+        Ok(_) => {}
+        Err(ureq::Error::Status(c, _)) => return Err(format!("Mojang отклонил смену плаща (код {c})")),
+        Err(x) => return Err(x.to_string()),
+    }
+    let _ = details(id, true);
+    Ok(())
+}
+
 pub fn cape_clear(id: &str) -> R<()> {
     let a = get(id)?;
     if a.kind == "noxel" {
@@ -649,4 +702,25 @@ fn minecraft_login(ms_token: &str, refresh: &str) -> R<Account> {
         created: now(),
         ..Default::default()
     })
+}
+
+/// Пароль для сервера: свой, если задан, иначе уникальный (производный от секрета аккаунта).
+pub fn server_password_for(id: &str, host: &str) -> R<String> {
+    let a = get(id)?;
+    if !a.server_pw.is_empty() {
+        return Ok(a.server_pw);
+    }
+    Ok(crate::autoauth::server_password(&ensure_secret(id)?, host))
+}
+
+pub fn server_pw_get(id: &str) -> R<String> {
+    Ok(get(id)?.server_pw)
+}
+
+pub fn server_pw_set(id: &str, pw: &str) -> R<()> {
+    let pw = pw.trim().to_string();
+    if !pw.is_empty() && (pw.len() < 6 || pw.len() > 64 || pw.contains(char::is_whitespace)) {
+        return Err("пароль: от 6 до 64 символов без пробелов".into());
+    }
+    mutate(id, |a| a.server_pw = pw.clone()).map(|_| ())
 }
