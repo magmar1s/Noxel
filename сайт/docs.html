@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>Документация Noxel</title>
-<meta name="description" content="Как установить Noxel, создавать профили, ставить моды, пользоваться аккаунтами и скинами, обновлять лаунчер и собирать его из исходников.">
+<meta name="description" content="Как установить Noxel, создавать профили, ставить моды, пользоваться аккаунтами и скинами, обновлять лаунчер.">
 <link rel="icon" href="assets/favicon.png">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -24,7 +24,6 @@
   <b>Моды</b><a href="#mods">Каталог и установка</a><a href="#versions">Версии мода</a><a href="#client">Клиентские моды</a><a href="#own">Свои файлы</a><a href="#updates">Обновление модов</a><a href="#servers">Моды для серверов</a><a href="#crash">Разбор вылетов</a>
   <b>Аккаунты</b><a href="#accounts">Типы аккаунтов</a><a href="#skins">Скины и плащи</a><a href="#sr">SkinsRestorer</a>
   <b>Прочее</b><a href="#settings">Настройки</a><a href="#selfupdate">Обновление лаунчера</a><a href="#data">Данные и приватность</a><a href="#trouble">Если что-то не так</a>
-  <b>Разработчикам</b><a href="#build">Сборка из исходников</a><a href="#api">API сервера Noxel</a><a href="#hosting">Свой сервер</a><a href="#release">Выпуск релизов</a>
 </aside>
 
 <main class="doc">
@@ -42,12 +41,8 @@
 <div class="code" id="c1">curl -fsSL https://mr1s.site/noxel/dl/noxel-setup-linux-x86_64 -o /tmp/noxel-setup &amp;&amp; chmod +x /tmp/noxel-setup &amp;&amp; /tmp/noxel-setup</div>
 <p>Нужны библиотеки WebKitGTK 4.1 (в Arch пакет <code>webkit2gtk-4.1</code>, в Ubuntu и Debian <code>libwebkit2gtk-4.1-0</code>). Лаунчер ставится в <code>~/.local/share/noxel/app</code>, данные лежат в <code>~/.local/share/noxel</code>.</p>
 <img class="s" src="assets/screens/setup1.webp" alt="Окно установщика">
-<h3>Без установщика</h3>
-<p>Кнопка «Только лаунчер» скачивает один исполняемый файл. Сделай его исполняемым и запусти. Данные будут храниться в <code>~/.local/share/noxel</code> (или рядом с файлом, если он лежит в папке «готовый продукт»; свой путь задаёт переменная <code>NOXEL_HOME</code>).</p>
-
 <h2 id="windows">Windows</h2>
-<p>Код лаунчера и установщика уже содержит ветки для Windows: путь к Java, разделитель classpath, ярлыки, открытие папок. Сборка выполняется автоматически на GitHub (файл <code>.github/workflows/release.yml</code> в репозитории). Windows-версия <b>ещё не проверялась на реальной машине</b>, поэтому на сайте она помечена как «скоро».</p>
-<p>Чтобы собрать самому на Windows 10 или 11: установи <a href="https://rustup.rs">Rust</a> с MSVC-инструментами и выполни в папке <code>исходники\src-tauri</code> команду <code>cargo build --release --features custom-protocol</code>. WebView2 уже есть в Windows 10 и 11.</p>
+<p>Версия для Windows 10 и 11 доступна как <b>бета</b>: тот же установщик с окном, обновление в один клик, друзья и общий мир. Если Windows покажет «Неизвестный издатель», нажми «Подробнее» → «Выполнить в любом случае»: у Noxel пока нет платного сертификата подписи, а такие программы Windows предупреждает всегда. Данные лежат в <code>%LOCALAPPDATA%\Noxel</code>. Нужен Microsoft Edge WebView2: он есть в Windows 11 и в обновлённой Windows 10, а при его отсутствии Noxel скачает его сам.</p>
 
 <h2 id="first">Первый запуск</h2>
 <ol><li>Открой вкладку <b>Версии</b>, выбери версию игры и загрузчик.</li><li>Нажми <b>Создать и скачать</b>: лаунчер скачает игру, библиотеки, ресурсы и Java.</li><li>Вернись на <b>Играть</b> и нажми кнопку запуска.</li></ol>
@@ -148,43 +143,6 @@
 <tr><td>Не открывается окно</td><td>Установи WebKitGTK 4.1 (Linux) или WebView2 (Windows).</td></tr>
 <tr><td>Игра закрылась</td><td>Нажми «Разобрать ошибку» в консоли на главной странице.</td></tr></table>
 
-<h2 id="build">Сборка из исходников</h2>
-<div class="code">git clone &lt;репозиторий&gt; Noxel &amp;&amp; cd Noxel
-./install.sh --build      # собрать, положить в «готовый продукт» и поставить ярлыки</div>
-<p>Нужны Rust и WebKitGTK 4.1 (на Linux). Интерфейс — один файл <code>исходники/ui/index.html</code>, сборка фронтенда не требуется. Структура репозитория:</p>
-<table class="t"><tr><th>Папка</th><th>Содержимое</th></tr>
-<tr><td>исходники/</td><td>лаунчер: Rust-бэкенд (Tauri 2) и интерфейс</td></tr>
-<tr><td>установщик/</td><td>установщик с окном (Tauri 2)</td></tr>
-<tr><td>сервер/</td><td>API Noxel (Python), конфиги nginx и systemd, скрипт развёртывания</td></tr>
-<tr><td>сайт/</td><td>этот сайт</td></tr>
-<tr><td>готовый продукт/</td><td>собранные файлы (в git не попадают)</td></tr></table>
-<p>Проверки на живых серверах запускаются командой <code>cargo test --release --features custom-protocol -- --ignored</code>.</p>
-
-<h2 id="api">API сервера Noxel</h2>
-<p>Все адреса начинаются с <code>https://mr1s.site/noxel/v1</code>, ответы в JSON. Приватные запросы требуют заголовок <code>Authorization: Bearer &lt;токен&gt;</code>.</p>
-<table class="t"><tr><th>Запрос</th><th>Назначение</th></tr>
-<tr><td>POST /register, /login</td><td>создать аккаунт или войти (ник и пароль), в ответе токен</td></tr>
-<tr><td>GET /me, POST /logout</td><td>данные аккаунта, выход</td></tr>
-<tr><td>GET/POST /skin</td><td>список и загрузка скина (PNG в теле, <code>?model=slim</code>)</td></tr>
-<tr><td>POST /skin/select, DELETE /skin/{id}</td><td>вернуть скин из истории, удалить</td></tr>
-<tr><td>GET/POST /cape, /cape/select</td><td>плащ</td></tr>
-<tr><td>GET/PUT /data</td><td>облачная статистика и сводка профилей</td></tr>
-<tr><td>GET /profile/{ник}</td><td>публичная карточка игрока</td></tr>
-<tr><td>GET /servers</td><td>рекомендуемые моды для серверов</td></tr>
-<tr><td>PUT /servers</td><td>изменить список (токен администратора)</td></tr>
-<tr><td>GET /launcher</td><td>манифест обновлений лаунчера</td></tr>
-<tr><td>GET /cf/…</td><td>прокси к CurseForge (только чтение)</td></tr></table>
-<p>Файлы скинов раздаются по <code>/noxel/f/&lt;sha256&gt;.png</code>, сборки — по <code>/noxel/dl/</code>.</p>
-
-<h2 id="hosting">Свой сервер</h2>
-<p>Сервер Noxel — один файл на Python (только стандартная библиотека) за nginx. На чистом Debian или Ubuntu от root:</p>
-<div class="code">cd сервер &amp;&amp; bash deploy.sh your-domain.example</div>
-<p>Скрипт ставит nginx и certbot, создаёт отдельного пользователя без доступа к системе, службу systemd с изоляцией и сертификат HTTPS. Токен администратора создаётся в <code>/etc/noxel/admin.token</code>. Чтобы работал CurseForge, положи свой ключ в <code>/etc/noxel/cf.key</code>. Адрес сервера задаётся в исходниках лаунчера (<code>skins.rs</code>, константа <code>API</code>).</p>
-
-<h2 id="release">Выпуск релизов</h2>
-<p>Релиз подписывается закрытым ключом Ed25519, который хранится только у автора (папка <code>.keys</code>, в git не попадает). Публичный ключ встроен в лаунчер и установщик.</p>
-<div class="code">./publish.sh 0.4.0 "Что нового" "Ещё строка"      # лаунчер + манифест самообновления
-./publish-setup.sh linux-x86_64 путь/к/noxel-setup  # установщик для сайта</div>
 </main>
 </div>
 <footer><div class="wrap in"><span>Noxel. Minecraft принадлежит Mojang и Microsoft, лаунчер с ними не связан.</span><div class="links"><a href="/">На главную</a></div></div></footer>

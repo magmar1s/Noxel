@@ -870,6 +870,13 @@ fn main() {
     localapi::start();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // версия лаунчера в заголовке окна
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.set_title(&format!("Noxel {}", remote::VERSION));
+            }
+            Ok(())
+        })
         .manage(Game::default())
         .invoke_handler(tauri::generate_handler![
             versions,

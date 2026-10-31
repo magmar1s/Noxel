@@ -29,6 +29,7 @@
     $$('[data-win]').forEach(a => { if (win) { a.href = '/noxel/dl/' + win.file; a.removeAttribute('aria-disabled'); a.textContent = a.dataset.label || a.textContent; } });
     $$('[data-lin-size]').forEach(e => e.textContent = lin ? fmt(lin.size) : '');
     $$('[data-lin-sha]').forEach(e => e.textContent = lin ? lin.sha256 : '');
+    $$('[data-win-sha]').forEach(e => e.textContent = win ? win.sha256 : '');
     $$('[data-bin]').forEach(a => { if (bin) { a.href = bin.url; a.removeAttribute('aria-disabled'); } });
     $$('[data-bin-sha]').forEach(e => e.textContent = bin ? bin.sha256 : '');
     $$('[data-meta]').forEach(e => e.textContent = [ver && 'Версия ' + ver, lin && fmt(lin.size), 'бесплатно, без рекламы'].filter(Boolean).join(' · '));

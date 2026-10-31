@@ -114,15 +114,16 @@
     <div class="dcard rec rv">
       <h3><svg viewBox="0 0 24 24"><path d="M12 3c-2 0-3 2-3 5 0 2-2 3-2 6 0 2 1 4 2 5h6c1-1 2-3 2-5 0-3-2-4-2-6 0-3-1-5-3-5z"/></svg>Linux <span class="tag">64-бит</span> <span class="tag beta">БЕТА</span></h3>
       <p>Установщик с окном: галочки, ползунок, ярлыки. Подходит для Arch, Ubuntu, Fedora и других дистрибутивов с WebKitGTK 4.1.</p>
-      <div class="row2"><a class="btn solid" data-lin aria-disabled="true" href="#download"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>Скачать установщик <small data-lin-size style="opacity:.6;font-weight:500"></small></a><a class="btn" data-bin aria-disabled="true" href="#download">Только лаунчер</a></div>
+      <div class="row2"><a class="btn solid" data-lin aria-disabled="true" href="#download"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>Скачать установщик <small data-lin-size style="opacity:.6;font-weight:500"></small></a></div>
       <div class="code" id="cmdLin">curl -fsSL https://mr1s.site/noxel/dl/noxel-setup-linux-x86_64 -o /tmp/noxel-setup &amp;&amp; chmod +x /tmp/noxel-setup &amp;&amp; /tmp/noxel-setup</div>
       <div class="row2" style="padding:0"><button class="btn sm" data-copy="#cmdLin">Скопировать команду</button></div>
       <p style="font-size:12.5px;color:var(--fg3)">SHA-256 установщика: <code data-lin-sha style="word-break:break-all"></code></p>
     </div>
     <div class="dcard rv d1">
       <h3><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Windows <span class="tag soon" data-win-soon>Скоро</span> <span class="tag beta">БЕТА</span></h3>
-      <p><b>БЕТА.</b> Версия для Windows 10 и 11 с таким же установщиком. Код уже поддерживает Windows, сборку выпускают автоматически на GitHub. Как только она появится, кнопка станет активной.</p>
-      <div class="row2"><a class="btn solid" data-win aria-disabled="true" href="#download" data-label="Скачать установщик">Скачать установщик</a><a class="btn" href="docs.html#windows">Как собрать самому</a></div>
+      <p><b>БЕТА.</b> Версия для Windows 10 и 11 с таким же установщиком. Если Windows покажет «Неизвестный издатель», нажми «Подробнее» → «Выполнить в любом случае»: у Noxel пока нет платного сертификата подписи. Контрольная сумма установщика указана ниже.</p>
+      <div class="row2"><a class="btn solid" data-win aria-disabled="true" href="#download" data-label="Скачать установщик">Скачать установщик</a></div>
+      <p style="font-size:12.5px;color:var(--fg3)">SHA-256 установщика: <code data-win-sha style="word-break:break-all"></code></p>
     </div>
   </div>
   <p class="meta rv" style="margin-top:26px">Файлы раздаются с сервера Noxel по HTTPS. Обновления лаунчера подписаны ключом автора и проверяются перед установкой.</p>
@@ -137,7 +138,8 @@
     <details class="rv"><summary>Нужно ли ставить Java?</summary><p>Нет. Лаунчер сам скачивает с серверов Mojang ту версию Java, которая нужна выбранной версии игры. Можно указать и свою.</p></details>
     <details class="rv"><summary>Мои моды и миры сохранятся при обновлении?</summary><p>Да. Обновляется только сам лаунчер, а данные лежат отдельно: профили, моды, миры, аккаунты и Java не затрагиваются.</p></details>
     <details class="rv"><summary>Как работает скин на серверах со SkinsRestorer?</summary><p>Скин загружается на сервер Noxel и получает постоянную ссылку. Её можно передать плагину командой <code>/skin url</code>: в лаунчере для этого есть кнопка. Плащи видны только в лаунчере и клиентах с модами для плащей, обычный клиент другим игрокам плащ не покажет.</p></details>
-    <details class="rv"><summary>Что насчёт Windows?</summary><p>Код лаунчера и установщика уже поддерживает Windows, сборка выполняется автоматически на GitHub. Windows-версия пока не проверялась на реальной машине, поэтому она помечена как «скоро».</p></details>
+    <details class="rv"><summary>Что насчёт Windows?</summary><p>Версия для Windows 10 и 11 доступна как бета: установщик, обновления в один клик, друзья и общий мир работают так же, как на Linux. Бета означает, что возможны ошибки, особенно на редких конфигурациях.</p></details>
+    <details class="rv"><summary>Почему Windows предупреждает при запуске установщика?</summary><p>Windows и браузеры предупреждают о любых программах без цифровой подписи от платного сертификата и без истории скачиваний. Noxel не содержит вирусов, но такое предупреждение пока нормально: нажми «Подробнее» → «Выполнить в любом случае». Для проверки сравни SHA-256 файла с указанным на странице скачивания.</p></details>
   </div>
 </div></section>
 
