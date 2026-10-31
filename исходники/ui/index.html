@@ -257,7 +257,14 @@ input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(255,255,
 .prog .ph{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--fg2);margin-bottom:8px}
 .prog .ph b{font-weight:600;color:var(--fg);letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .prog .ph span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;color:var(--fg3)}
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:auto;padding-top:20px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:auto;padding-top:20px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;min-height:0}
+.quick:empty{display:none}
+.quick .lab{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);align-self:center;margin-right:2px}
+#pal input{width:100%}
+.palrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;cursor:pointer;color:var(--fg2)}
+.palrow.on,.palrow:hover{background:var(--fill2);color:var(--fg)}
+.palrow small{margin-left:auto;color:var(--fg3);font-size:11.5px}
 .tile{position:relative;padding:13px 15px;border-radius:18px;background:rgba(0,0,0,.32);border:1px solid var(--line);text-align:left;transition:background .3s,transform .4s var(--ease),border-color .3s;min-width:0}
 .tile:hover{background:rgba(0,0,0,.45);transform:translateY(-3px)}
 button.tile:hover{border-color:var(--line2)}
@@ -265,6 +272,7 @@ button.tile:hover{border-color:var(--line2)}
 .tile b{display:block;font-size:17px;font-weight:600;margin-top:4px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile svg{position:absolute;right:13px;top:13px;width:16px;height:16px;color:var(--fg3);transition:transform .4s var(--spring)}
 .tile:hover svg{transform:scale(1.2) rotate(-6deg)}
+.tiles .tile{padding:12px 11px}.tiles .tile b{font-size:15px}.tiles .tile span{padding-right:18px;letter-spacing:.05em;font-size:10px}.tiles .tile svg{right:10px;top:12px}
 .console{position:relative;margin-top:12px;border-radius:18px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden;
   height:0;opacity:0;transition:height .5s var(--ease),opacity .3s}
 .console.on{height:210px;opacity:1}
@@ -725,7 +733,9 @@ function renderHero(){
     <h1>${esc(p.name)}</h1>
     <div class="playrow">${btn}</div>
     <div class="prog" id="prog"><div class="ph"><b id="pstage"></b><span id="pdetail"></span></div><div class="bar" id="pbar"><i style="width:0"></i></div></div>
+    <div class="quick" id="quick"></div>
     <div class="tiles">
+      <button class="tile" id="tWorlds"><span>Миры</span><b>Копии</b>${I.folder}</button>
       <button class="tile" id="tMods"><span>Моды</span><b><em data-n="${p.mods}" style="font-style:normal">0</em> ${plural(p.mods, 'мод','мода','модов')}</b>${I.mod}</button>
       <button class="tile" id="tDir"><span>Папка</span><b>Открыть</b>${I.folder}</button>
       <button class="tile" id="tLog"><span>Консоль</span><b>${S.logOpen ? 'Скрыть' : 'Показать'}</b>${I.term}</button>
@@ -736,6 +746,8 @@ function renderHero(){
   $$('[data-n]', el).forEach(n => countUp(n, +n.dataset.n));
   $('#playBtn').onclick = () => playClick(p);
   $('#tMods').onclick = () => { S.m.profile = p.id; go('mods'); };
+  $('#tWorlds').onclick = () => worldsModal(p);
+  quickServers(p);
   $('#tDir').onclick = () => invoke('open_folder', {profileId: p.id, sub: null}).catch(toast);
   $('#tAcc').onclick = () => go('accounts');
   $('#tLog').onclick = () => { S.logOpen = !S.logOpen; $('#console').classList.toggle('on', S.logOpen); $('#tLog b').textContent = S.logOpen ? 'Скрыть' : 'Показать'; if (S.logOpen) fillLog(); };
@@ -744,6 +756,57 @@ function renderHero(){
   if (S.logOpen) fillLog();
   setProgress();
 }
+/* быстрый заход на недавние серверы прямо с главной */
+async function quickServers(p){
+  try {
+    if (!S.av || !p.installed) return;
+    const d = await invoke('account_details', {id: S.av, refresh: false}), el = $('#quick'); if (!el) return;
+    const list = ((d.stats || {}).servers || []).filter(x => x.host).sort((a, b) => (b.last || 0) - (a.last || 0)).slice(0, 3);
+    if (!list.length) return;
+    el.innerHTML = '<span class="lab">Зайти на</span>' + list.map(x => `<button class="minibtn sm" data-qj="${esc(x.host)}">${I.play} ${esc(x.host)}</button>`).join('');
+    $$('[data-qj]', el).forEach(b => b.onclick = async () => { b.disabled = true; try { await invoke('launch_to', {id: p.id, host: b.dataset.qj}); } catch (e) { b.disabled = false; modal('Не удалось запустить', String(e)); } });
+  } catch (e) {}
+}
+
+/* миры профиля и резервные копии */
+const fmtDate = t => t ? new Date(t * 1000).toLocaleString('ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}) : '—';
+async function worldsModal(p){
+  const box = $('#xbox'); box.innerHTML = '<h3>Миры</h3><div class="hint">Загружаю…</div>'; $('#xmodal').classList.add('on');
+  const render = async () => {
+    let r; try { r = await invoke('worlds_list', {profileId: p.id}); } catch (e) { box.innerHTML = `<h3>Миры</h3><div class="hint">${esc(e)}</div><div class="btns"><button class="minibtn solid" id="xc">Закрыть</button></div>`; $('#xc').onclick = closeX; return; }
+    box.innerHTML = `<h3>Миры профиля «${esc(p.name)}»</h3>
+      <div class="hint" style="margin-bottom:10px">Резервная копия — это zip-архив мира. При восстановлении текущий мир не удаляется, а переименовывается рядом.</div>
+      <div style="max-height:360px;overflow:auto;scrollbar-width:none">
+      ${r.worlds.length ? r.worlds.map((w, i) => `<div class="palrow" style="cursor:default"><b style="color:var(--fg)">${esc(w.name)}</b><small>${fmtSize(w.size)} · играл ${fmtDate(w.modified)} · копий: ${w.backups}</small><button class="minibtn sm" data-wb="${i}">Сделать копию</button></div>`).join('') : '<div class="hint" style="padding:10px">В этом профиле пока нет миров.</div>'}
+      ${r.backups.length ? `<div class="lbl" style="margin:14px 0 6px"><span>Копии</span></div>` + r.backups.map((b, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(b.world)}</span><small>${fmtDate(b.created)} · ${fmtSize(b.size)}</small><button class="minibtn sm" data-br="${i}">Восстановить</button><button class="ibtn sm" data-bd="${i}" title="Удалить копию">${I.trash}</button></div>`).join('') : ''}
+      </div><div class="btns"><button class="minibtn solid" id="xc">Готово</button></div>`;
+    $('#xc').onclick = closeX;
+    $$('[data-wb]', box).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = 'Копирую…'; try { await invoke('world_backup', {profileId: p.id, world: r.worlds[+b.dataset.wb].name}); toast('Копия готова'); } catch (e) { modal('Не получилось', String(e)); } render(); });
+    $$('[data-br]', box).forEach(b => b.onclick = async () => { const f = r.backups[+b.dataset.br]; const ok = await modal(`Восстановить «${f.world}»?`, 'Текущий мир будет переименован рядом с суффиксом «-до-восстановления», ничего не потеряется.', [{label:'Отмена', val:false}, {label:'Восстановить', val:true, cls:'solid'}]); if (!ok) return; try { await invoke('backup_restore', {profileId: p.id, file: f.file}); toast('Мир восстановлен'); } catch (e) { modal('Не получилось', String(e)); } worldsModal(p); });
+    $$('[data-bd]', box).forEach(b => b.onclick = async () => { try { await invoke('backup_delete', {profileId: p.id, file: r.backups[+b.dataset.bd].file}); } catch (e) { toast(e); } render(); });
+  };
+  render();
+}
+
+/* поиск и быстрые действия: Ctrl+K */
+function openPalette(){
+  const box = $('#xbox');
+  const items = [
+    ...PAGES.map(([id, t]) => ({t: 'Перейти: ' + t, hint: 'раздел', run: () => go(id)})),
+    ...S.profiles.map(p => ({t: 'Играть: ' + p.name, hint: `${p.mc} · ${LNAME[p.loader] || p.loader}`, run: () => { S.sel = p.id; go('home'); setTimeout(() => playClick(p), 150); }})),
+    {t: 'Проверить обновления лаунчера', hint: 'обновление', run: () => checkLauncher(false)},
+    {t: 'Открыть папку выбранного профиля', hint: 'профиль', run: () => invoke('open_folder', {profileId: S.sel, sub: null}).catch(toast)},
+  ];
+  box.innerHTML = `<div id="pal"><input class="inp" id="palQ" placeholder="Что сделать? Например: серверы, сборки, играть…" spellcheck="false"><div id="palL" style="margin-top:8px;max-height:340px;overflow:auto;scrollbar-width:none"></div></div>`;
+  let sel = 0, shown = items;
+  const draw = () => { $('#palL').innerHTML = shown.map((x, i) => `<div class="palrow ${i === sel ? 'on' : ''}" data-pi="${i}"><span>${esc(x.t)}</span><small>${esc(x.hint)}</small></div>`).join('') || '<div class="hint" style="padding:10px">Ничего не нашлось</div>'; $$('[data-pi]', box).forEach(r => r.onclick = () => run(+r.dataset.pi)); };
+  const run = i => { const x = shown[i]; if (!x) return; closeX(); x.run(); };
+  $('#palQ').oninput = e => { const q = e.target.value.toLowerCase().trim(); shown = items.filter(x => !q || (x.t + ' ' + x.hint).toLowerCase().includes(q)); sel = 0; draw(); };
+  $('#palQ').onkeydown = e => { if (e.key === 'ArrowDown') { sel = Math.min(shown.length - 1, sel + 1); draw(); e.preventDefault(); } else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); draw(); e.preventDefault(); } else if (e.key === 'Enter') run(sel); };
+  draw(); $('#xmodal').classList.add('on'); setTimeout(() => $('#palQ').focus(), 30);
+}
+addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); } });
+
 async function fillLog(){ const pre = $('#logpre'); if (!pre) return; const l = await invoke('get_logs'); pre.textContent = l.join('\n'); pre.scrollTop = pre.scrollHeight; }
 function setProgress(){
   const pr = $('#prog'); if (!pr) return; const t = S.task; const p = cur();
@@ -1024,7 +1087,7 @@ async function renderDetails(){
     <div><div class="lbl">${KINDN[d.kind]}</div><h1 class="gh" style="font-size:42px;margin-top:8px">${esc(d.name)}</h1>
       <div class="chips" style="margin-top:12px"><span class="chip num" id="uuidChip" title="Скопировать UUID" style="cursor:pointer">${esc(d.uuid)}</span>${d.skin ? `<span class="chip">${slim ? 'Тонкие руки' : 'Классические руки'}</span>` : '<span class="chip">Скин по умолчанию</span>'}${d.cape ? '<span class="chip">Плащ</span>' : ''}${(S.game.state === 'running' && a.selected) ? '<span class="live"><i></i>В игре <span id="liveT" class="num">00:00:00</span></span>' : ''}</div></div>
     <div class="mrow"><button class="minibtn ${a.selected ? '' : 'solid'}" id="bAct" ${a.selected ? 'disabled' : ''}>${a.selected ? 'Активный аккаунт' : 'Играть этим аккаунтом'}</button>
-      <button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><div class="seg" id="mseg"></div>
+      <button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><button class="minibtn" id="bNick">Скин по нику</button><div class="seg" id="mseg"></div>
       ${noxel || d.kind === 'microsoft' ? `<button class="minibtn" id="bCape">Плащи</button>${d.cape && noxel ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}` : ''}${noxel && d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}
       ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}</div>
     <div class="hint" style="max-width:560px">${note}</div>
@@ -1047,6 +1110,12 @@ async function renderDetails(){
   $('#bAct').onclick = async () => { try { S.accts = await invoke('account_select', {id: d.id}); renderRailAcc(); renderAccounts(); toast(`Играешь как ${d.name}`); } catch (x) { toast(x); } };
   $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
   if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
+  if ($('#bNick')) $('#bNick').onclick = () => {
+    const box = $('#xbox'); box.innerHTML = `<h3>Скин по нику</h3><div class="hint" style="margin-bottom:10px">Введи ник любого лицензионного игрока Minecraft: его скин станет твоим.</div><div class="field"><label>Ник игрока</label><input class="inp" id="nkIn" maxlength="16" placeholder="Например, jeb_" spellcheck="false"></div><div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="nkGo">Взять скин</button></div>`;
+    $('#xc').onclick = closeX; $('#xmodal').classList.add('on'); setTimeout(() => $('#nkIn').focus(), 30);
+    const go2 = () => { const nick = $('#nkIn').value; closeX(); skinAction(() => invoke('skin_from_nick', {id: d.id, nick}), 'Скин взят'); };
+    $('#nkGo').onclick = go2; $('#nkIn').onkeydown = e => { if (e.key === 'Enter') go2(); };
+  };
   if ($('#bCape')) $('#bCape').onclick = () => capeGallery(d);
   if ($('#bCapeOff')) $('#bCapeOff').onclick = () => skinAction(() => invoke('cape_clear', {id: d.id}), 'Плащ убран');
   invoke('server_pw_get', {id: d.id}).then(v => { if ($('#pwIn')) $('#pwIn').value = v || ''; }).catch(() => {});
@@ -1080,8 +1149,10 @@ function openAddAccount(tab){
     b.innerHTML = `<div class="field"><label>Никнейм</label><input class="inp" id="xn" maxlength="16" placeholder="Твой ник" spellcheck="false"></div>
       <div class="field"><label>Пароль</label><input class="inp" id="xp" type="password" placeholder="Не короче 6 символов"></div>
       <div class="hint">Аккаунт Noxel хранится на сервере mr1s.site: пароль только в виде хеша. Скины и плащ, время игры и список профилей подтянутся на любом устройстве.</div>
+      <div class="opt" style="margin-top:12px"><div class="t"><b>Тот же пароль на игровых серверах</b><small>Автовход будет вводить этот пароль, а не уникальный для каждого сервера. Пароль хранится только на этом компьютере. Сервер, на котором ты зарегистрируешься, его узнает.</small></div><button class="switch on" id="xsw"></button></div>
       <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn" id="xin">Войти</button><button class="minibtn solid" id="xreg">Создать аккаунт</button></div>`;
-    const auth = async reg => { try { $('#xin').disabled = $('#xreg').disabled = true; S.accts = await invoke('noxel_auth', {name: $('#xn').value, password: $('#xp').value, register: reg}); await done(reg ? 'Аккаунт Noxel создан' : 'Вход выполнен'); } catch (e) { err(String(e)); $('#xin').disabled = $('#xreg').disabled = false; } };
+    let samePw = true; $('#xsw').onclick = () => { samePw = !samePw; $('#xsw').classList.toggle('on', samePw); };
+    const auth = async reg => { try { $('#xin').disabled = $('#xreg').disabled = true; S.accts = await invoke('noxel_auth', {name: $('#xn').value, password: $('#xp').value, register: reg}); if (samePw) { try { await invoke('server_pw_set', {id: 'noxel-' + $('#xn').value.trim().toLowerCase(), pw: $('#xp').value}); } catch (e2) { toast('Пароль для серверов не сохранён: ' + e2); } } await done(reg ? 'Аккаунт Noxel создан' : 'Вход выполнен'); } catch (e) { err(String(e)); $('#xin').disabled = $('#xreg').disabled = false; } };
     $('#xin').onclick = () => auth(false); $('#xreg').onclick = () => auth(true); $('#xp').onkeydown = e => { if (e.key === 'Enter') auth(false); }; setTimeout(() => $('#xn').focus(), 50);
   } else {
     b.innerHTML = S.ms ? `<div class="hint">Открой страницу входа и введи этот код:</div><div class="code" style="margin:12px 0">${esc(S.ms.user_code)}</div>
@@ -1341,15 +1412,16 @@ async function renderServers(force){
   $$('[data-sd]', el).forEach(b => b.onclick = async () => { const s = list[+b.dataset.sd]; const ok = await modal(`Удалить «${s.name}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; saveServers(list.filter((_, i) => i !== +b.dataset.sd)); });
 }
 /* сборки модов (Modrinth .mrpack): ставятся как новый профиль со всеми модами и настройками */
-const PK = {q: '', sort: 'downloads', hits: null, busy: new Set(), prog: {}};
+const PK = {q: '', sort: 'downloads', mc: '', hits: null, busy: new Set(), prog: {}};
+const PK_VERS = ['26.2', '26.1', '1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.7.10'];
 async function renderPacks(force){
   const el = $('#mbody'); if (!el) return;
-  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Готовые сборки с Modrinth. Каждая ставится отдельным профилем: моды, настройки и нужная версия игры.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="pkQ" placeholder="Искать сборку" value="${esc(PK.q)}" style="width:190px"><select class="inp" id="pkS"><option value="downloads">По скачиваниям</option><option value="relevance">По релевантности</option><option value="newest">Новые</option><option value="updated">Обновлённые</option></select></span></div><div id="pkList" class="srvgrid"></div>`;
-  $('#pkS').value = PK.sort;
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Готовые сборки с Modrinth и CurseForge. Каждая ставится отдельным профилем: моды, настройки и нужная версия игры.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="pkQ" placeholder="Искать сборку" value="${esc(PK.q)}" style="width:190px"><select class="inp" id="pkV"><option value="">Любая версия</option>${PK_VERS.map(v => `<option value="${v}">${v}</option>`).join('')}</select><select class="inp" id="pkS"><option value="downloads">По скачиваниям</option><option value="relevance">По релевантности</option><option value="newest">Новые</option><option value="updated">Обновлённые</option></select></span></div><div id="pkList" class="srvgrid"></div>`;
+  $('#pkS').value = PK.sort; $('#pkV').value = PK.mc;
   let t = null;
   const load = async () => {
     $('#pkList').innerHTML = '<div class="sk" style="height:170px"></div>'.repeat(4);
-    try { PK.hits = (await invoke('packs_search', {query: PK.q, sort: PK.sort, offset: 0})).hits || []; } catch (e) { PK.hits = []; $('#pkList').innerHTML = `<div class="empty"><div><h3>Не получилось загрузить</h3><p>${esc(e)}</p></div></div>`; return; }
+    try { PK.hits = (await invoke('packs_search', {query: PK.q, sort: PK.sort, offset: 0, mc: PK.mc || null})).hits || []; } catch (e) { PK.hits = []; $('#pkList').innerHTML = `<div class="empty"><div><h3>Не получилось загрузить</h3><p>${esc(e)}</p></div></div>`; return; }
     draw();
   };
   const draw = () => {
@@ -1357,20 +1429,25 @@ async function renderPacks(force){
     box.innerHTML = (PK.hits || []).map((h, i) => `<div class="scard" style="--i:${Math.min(i, 12)}">
       <div class="top"><div class="avatar" style="${h.icon ? `background:url(${esc(h.icon)}) center/cover` : ''}">${h.icon ? '' : esc(letter(h.title))}</div><div class="meta"><b>${esc(h.title)}</b><small>${esc(h.author)} · ${fmtNum(h.downloads)} скачиваний</small></div></div>
       <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(h.desc)}</div>
-      <div class="chips">${h.mc ? `<span class="chip">Minecraft ${esc(h.mc)}</span>` : ''}${(h.loaders || []).map(l => `<span class="chip">${esc(LNAME[l] ? LNAME[l] : l)}</span>`).join('')}</div>
-      <div class="mrow"><button class="minibtn solid sm" data-pk="${esc(h.id)}" ${PK.busy.has(h.id) ? 'disabled' : ''}>${PK.busy.has(h.id) ? esc(PK.prog[h.id] || 'Ставлю…') : I.dl + ' Установить сборку'}</button><button class="minibtn sm" data-pu="${esc(h.url)}">${I.ext} Сайт</button></div></div>`).join('') || '<div class="empty"><div><h3>Ничего не нашлось</h3></div></div>';
+      <div class="chips"><span class="chip">${h.provider === 'curseforge' ? 'CurseForge' : 'Modrinth'}</span>${h.mc ? `<span class="chip">Minecraft ${esc(h.mc)}</span>` : ''}${(h.loaders || []).map(l => `<span class="chip">${esc(LNAME[l] ? LNAME[l] : l)}</span>`).join('')}</div>
+      <div class="mrow"><button class="minibtn solid sm" data-pk="${esc(h.provider + ':' + h.id)}" ${PK.busy.has(h.provider + h.id) ? 'disabled' : ''}>${PK.busy.has(h.provider + h.id) ? esc(PK.prog[h.provider + h.id] || 'Ставлю…') : I.dl + ' Установить сборку'}</button><button class="minibtn sm" data-pu="${esc(h.url)}">${I.ext} Сайт</button></div></div>`).join('') || '<div class="empty"><div><h3>Ничего не нашлось</h3></div></div>';
     $$('[data-pu]', box).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.pu}).catch(toast));
     $$('[data-pk]', box).forEach(b => b.onclick = async () => {
-      const id = b.dataset.pk, h = PK.hits.find(x => x.id === id); PK.busy.add(id); PK.prog[id] = 'Ставлю…'; draw();
-      try { const r = await invoke('packs_install', {projectId: id}); PK.busy.delete(id); draw(); await loadProfiles(); S.sel = r.profile; toast(`Сборка «${r.name}» установлена. Нажми «Играть»: игра докачается при первом запуске`); }
-      catch (e) { PK.busy.delete(id); draw(); modal('Не удалось поставить сборку', String(e)); }
+      const key = b.dataset.pk, [provider, ...rest] = key.split(':'), id = rest.join(':'); PK.busy.add(key); PK.prog[key] = 'Ставлю…'; draw();
+      try {
+        const r = await invoke('packs_install', {provider, projectId: id}); PK.busy.delete(key); draw(); await loadProfiles(); S.sel = r.profile;
+        toast(`Сборка «${r.name}» установлена. Нажми «Играть»: игра докачается при первом запуске`);
+        if (r.failed && r.failed.length) modal('Часть файлов не скачалась', 'Авторы этих модов запретили скачивание вне CurseForge. Их можно добавить вручную в папку модов профиля:\n\n' + r.failed.join('\n'));
+      }
+      catch (e) { PK.busy.delete(key); draw(); modal('Не удалось поставить сборку', String(e)); }
     });
   };
   $('#pkQ').oninput = e => { PK.q = e.target.value; clearTimeout(t); t = setTimeout(load, 350); };
   $('#pkS').onchange = e => { PK.sort = e.target.value; load(); };
+  $('#pkV').onchange = e => { PK.mc = e.target.value; load(); };
   if (PK.hits && !force) draw(); else load();
 }
-T.event.listen('task', ({payload: t}) => { if (t && String(t.id).startsWith('pack:')) { const id = String(t.id).slice(5); PK.prog[id] = `${t.stage}${t.detail ? ' · ' + t.detail : ''}`; const b = $(`[data-pk="${id}"]`); if (b) b.textContent = PK.prog[id]; } });
+T.event.listen('task', ({payload: t}) => { if (t && String(t.id).startsWith('pack:')) { const id = String(t.id).slice(5), txt = `${t.stage}${t.detail ? ' · ' + t.detail : ''}`; for (const k of PK.busy) if (k.endsWith(':' + id)) { PK.prog[k] = txt; const b = $(`[data-pk="${k}"]`); if (b) b.textContent = txt; } } });
 
 /* вкладка «Серверы»: популярные серверы с онлайном и быстрым заходом */
 const SV = {q: '', sort: 'online'};
@@ -1569,6 +1646,7 @@ function renderSettings(){
     <div class="glass panel" style="--i:0"><h3>Память<small>Сколько ОЗУ отдавать игре</small></h3>
       <div class="big num" id="sRamV">${(s.ram_mb / 1024).toFixed(1)}<small>ГБ</small></div>
       <input type="range" id="sRam" min="1024" max="${Math.max(2048, Math.floor(total * 0.85 / 512) * 512)}" step="512" value="${s.ram_mb}">
+      <div style="margin-top:8px"><button class="minibtn sm" id="sRamAuto">Подобрать автоматически</button></div>
       <div class="hint">Всего в системе ${(total / 1024).toFixed(1)} ГБ. Для сборок с модами обычно хватает 4–6 ГБ.</div></div>
     <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
@@ -1610,6 +1688,7 @@ function renderSettings(){
   mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
   const rg = $('#sRam'); const rp = () => { rg.style.setProperty('--p', ((rg.value - rg.min) / (rg.max - rg.min) * 100) + '%'); $('#sRamV').innerHTML = `${(rg.value / 1024).toFixed(1)}<small>ГБ</small>`; };
   rp(); rg.oninput = () => { rp(); save(); };
+  $('#sRamAuto').onclick = () => { const mods = (prof(S.sel) || {}).mods || 0, want = mods > 120 ? 8192 : mods > 40 ? 6144 : mods > 0 ? 4096 : 3072; rg.value = Math.max(+rg.min, Math.min(+rg.max, Math.min(want, Math.floor(total * 0.5 / 512) * 512))); rp(); save(); toast(`Выбрано ${(rg.value / 1024).toFixed(1)} ГБ: под ${mods} модов и твоё количество памяти`); };
   const th = $('#sTh'); const tp = () => { th.style.setProperty('--p', ((th.value - th.min) / (th.max - th.min) * 100) + '%'); $('#sThV').textContent = th.value; }; tp(); th.oninput = () => { tp(); save(); };
   ['sJava','sJvm','sW','sH','sMs','sAdm'].forEach(id => $('#' + id).oninput = save);
   $('#sUpd').onclick = () => checkLauncher(false);

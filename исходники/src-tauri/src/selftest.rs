@@ -366,19 +366,74 @@ fn autologin_flow() {
 #[test]
 #[ignore]
 fn modpack_flow() {
-    let r = crate::packs::search("", "downloads", 0).expect("поиск сборок");
+    let r = crate::packs::search("", "downloads", 0, "").expect("поиск сборок");
     let hits = r["hits"].as_array().unwrap();
     println!("найдено сборок: {}", hits.len());
     assert!(!hits.is_empty());
     for h in hits.iter().take(3) {
         println!("  {} · {} · {}", h["title"], h["mc"], h["loaders"]);
     }
-    let q = crate::packs::search("Fabulously Optimized", "relevance", 0).unwrap();
-    let id = q["hits"][0]["id"].as_str().expect("сборка найдена").to_string();
-    let res = crate::packs::install(&id, &|st, f, d| println!("[{st}] {:.0}% {d}", f * 100.0)).expect("установка сборки");
+    let q = crate::packs::search("Fabulously Optimized", "relevance", 0, "").unwrap();
+    let hit = q["hits"].as_array().unwrap().iter().find(|h| h["provider"] == "modrinth").expect("сборка найдена");
+    let id = hit["id"].as_str().unwrap().to_string();
+    let res = crate::packs::install("modrinth", &id, &|st, f, d| println!("[{st}] {:.0}% {d}", f * 100.0)).expect("установка сборки");
     println!("профиль: {}", res);
     let dir = crate::mc::inst_dir(res["profile"].as_str().unwrap());
     let n = std::fs::read_dir(dir.join("mods")).map(|r| r.flatten().filter(|e| e.path().extension().map(|x| x == "jar").unwrap_or(false)).count()).unwrap_or(0);
     println!("модов в профиле: {n}");
     assert!(n > 5);
+}
+
+#[test]
+#[ignore]
+fn modpack_cf_flow() {
+    let q = crate::packs::search("", "downloads", 0, "1.20.1").expect("поиск сборок");
+    let hits = q["hits"].as_array().unwrap();
+    let cf: Vec<_> = hits.iter().filter(|h| h["provider"] == "curseforge").collect();
+    println!("всего: {}, из CurseForge: {}", hits.len(), cf.len());
+    assert!(!cf.is_empty());
+    // небольшая сборка для проверки: берём ту, у которой поменьше скачиваний среди первых
+    let h = cf.last().unwrap();
+    println!("ставлю: {} ({})", h["title"], h["mc"]);
+    let res = crate::packs::install("curseforge", h["id"].as_str().unwrap(), &|st, f, d| println!("[{st}] {:.0}% {d}", f * 100.0)).expect("установка сборки CurseForge");
+    println!("профиль: {res}");
+    let dir = crate::mc::inst_dir(res["profile"].as_str().unwrap());
+    let n = std::fs::read_dir(dir.join("mods")).map(|r| r.flatten().count()).unwrap_or(0);
+    println!("файлов в mods: {n}");
+    assert!(n > 0);
+}
+
+#[test]
+#[ignore]
+fn worlds_flow() {
+    let p = crate::mc::create_profile("1.21.1", "vanilla", None, "worlds-test", None).unwrap();
+    let w = crate::mc::inst_dir(&p.id).join("saves").join("Мой мир");
+    std::fs::create_dir_all(w.join("region")).unwrap();
+    std::fs::write(w.join("level.dat"), b"dat").unwrap();
+    std::fs::write(w.join("region/r.0.0.mca"), vec![7u8; 5000]).unwrap();
+    let l = crate::worlds::list(&p.id).unwrap();
+    assert_eq!(l["worlds"][0]["name"], "Мой мир");
+    let b = crate::worlds::backup(&p.id, "Мой мир").unwrap();
+    println!("копия: {b}");
+    let l = crate::worlds::list(&p.id).unwrap();
+    assert_eq!(l["backups"].as_array().unwrap().len(), 1);
+    assert_eq!(l["worlds"][0]["backups"], 1);
+    std::fs::write(w.join("level.dat"), b"changed").unwrap();
+    crate::worlds::restore(&p.id, b["file"].as_str().unwrap()).unwrap();
+    assert_eq!(std::fs::read(w.join("level.dat")).unwrap(), b"dat");
+    assert!(crate::mc::inst_dir(&p.id).join("saves").join("Мой мир-до-восстановления").join("level.dat").exists());
+    crate::worlds::delete(&p.id, b["file"].as_str().unwrap()).unwrap();
+    println!("миры и копии работают");
+}
+
+#[test]
+#[ignore]
+fn skin_nick_flow() {
+    use crate::accounts;
+    let _ = accounts::add_local("NickTest");
+    let n = accounts::skin_from_nick("local-nicktest", "jeb_").expect("скин по нику");
+    println!("скин игрока {n} установлен");
+    let d = accounts::details("local-nicktest", false).unwrap();
+    assert!(!d["skin"].is_null());
+    assert!(accounts::skin_from_nick("local-nicktest", "bad nick!").is_err());
 }

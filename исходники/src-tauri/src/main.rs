@@ -9,6 +9,7 @@ mod packs;
 mod remote;
 mod skins;
 mod stats;
+mod worlds;
 #[cfg(test)]
 mod selftest;
 mod util;
@@ -473,15 +474,40 @@ fn servers_install(app: AppHandle, profile_id: String, server_id: String) -> R<V
     Ok(json!({"installed": ok, "skipped": skipped}))
 }
 
-#[tauri::command(async)]
-fn packs_search(query: String, sort: String, offset: u32) -> R<Value> {
-    packs::search(&query, &sort, offset)
+#[tauri::command]
+fn worlds_list(profile_id: String) -> R<Value> {
+    worlds::list(&profile_id)
 }
 
 #[tauri::command(async)]
-fn packs_install(app: AppHandle, project_id: String) -> R<Value> {
+fn world_backup(profile_id: String, world: String) -> R<Value> {
+    worlds::backup(&profile_id, &world)
+}
+
+#[tauri::command(async)]
+fn backup_restore(profile_id: String, file: String) -> R<Value> {
+    worlds::restore(&profile_id, &file)
+}
+
+#[tauri::command]
+fn backup_delete(profile_id: String, file: String) -> R<()> {
+    worlds::delete(&profile_id, &file)
+}
+
+#[tauri::command(async)]
+fn skin_from_nick(id: String, nick: String) -> R<String> {
+    accounts::skin_from_nick(&id, &nick)
+}
+
+#[tauri::command(async)]
+fn packs_search(query: String, sort: String, offset: u32, mc: Option<String>) -> R<Value> {
+    packs::search(&query, &sort, offset, mc.as_deref().unwrap_or(""))
+}
+
+#[tauri::command(async)]
+fn packs_install(app: AppHandle, provider: String, project_id: String) -> R<Value> {
     let cb = progress_cb(&app, format!("pack:{project_id}"));
-    let r = packs::install(&project_id, &cb)?;
+    let r = packs::install(&provider, &project_id, &cb)?;
     let _ = app.emit("profiles-changed", ());
     Ok(r)
 }
@@ -697,6 +723,11 @@ fn main() {
             accounts_list,
             servers_list,
             packs_search,
+            worlds_list,
+            world_backup,
+            backup_restore,
+            backup_delete,
+            skin_from_nick,
             packs_install,
             news_list,
             news_save,

@@ -293,6 +293,35 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, raw=hit[1])
         raise Err(502, "CurseForge временно недоступен, попробуй чуть позже")
 
+    def cf_batch(self):
+        """Пакетный запрос описаний файлов CurseForge (для установки сборок): POST /cf/mods/files {"fileIds": [...]}."""
+        key = read_secret(CF_KEY_FILE)
+        if not key:
+            raise Err(503, "CurseForge на сервере не настроен")
+        ids = self.jbody().get("fileIds")
+        if not isinstance(ids, list) or not ids or len(ids) > 300 or not all(isinstance(i, int) and 0 < i < 10**10 for i in ids):
+            raise Err(400, "ожидается {\"fileIds\": [до 300 чисел]}")
+        if not throttle(("cfb", self.ip()), 20):
+            raise Err(429, "слишком много запросов, подожди минуту")
+        data = json.dumps({"fileIds": ids}).encode()
+        code, body = 0, b""
+        for attempt in range(5):
+            req = urllib.request.Request("https://api.curseforge.com/v1/mods/files", data=data, method="POST",
+                                         headers={"x-api-key": key, "Accept": "application/json", "Content-Type": "application/json", "User-Agent": "Noxel/0.6"})
+            try:
+                with urllib.request.urlopen(req, timeout=25) as r:
+                    code, body = r.status, r.read(8_000_000)
+            except urllib.error.HTTPError as e:
+                code, body = e.code, e.read(200_000)
+            except Exception:
+                code = 0
+            if code in (200, 400, 404):
+                break
+            time.sleep(0.8 * (attempt + 1))
+        if code in (200, 400, 404):
+            return self.send(code, raw=body)
+        raise Err(502, "CurseForge временно недоступен, попробуй чуть позже")
+
     # ── маршруты ──
     def route(self, method):
         u = urlparse(self.path)
@@ -333,6 +362,8 @@ class H(BaseHTTPRequestHandler):
                     raise Err(403, "неверный ник или пароль")
             return self.send(200, {"token": self.new_token(a["id"]), "account": self.view(a)})
 
+        if method == "POST" and p == "/cf/mods/files":
+            return self.cf_batch()
         m = re.match(r"^/cf/(.+)$", p)
         if method == "GET" and m:
             return self.cf_proxy(m.group(1), u.query)

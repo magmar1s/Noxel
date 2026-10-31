@@ -77,7 +77,7 @@ fn update_profile(id: &str, f: impl FnOnce(&mut Profile)) {
     }
 }
 
-fn slug(s: &str) -> String {
+pub fn slug(s: &str) -> String {
     let mut o = String::new();
     for c in s.chars() {
         if c.is_alphanumeric() {

@@ -724,3 +724,27 @@ pub fn server_pw_set(id: &str, pw: &str) -> R<()> {
     }
     mutate(id, |a| a.server_pw = pw.clone()).map(|_| ())
 }
+
+/// Берёт скин любого игрока Minecraft по нику (через серверы Mojang) и ставит его этому аккаунту.
+pub fn skin_from_nick(id: &str, nick: &str) -> R<String> {
+    use base64::Engine;
+    let nick = nick.trim();
+    if nick.len() < 3 || nick.len() > 16 || !nick.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err("ник: от 3 до 16 символов, латиница, цифры и _".into());
+    }
+    let p: Value = match agent().get(&format!("https://api.mojang.com/users/profiles/minecraft/{nick}")).call() {
+        Ok(r) => r.into_json().map_err(e)?,
+        Err(ureq::Error::Status(404, _)) | Err(ureq::Error::Status(204, _)) => return Err(format!("игрок «{nick}» не найден")),
+        Err(x) => return Err(format!("Mojang не отвечает: {x}")),
+    };
+    let uuid = p["id"].as_str().ok_or_else(|| format!("игрок «{nick}» не найден"))?;
+    let prof: Value = agent().get(&format!("https://sessionserver.mojang.com/session/minecraft/profile/{uuid}")).call().map_err(|x| format!("Mojang не отвечает: {x}"))?.into_json().map_err(e)?;
+    let raw = prof["properties"].as_array().and_then(|a| a.iter().find(|x| x["name"] == "textures")).and_then(|x| x["value"].as_str()).ok_or("у игрока нет скина")?;
+    let tex: Value = serde_json::from_slice(&base64::engine::general_purpose::STANDARD.decode(raw).map_err(e)?).map_err(e)?;
+    let sk = &tex["textures"]["SKIN"];
+    let url = sk["url"].as_str().ok_or("у игрока стандартный скин")?;
+    let (png, detected) = skins::normalize_skin(&skins::fetch_png(url)?)?;
+    let model = if sk["metadata"]["model"] == "slim" { "slim".to_string() } else if sk["metadata"].is_null() { "classic".to_string() } else { detected };
+    upload_skin(id, &png, &model, None)?;
+    Ok(p["name"].as_str().unwrap_or(nick).to_string())
+}
