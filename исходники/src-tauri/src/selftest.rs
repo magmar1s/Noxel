@@ -801,6 +801,7 @@ fn mod_flow() {
     std::fs::create_dir_all(&mods).unwrap();
     let api = std::fs::read_dir("/mnt/D/project/Noxel/данные/instances").unwrap().flatten().flat_map(|e| std::fs::read_dir(e.path().join("mods")).into_iter().flatten().flatten()).find(|f| f.file_name().to_string_lossy().starts_with("fabric-api")).expect("fabric-api в папках модов").path();
     std::fs::copy(&api, mods.join(api.file_name().unwrap())).unwrap();
+    let _ = accounts::add_local("SwitchTo");
     accounts::select(&format!("noxel-{}", na.to_lowercase())).unwrap();
     let st = load_settings();
     let acct = accounts::active_fresh().unwrap();
@@ -809,6 +810,7 @@ fn mod_flow() {
     assert!(mods.join("noxel-client.jar").exists(), "лаунчер не поставил мод");
     assert!(pr.args.iter().any(|a| a.starts_with("-Dnoxel.api=")), "игре не передан адрес API");
     pr.args.insert(0, "-Dnoxel.selftest=1".to_string());
+    pr.args.insert(0, "-Dnoxel.selftest.switch=SwitchTo".to_string());
     let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
     let log = Arc::new(Mutex::new(Vec::<String>::new()));
     let l2 = log.clone();
@@ -827,9 +829,9 @@ fn mod_flow() {
             }
         }
     });
-    let want = ["[Noxel] мод запущен", "[Noxel] друзей загружено: 1", "[Noxel] экран друзей отрисован"];
+    let want = ["[Noxel] мод запущен", "[Noxel] друзей загружено: 1", "[Noxel] экран друзей отрисован", "[Noxel] аккаунт сменён на SwitchTo"];
     let t = Instant::now();
-    let mut found = [false; 3];
+    let mut found = [false; 4];
     while t.elapsed() < Duration::from_secs(240) && !found.iter().all(|x| *x) {
         for (i, w) in want.iter().enumerate() {
             if log.lock().unwrap().iter().any(|l| l.contains(w)) { found[i] = true; }
@@ -838,7 +840,9 @@ fn mod_flow() {
         std::thread::sleep(Duration::from_millis(500));
     }
     let crashed = log.lock().unwrap().iter().any(|l| l.contains("Crash") || l.contains("FATAL"));
-    println!("мод: запущен={} друзья={} экран={} падение={}", found[0], found[1], found[2], crashed);
+    println!("мод: запущен={} друзья={} экран={} смена аккаунта в игре={} падение={}", found[0], found[1], found[2], found[3], crashed);
+    println!("активный аккаунт в лаунчере после смены в игре: {}", accounts::active_fresh().map(|a| a.name).unwrap_or_default());
+    assert_eq!(accounts::active_fresh().unwrap().name, "SwitchTo", "лаунчер не запомнил выбор из игры");
     let _ = child.kill();
     for t in [&ta, &tb] {
         let _ = crate::skins::call("DELETE", "/account", Some(t), crate::skins::Body::Json(serde_json::json!({"password": "test-pass-123"})));

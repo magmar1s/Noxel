@@ -368,8 +368,10 @@ button.tile:hover{border-color:var(--line2)}
 .gh{font-weight:700;letter-spacing:-.035em;line-height:1.1;background:linear-gradient(180deg,#fff,rgba(255,255,255,.58));-webkit-background-clip:text;background-clip:text;color:transparent;word-break:break-all}
 
 /* ── страница аккаунта ── */
-.adetail{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 330px;overflow:hidden}
-.ainfo{position:relative;z-index:2;overflow-y:auto;padding:28px 6px 24px 34px;display:flex;flex-direction:column;gap:18px;scrollbar-width:none}
+.adetail{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) clamp(150px,28%,330px);overflow:hidden}
+.ainfo .gh{font-size:clamp(26px,3vw,42px)!important;word-break:break-word}
+.ainfo .minibtn{white-space:normal;text-align:left}
+.ainfo{position:relative;z-index:2;overflow-y:auto;padding:24px 6px 20px 24px;display:flex;flex-direction:column;gap:18px;scrollbar-width:none}
 .ainfo::-webkit-scrollbar{display:none}
 .ainfo>*{animation:up .6s var(--ease) both}
 .ainfo>*:nth-child(2){animation-delay:.05s}.ainfo>*:nth-child(3){animation-delay:.1s}.ainfo>*:nth-child(4){animation-delay:.15s}.ainfo>*:nth-child(5){animation-delay:.2s}.ainfo>*:nth-child(6){animation-delay:.25s}
@@ -1009,6 +1011,13 @@ async function loadAccounts(){
   if (!S.av || !S.accts.some(a => a.id === S.av)) S.av = (active() || S.accts[0]).id;
   renderRailAcc(); if (S.page === 'accounts') renderAccounts(); if (S.page === 'home') renderHero();
 }
+/* аккаунт могли сменить из игры: подхватываем без перезапуска лаунчера */
+setInterval(async () => {
+  try {
+    const l = await invoke('accounts_list'), now = (l.find(x => x.selected) || {}).id, was = (S.accts.find(x => x.selected) || {}).id;
+    if (now && now !== was) { S.accts = l; S.av = now; S.det = null; S._dj = ''; renderRailAcc(); if (S.page === 'accounts') renderAccounts(); if (S.page === 'home') renderHero(); }
+  } catch (e) {}
+}, 4000);
 function renderRailAcc(){
   const a = active(); headUrl(a && a.skin ? a.skin.hash : null).then(u => { $('#railHead').src = u; });
   $('#railName').textContent = a ? a.name : '';
@@ -1056,7 +1065,10 @@ function renderAccounts(){
   if (!S.det || S.det.id !== S.av) { S.det = null; renderDetails(); loadDetails(S.av, false).then(() => { const a = S.accts.find(x => x.id === S.av); if (a && a.kind !== 'local') loadDetails(S.av, true); }); }
   else renderDetails();
 }
-function selectAcc(id){ S.av = id; S.det = null; S._dj = ''; renderAccounts(); }
+function selectAcc(id){
+  S.av = id; S.det = null; S._dj = ''; renderAccounts();
+  invoke('account_select', {id}).then(l => { S.accts = l; renderRailAcc(); renderAccounts(); const a = l.find(x => x.id === id); if (a) toast(`Играешь как ${a.name}`); }).catch(x => toast(x));
+}
 async function loadDetails(id, refresh){
   try {
     const d = await invoke('account_details', {id, refresh});
