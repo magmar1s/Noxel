@@ -116,7 +116,12 @@ pub fn backup(profile: &str, world: &str) -> R<Value> {
 pub fn restore(profile: &str, file: &str) -> R<Value> {
     let file = safe_name(file)?;
     let world = parse_backup(file).ok_or("неверное имя копии")?;
-    let zp = backups_dir(profile).join(file);
+    restore_from(profile, &backups_dir(profile).join(file), &world)
+}
+
+/// Распаковывает zip мира в saves профиля; существующий мир с тем же именем переименовывается рядом.
+pub fn restore_from(profile: &str, zp: &Path, world: &str) -> R<Value> {
+    let world = world.to_string();
     let saves = mc::inst_dir(profile).join("saves");
     let target = saves.join(&world);
     if target.exists() {
@@ -129,7 +134,7 @@ pub fn restore(profile: &str, file: &str) -> R<Value> {
         }
         fs::rename(&target, &aside).map_err(e)?;
     }
-    let mut z = zip::ZipArchive::new(fs::File::open(&zp).map_err(|_| "копия не найдена")?).map_err(e)?;
+    let mut z = zip::ZipArchive::new(fs::File::open(zp).map_err(|_| "копия не найдена")?).map_err(e)?;
     for i in 0..z.len() {
         let mut ent = z.by_index(i).map_err(e)?;
         if ent.is_dir() {

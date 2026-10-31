@@ -725,6 +725,15 @@ pub fn server_pw_set(id: &str, pw: &str) -> R<()> {
     mutate(id, |a| a.server_pw = pw.clone()).map(|_| ())
 }
 
+/// Токен сервера Noxel активного аккаунта Noxel (нужен для друзей и облака).
+pub fn noxel_token(id: &str) -> R<String> {
+    let a = get(id)?;
+    if a.kind != "noxel" || a.token.is_empty() {
+        return Err("Для этого нужен аккаунт Noxel: подключи его на странице «Аккаунты»".into());
+    }
+    Ok(a.token)
+}
+
 /// Берёт скин любого игрока Minecraft по нику (через серверы Mojang) и ставит его этому аккаунту.
 pub fn skin_from_nick(id: &str, nick: &str) -> R<String> {
     use base64::Engine;

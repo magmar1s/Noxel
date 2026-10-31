@@ -8,7 +8,9 @@ mod mods;
 mod packs;
 mod remote;
 mod skins;
+mod social;
 mod stats;
+mod tunnel;
 mod worlds;
 #[cfg(test)]
 mod selftest;
@@ -157,6 +159,9 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                     }
                 }
                 for l in &lines {
+                    if let Some(port) = tunnel::scan_line(l) {
+                        let _ = app2.emit("lan", port);
+                    }
                     if l.contains("noxel/Hook") || l.contains("noxel.Hook") || l.contains("noxel/Ticker") || l.contains("noxel-agent") || l.contains("noxel/Patcher") {
                         fault2.store(true, Ordering::Relaxed);
                     }
@@ -219,6 +224,8 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                             save_settings(&s);
                             ev("agent-off", json!({}));
                         }
+                        tunnel::LAN_PORT.store(0, Ordering::Relaxed);
+                        tunnel::host_close();
                         ev("exited", json!({"code": code}));
                         break;
                     }
@@ -474,6 +481,99 @@ fn servers_install(app: AppHandle, profile_id: String, server_id: String) -> R<V
     Ok(json!({"installed": ok, "skipped": skipped}))
 }
 
+// ── друзья, облако и общий мир ──
+
+#[tauri::command(async)]
+fn friends_list(id: String) -> R<Value> {
+    social::friends(&accounts::noxel_token(&id)?)
+}
+
+#[tauri::command(async)]
+fn friend_action(id: String, action: String, name: String) -> R<Value> {
+    social::friend_action(&accounts::noxel_token(&id)?, &action, &name)
+}
+
+#[tauri::command(async)]
+fn presence_set(id: String, game: Option<String>, mc: Option<String>) -> R<Value> {
+    social::presence(&accounts::noxel_token(&id)?, game, mc)
+}
+
+#[tauri::command(async)]
+fn cloud_list(id: String) -> R<Value> {
+    social::cloud_list(&accounts::noxel_token(&id)?)
+}
+
+#[tauri::command(async)]
+fn cloud_upload(id: String, profile_id: String, world: String) -> R<Value> {
+    let mc = mc::load_profiles().into_iter().find(|p| p.id == profile_id).map(|p| p.mc).unwrap_or_default();
+    social::cloud_upload(&accounts::noxel_token(&id)?, &profile_id, &mc, &world)
+}
+
+#[tauri::command(async)]
+fn cloud_download(id: String, profile_id: String, cloud_id: u64, world: String) -> R<Value> {
+    social::cloud_download(&accounts::noxel_token(&id)?, &profile_id, cloud_id, &world)
+}
+
+#[tauri::command(async)]
+fn cloud_delete(id: String, cloud_id: u64) -> R<Value> {
+    social::cloud_delete(&accounts::noxel_token(&id)?, cloud_id)
+}
+
+#[tauri::command]
+fn room_state() -> Value {
+    tunnel::state()
+}
+
+/// Открывает запущенный одиночный мир для друзей: агент публикует мир на свободном порту, лаунчер соединяет порт с сервером.
+#[tauri::command(async)]
+fn room_open(game: State<'_, Game>, id: String, profile_id: String) -> R<Value> {
+    let token = accounts::noxel_token(&id)?;
+    if game.running.lock().unwrap().as_deref() != Some(profile_id.as_str()) {
+        return Err("Сначала запусти этот профиль и зайди в одиночный мир".into());
+    }
+    let dir = mc::inst_dir(&profile_id);
+    let port = std::net::TcpListener::bind("127.0.0.1:0").map_err(util::e)?.local_addr().map_err(util::e)?.port();
+    let cid = autoauth::control(&dir, &format!("!publish {port}"));
+    match autoauth::wait_ack(&dir, &cid, 6).as_deref() {
+        Some("sent") => {
+            tunnel::host_open(&token, port)?;
+            Ok(json!({"port": port, "how": "auto"}))
+        }
+        Some("error:no-world") => Err("Зайди в одиночный мир (не на сервер) и повтори".into()),
+        other => {
+            // версии без читаемых имён классов: пользователь открывает мир сам (Esc → «Открыть для сети»), порт берём из лога
+            let lan = tunnel::LAN_PORT.load(std::sync::atomic::Ordering::Relaxed);
+            if lan > 0 {
+                tunnel::host_open(&token, lan)?;
+                Ok(json!({"port": lan, "how": "lan"}))
+            } else {
+                Err(format!("Эта версия игры не умеет открывать мир сама ({}). В игре нажми Esc → «Открыть для сети», потом повтори", other.unwrap_or("нет ответа")))
+            }
+        }
+    }
+}
+
+#[tauri::command(async)]
+fn room_close(game: State<'_, Game>) -> R<()> {
+    if let Some(pid) = game.running.lock().unwrap().clone() {
+        if tunnel::host_port().is_some() {
+            autoauth::control(&mc::inst_dir(&pid), "!unpublish");
+        }
+    }
+    tunnel::host_close();
+    tunnel::guest_close();
+    Ok(())
+}
+
+/// Заходит в мир друга: поднимает локальный порт до сервера и запускает игру на нём.
+#[tauri::command(async)]
+fn room_join(app: AppHandle, id: String, host_name: String, profile_id: String) -> R<()> {
+    let token = accounts::noxel_token(&id)?;
+    let port = tunnel::guest_open(&token, &host_name)?;
+    *mc::JOIN.lock().unwrap() = Some(format!("127.0.0.1:{port}"));
+    start(app, profile_id, true)
+}
+
 #[tauri::command]
 fn worlds_list(profile_id: String) -> R<Value> {
     worlds::list(&profile_id)
@@ -724,6 +824,17 @@ fn main() {
             servers_list,
             packs_search,
             worlds_list,
+            friends_list,
+            friend_action,
+            presence_set,
+            cloud_list,
+            cloud_upload,
+            cloud_download,
+            cloud_delete,
+            room_state,
+            room_open,
+            room_close,
+            room_join,
             world_backup,
             backup_restore,
             backup_delete,

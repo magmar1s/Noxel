@@ -6,7 +6,7 @@
 nginx отдаёт их напрямую по адресу {BASE}/f/<хеш>.png: этот адрес можно давать
 SkinsRestorer командой /skin url.
 """
-import hashlib, hmac, json, os, re, secrets, sqlite3, struct, threading, time, urllib.error, urllib.request, zlib
+import hashlib, hmac, json, os, re, secrets, socket, socketserver, sqlite3, struct, threading, time, urllib.error, urllib.request, zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -24,6 +24,11 @@ ADMIN_FILE = os.environ.get("NOXEL_ADMIN_FILE", "/etc/noxel/admin.token")
 SERVERS = os.path.join(DATA, "servers.json")
 LAUNCHER = os.path.join(DATA, "launcher.json")
 NEWS = os.path.join(DATA, "news.json")
+WORLDS = os.path.join(DATA, "worlds")
+WORLD_MAX = 300 * 1024 * 1024          # один мир в облаке
+WORLD_QUOTA = 1024 * 1024 * 1024       # всего на аккаунт
+RELAY_PORT = int(os.environ.get("NOXEL_RELAY_PORT", "8731"))
+RELAY_HOST = os.environ.get("NOXEL_RELAY_HOST", "mr1s.site")
 # через прокси разрешены только безопасные запросы на чтение
 CF_ALLOWED = re.compile(r"^(mods/search|mods/\d+|mods/\d+/description|mods/\d+/files|mods/\d+/files/\d+|mods/\d+/files/\d+/download-url|mods/\d+/files/\d+/changelog)$")
 _cf_cache = {}
@@ -60,6 +65,13 @@ def init():
       id INTEGER PRIMARY KEY, account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       kind TEXT NOT NULL, hash TEXT NOT NULL, model TEXT NOT NULL DEFAULT 'classic', created INTEGER NOT NULL);
     CREATE INDEX IF NOT EXISTS files_acc ON files(account, kind, created);
+    CREATE TABLE IF NOT EXISTS friends(
+      a INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, b INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      status TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(a, b));
+    CREATE TABLE IF NOT EXISTS worlds(
+      id INTEGER PRIMARY KEY, account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, mc TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL, created INTEGER NOT NULL, file TEXT NOT NULL);
+    CREATE INDEX IF NOT EXISTS worlds_acc ON worlds(account, created);
     """)
     c.commit()
 
@@ -188,6 +200,195 @@ def listing(acc, kind):
     cur = acc["skin_id" if kind == "skin" else "cape_id"]
     items = [item(r, cur) for r in rows]
     return {"current": next((i for i in items if i["current"]), None), "history": items}
+
+
+# ── друзья, присутствие и ретранслятор «локальной сети» ──
+_presence = {}            # id аккаунта -> {"ts", "game", "mc"}
+_tickets = {}             # билет -> (id аккаунта, срок)
+_tickets_lock = threading.Lock()
+_relay_lock = threading.Lock()
+_hosts = {}               # id аккаунта -> {"sock", "lock", "sessions"}
+_pending = {}             # id сессии -> {"ev", "sock", "done"}
+ONLINE_SECS = 75
+
+
+def ticket_new(acc_id):
+    t = secrets.token_urlsafe(24)
+    now = time.time()
+    with _tickets_lock:
+        for k in [k for k, v in _tickets.items() if v[1] < now]:
+            _tickets.pop(k, None)
+        _tickets[t] = (acc_id, now + 600)
+    return t
+
+
+def ticket_account(t):
+    with _tickets_lock:
+        v = _tickets.get(t)
+    return v[0] if v and v[1] > time.time() else None
+
+
+def are_friends(x, y):
+    return db().execute("SELECT 1 FROM friends WHERE status='accepted' AND ((a=? AND b=?) OR (a=? AND b=?))", (x, y, y, x)).fetchone() is not None
+
+
+def _close_db():
+    c = getattr(_local, "c", None)
+    if c is not None:
+        try:
+            c.close()
+        except sqlite3.Error:
+            pass
+        _local.c = None
+
+
+def _readline(s, limit=300):
+    buf = b""
+    while len(buf) < limit:
+        ch = s.recv(1)
+        if not ch:
+            return None
+        if ch == b"\n":
+            return buf.decode("utf-8", "ignore").strip()
+        buf += ch
+    return None
+
+
+def _pipe(a, b):
+    def one(x, y):
+        try:
+            while True:
+                d = x.recv(65536)
+                if not d:
+                    break
+                y.sendall(d)
+        except OSError:
+            pass
+        finally:
+            for z in (x, y):
+                try:
+                    z.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+    t = threading.Thread(target=one, args=(b, a), daemon=True)
+    t.start()
+    one(a, b)
+    t.join(3)
+
+
+class Relay(socketserver.BaseRequestHandler):
+    """Ретранслятор: хозяин мира держит управляющее соединение, гость подключается через сервер, байты пересылаются как есть.
+
+    HOST <билет>            хозяин: «мой мир открыт», в ответ приходят строки CONN <сессия>
+    DATA <сессия>           хозяин: канал данных для конкретного гостя (открывается в ответ на CONN)
+    JOIN <билет> <ник>      гость: подключиться к миру друга (только принятые друзья)
+    """
+
+    def handle(self):
+        s = self.request
+        try:
+            s.settimeout(15)
+            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            if not throttle(("relay", self.client_address[0]), 120):
+                return
+            parts = (_readline(s) or "").split()
+            if len(parts) == 2 and parts[0] == "HOST":
+                self.host(s, parts[1])
+            elif len(parts) == 3 and parts[0] == "JOIN":
+                self.join(s, parts[1], parts[2])
+            elif len(parts) == 2 and parts[0] == "DATA":
+                self.data(s, parts[1])
+        except OSError:
+            pass
+        finally:
+            _close_db()
+            try:
+                s.close()
+            except OSError:
+                pass
+
+    def host(self, s, ticket):
+        acc = ticket_account(ticket)
+        if acc is None:
+            s.sendall(b"ERR ticket\n")
+            return
+        ctl = {"sock": s, "lock": threading.Lock(), "sessions": 0}
+        with _relay_lock:
+            old = _hosts.get(acc)
+            _hosts[acc] = ctl
+        if old:
+            try:
+                old["sock"].close()
+            except OSError:
+                pass
+        s.sendall(b"OK\n")
+        s.settimeout(60)                     # хозяин присылает PING каждые 20 секунд
+        try:
+            while s.recv(64):
+                pass
+        except OSError:
+            pass
+        finally:
+            with _relay_lock:
+                if _hosts.get(acc) is ctl:
+                    del _hosts[acc]
+
+    def join(self, s, ticket, host_name):
+        guest = ticket_account(ticket)
+        if guest is None:
+            s.sendall(b"ERR ticket\n")
+            return
+        h = db().execute("SELECT id FROM accounts WHERE name=?", (host_name,)).fetchone()
+        ok = h is not None and h["id"] != guest and are_friends(guest, h["id"])
+        _close_db()
+        if not ok:
+            s.sendall(b"ERR friend\n")
+            return
+        ctl = _hosts.get(h["id"])
+        if not ctl or ctl["sessions"] >= 16:
+            s.sendall(b"ERR offline\n")
+            return
+        sid = secrets.token_hex(8)
+        p = {"ev": threading.Event(), "sock": None, "done": threading.Event()}
+        _pending[sid] = p
+        try:
+            with ctl["lock"]:
+                ctl["sock"].sendall(("CONN %s\n" % sid).encode())
+        except OSError:
+            _pending.pop(sid, None)
+            s.sendall(b"ERR offline\n")
+            return
+        if not p["ev"].wait(10):
+            _pending.pop(sid, None)
+            s.sendall(b"ERR timeout\n")
+            return
+        ctl["sessions"] += 1
+        try:
+            s.sendall(b"OK\n")
+            s.settimeout(None)
+            p["sock"].settimeout(None)
+            _pipe(s, p["sock"])
+        finally:
+            ctl["sessions"] -= 1
+            p["done"].set()
+
+    def data(self, s, sid):
+        p = _pending.pop(sid, None)
+        if not p:
+            return
+        p["sock"] = s
+        p["ev"].set()
+        p["done"].wait(12 * 3600)            # сокет закроется, когда гость отключится
+
+
+def start_relay():
+    class Srv(socketserver.ThreadingTCPServer):
+        allow_reuse_address = True
+        daemon_threads = True
+        request_queue_size = 64
+    srv = Srv(("0.0.0.0", RELAY_PORT), Relay)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    print("noxel relay on 0.0.0.0:%d" % RELAY_PORT, flush=True)
 
 
 class H(BaseHTTPRequestHandler):
@@ -322,6 +523,151 @@ class H(BaseHTTPRequestHandler):
             return self.send(code, raw=body)
         raise Err(502, "CurseForge временно недоступен, попробуй чуть позже")
 
+    def social(self, method, p, a):
+        """Друзья, присутствие, билеты ретранслятора и облачные миры. True, если запрос обработан."""
+        now = time.time()
+        if method == "GET" and p == "/friends":
+            rows = db().execute("SELECT f.a, f.status, x.id xid, x.name xname FROM friends f JOIN accounts x ON x.id = CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE f.a=? OR f.b=?", (a["id"], a["id"], a["id"])).fetchall()
+            friends, incoming, outgoing = [], [], []
+            for r in rows:
+                if r["status"] == "accepted":
+                    pr = _presence.get(r["xid"])
+                    online = bool(pr and now - pr["ts"] < ONLINE_SECS)
+                    friends.append({"name": r["xname"], "online": online, "game": pr["game"] if online else None, "mc": pr["mc"] if online else None,
+                                    "room": online and r["xid"] in _hosts})
+                elif r["a"] == a["id"]:
+                    outgoing.append(r["xname"])
+                else:
+                    incoming.append(r["xname"])
+            friends.sort(key=lambda f: (not f["online"], f["name"].lower()))
+            self.send(200, {"friends": friends, "incoming": incoming, "outgoing": outgoing, "me": a["name"]})
+            return True
+        if method == "POST" and p in ("/friends", "/friends/accept", "/friends/remove"):
+            if not throttle(("fr", a["id"]), 40):
+                raise Err(429, "слишком много запросов")
+            name = str(self.jbody().get("name", "")).strip()
+            o = db().execute("SELECT id, name FROM accounts WHERE name=?", (name,)).fetchone() if NAME_RE.match(name) else None
+            if not o:
+                raise Err(404, "игрок с таким ником не найден в Noxel")
+            if o["id"] == a["id"]:
+                raise Err(400, "это ты")
+            c = db()
+            mine = c.execute("SELECT status FROM friends WHERE a=? AND b=?", (a["id"], o["id"])).fetchone()
+            theirs = c.execute("SELECT status FROM friends WHERE a=? AND b=?", (o["id"], a["id"])).fetchone()
+            if p == "/friends/remove":
+                c.execute("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", (a["id"], o["id"], o["id"], a["id"]))
+                state = "removed"
+            elif mine or (theirs and theirs["status"] == "accepted"):
+                state = "accepted" if (mine and mine["status"] == "accepted") or theirs else "pending"
+            elif theirs:                                   # встречная заявка: становимся друзьями
+                c.execute("UPDATE friends SET status='accepted' WHERE a=? AND b=?", (o["id"], a["id"]))
+                state = "accepted"
+            elif p == "/friends/accept":
+                raise Err(404, "заявки от этого игрока нет")
+            else:
+                if c.execute("SELECT COUNT(*) FROM friends WHERE a=? OR b=?", (a["id"], a["id"])).fetchone()[0] >= 200:
+                    raise Err(400, "слишком много друзей")
+                c.execute("INSERT INTO friends(a,b,status,created) VALUES(?,?,?,?)", (a["id"], o["id"], "pending", int(now)))
+                state = "pending"
+            c.commit()
+            self.send(200, {"ok": True, "state": state, "name": o["name"]})
+            return True
+        if method == "POST" and p == "/presence":
+            j = self.jbody()
+            g, mc = j.get("game"), j.get("mc")
+            _presence[a["id"]] = {"ts": now, "game": str(g)[:40] if g else None, "mc": str(mc)[:20] if mc else None}
+            if len(_presence) > 20000:
+                for k in [k for k, v in _presence.items() if now - v["ts"] > 3600]:
+                    _presence.pop(k, None)
+            self.send(200, {"ok": True, "room": a["id"] in _hosts})
+            return True
+        if method == "POST" and p == "/relay/ticket":
+            if not throttle(("tk", a["id"]), 60):
+                raise Err(429, "слишком много запросов")
+            self.send(200, {"ticket": ticket_new(a["id"]), "host": RELAY_HOST, "port": RELAY_PORT})
+            return True
+        # облачные миры
+        if method == "GET" and p == "/worlds":
+            rows = db().execute("SELECT id, name, mc, size, created FROM worlds WHERE account=? ORDER BY created DESC", (a["id"],)).fetchall()
+            self.send(200, {"worlds": [dict(r) for r in rows], "used": sum(r["size"] for r in rows), "quota": WORLD_QUOTA, "max": WORLD_MAX})
+            return True
+        if method == "POST" and p == "/world":
+            q = parse_qs(urlparse(self.path).query)
+            name = (q.get("name", [""])[0]).strip()[:64]
+            mc = (q.get("mc", [""])[0]).strip()[:20]
+            n = int(self.headers.get("Content-Length") or 0)
+            self.close_connection = True
+            if not name or n <= 0:
+                raise Err(400, "нужны имя мира и файл")
+            if n > WORLD_MAX:
+                raise Err(413, "мир больше %d МБ" % (WORLD_MAX // 1048576))
+            used = db().execute("SELECT COALESCE(SUM(size),0) FROM worlds WHERE account=?", (a["id"],)).fetchone()[0]
+            if used + n > WORLD_QUOTA:
+                raise Err(413, "в облаке нет места: занято %d МБ из %d" % (used // 1048576, WORLD_QUOTA // 1048576))
+            d = os.path.join(WORLDS, str(a["id"]))
+            os.makedirs(d, exist_ok=True)
+            fid = secrets.token_hex(12) + ".zip"
+            tmp = os.path.join(d, fid + ".part")
+            left, head = n, b""
+            with open(tmp, "wb") as f:
+                while left:
+                    chunk = self.rfile.read(min(65536, left))
+                    if not chunk:
+                        break
+                    if not head:
+                        head = chunk[:4]
+                    f.write(chunk)
+                    left -= len(chunk)
+            if left or head[:2] != b"PK":
+                os.remove(tmp)
+                raise Err(400, "загрузка прервана или это не архив мира")
+            os.replace(tmp, os.path.join(d, fid))
+            c = db()
+            c.execute("INSERT INTO worlds(account,name,mc,size,created,file) VALUES(?,?,?,?,?,?)", (a["id"], name, mc, n, int(now), fid))
+            old = c.execute("SELECT id, file FROM worlds WHERE account=? AND name=? ORDER BY created DESC, id DESC LIMIT -1 OFFSET 3", (a["id"], name)).fetchall()
+            for r in old:                                  # хранится 3 последние копии одного мира
+                c.execute("DELETE FROM worlds WHERE id=?", (r["id"],))
+                try:
+                    os.remove(os.path.join(d, r["file"]))
+                except OSError:
+                    pass
+            c.commit()
+            self.close_connection = False
+            self.send(200, {"ok": True, "size": n})
+            return True
+        m = re.match(r"^/world/(\d+)$", p)
+        if m and method in ("GET", "DELETE"):
+            r = db().execute("SELECT * FROM worlds WHERE id=? AND account=?", (int(m.group(1)), a["id"])).fetchone()
+            if not r:
+                raise Err(404, "мира нет в облаке")
+            path = os.path.join(WORLDS, str(a["id"]), r["file"])
+            if method == "DELETE":
+                db().execute("DELETE FROM worlds WHERE id=?", (r["id"],))
+                db().commit()
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                self.send(200, {"ok": True})
+                return True
+            try:
+                f = open(path, "rb")
+            except OSError:
+                raise Err(404, "файл мира потерян")
+            with f:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Length", str(r["size"]))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+            return True
+        return False
+
     # ── маршруты ──
     def route(self, method):
         u = urlparse(self.path)
@@ -408,6 +754,8 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"ok": True})
         if method == "GET" and p == "/me":
             return self.send(200, self.view(a))
+        if self.social(method, p, a):
+            return
         if p == "/data":
             if method == "GET":
                 return self.send(200, json.loads(a["data"] or "{}"))
@@ -524,6 +872,7 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     init()
+    start_relay()
     srv = ThreadingHTTPServer((HOST, PORT), H)
     srv.daemon_threads = True
     print("noxel api on %s:%d, base %s" % (HOST, PORT, BASE), flush=True)

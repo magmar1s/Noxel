@@ -437,3 +437,204 @@ fn skin_nick_flow() {
     assert!(!d["skin"].is_null());
     assert!(accounts::skin_from_nick("local-nicktest", "bad nick!").is_err());
 }
+
+#[test]
+#[ignore]
+fn social_flow() {
+    use crate::{accounts, social, tunnel};
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::time::Duration;
+    let sfx = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % 0xfffffff);
+    let names: Vec<String> = ["fa", "fb", "fc"].iter().map(|p| format!("t{p}{sfx}")).collect();
+    let mut tok = vec![];
+    for n in &names {
+        accounts::noxel_auth(n, "test-pass-123", true).expect("регистрация");
+        tok.push(accounts::noxel_token(&format!("noxel-{}", n.to_lowercase())).unwrap());
+    }
+    let (a, b, c) = (&tok[0], &tok[1], &tok[2]);
+    // друзья
+    let r = social::friend_action(a, "add", &names[1]).unwrap();
+    assert_eq!(r["state"], "pending");
+    assert!(social::friends(b).unwrap()["incoming"].as_array().unwrap().iter().any(|x| *x == names[0]));
+    assert_eq!(social::friend_action(b, "accept", &names[0]).unwrap()["state"], "accepted");
+    assert!(social::friend_action(a, "add", "ЭтогоНикнеймаНетВНоксел").is_err());
+    social::presence(a, Some("26.2".into()), Some("26.2".into())).unwrap();
+    let fb = social::friends(b).unwrap();
+    let fa = fb["friends"].as_array().unwrap().iter().find(|f| f["name"] == names[0].as_str()).unwrap().clone();
+    println!("B видит друга: {fa}");
+    assert_eq!(fa["online"], true);
+    // «мир» хозяина: простой эхо-сервер вместо Minecraft
+    let echo = TcpListener::bind("127.0.0.1:0").unwrap();
+    let eport = echo.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for st in echo.incoming().flatten() {
+            std::thread::spawn(move || {
+                let (mut r, mut w) = (st.try_clone().unwrap(), st);
+                let _ = std::io::copy(&mut r, &mut w);
+            });
+        }
+    });
+    tunnel::host_open(a, eport).expect("открытие комнаты");
+    // ждём, пока сервер увидит комнату
+    let mut room = false;
+    for _ in 0..20 {
+        let f = social::friends(b).unwrap();
+        social::presence(a, Some("26.2".into()), None).unwrap();
+        if f["friends"][0]["room"] == true { room = true; break; }
+        std::thread::sleep(Duration::from_millis(300));
+    }
+    assert!(room, "комната не появилась у друга");
+    let gp = tunnel::guest_open(b, &names[0]).expect("подключение гостя");
+    let mut s = TcpStream::connect(("127.0.0.1", gp)).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let payload: Vec<u8> = (0..300_000u32).map(|i| (i % 251) as u8).collect();
+    let mut w = s.try_clone().unwrap();
+    let p2 = payload.clone();
+    std::thread::spawn(move || { let _ = w.write_all(&p2); });
+    let mut got = vec![0u8; payload.len()];
+    s.read_exact(&mut got).expect("эхо через ретранслятор");
+    assert_eq!(got, payload);
+    println!("через ретранслятор прошло {} байт без искажений", got.len());
+    // чужой (не друг) пройти не должен
+    tunnel::guest_close();
+    let cp = tunnel::guest_open(c, &names[0]).unwrap();
+    let mut s2 = TcpStream::connect(("127.0.0.1", cp)).unwrap();
+    s2.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let _ = s2.write_all(b"hello");
+    let mut buf = [0u8; 8];
+    let n = s2.read(&mut buf).unwrap_or(0);
+    assert_eq!(n, 0, "не друг получил доступ к миру");
+    println!("не друг отклонён");
+    tunnel::guest_close();
+    tunnel::host_close();
+    // облако
+    let p = crate::mc::create_profile("1.21.1", "vanilla", None, "cloud-test", None).unwrap();
+    let w = crate::mc::inst_dir(&p.id).join("saves").join("Облачный мир");
+    std::fs::create_dir_all(w.join("region")).unwrap();
+    std::fs::write(w.join("level.dat"), b"cloud-dat").unwrap();
+    std::fs::write(w.join("region/r.0.0.mca"), vec![9u8; 200_000]).unwrap();
+    let up = social::cloud_upload(a, &p.id, "1.21.1", "Облачный мир").expect("загрузка в облако");
+    println!("в облаке: {up}");
+    let l = social::cloud_list(a).unwrap();
+    let wid = l["worlds"][0]["id"].as_u64().unwrap();
+    assert!(social::cloud_download(b, &p.id, wid, "Облачный мир").is_err(), "чужой скачал мир");
+    std::fs::write(w.join("level.dat"), b"changed").unwrap();
+    social::cloud_download(a, &p.id, wid, "Облачный мир").expect("скачивание из облака");
+    assert_eq!(std::fs::read(w.join("level.dat")).unwrap(), b"cloud-dat");
+    social::cloud_delete(a, wid).unwrap();
+    assert!(social::cloud_list(a).unwrap()["worlds"].as_array().unwrap().is_empty());
+    println!("облако работает");
+    // уборка тестовых аккаунтов
+    for t in &tok {
+        let _ = crate::skins::call("DELETE", "/account", Some(t), crate::skins::Body::Json(serde_json::json!({"password": "test-pass-123"})));
+    }
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for e in std::fs::read_dir(from).unwrap().flatten() {
+        let (src, dst) = (e.path(), to.join(e.file_name()));
+        if src.is_dir() { copy_dir(&src, &dst) } else { std::fs::copy(&src, &dst).unwrap(); }
+    }
+}
+
+/// Живая проверка «общего мира»: агент открывает одиночный мир для сети, а через ретранслятор его видно как сервер Minecraft.
+#[test]
+#[ignore]
+fn room_flow() {
+    use crate::{accounts, autoauth, mc, ping, social, tunnel};
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+    let ver = std::env::var("T_MC").unwrap_or_else(|_| "26.2".into());
+    mc::prefetch(&ver, 8, false, &|_, _, _| {}).expect("предзагрузка игры");
+    let vj: serde_json::Value = read_json(&data_dir().join("minecraft/versions").join(&ver).join(format!("{ver}.json"))).unwrap();
+    let comp = vj["javaVersion"]["component"].as_str().unwrap_or("jre-legacy").to_string();
+    let java = data_dir().join("runtime").join(&comp).join(JAVA_EXE);
+    // настоящий мир: даём ванильному серверу создать его и остановиться
+    let sdir = data_dir().join("room-server");
+    std::fs::create_dir_all(&sdir).unwrap();
+    download(vj["downloads"]["server"]["url"].as_str().unwrap(), &sdir.join("server.jar"), vj["downloads"]["server"]["sha1"].as_str()).unwrap();
+    std::fs::write(sdir.join("eula.txt"), "eula=true\n").unwrap();
+    std::fs::write(sdir.join("server.properties"), "level-name=RoomWorld\nserver-port=25598\nonline-mode=false\nlevel-type=flat\nview-distance=4\n").unwrap();
+    let mut srv = Command::new(&java).args(["-Xmx1G", "-jar", "server.jar", "nogui"]).current_dir(&sdir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().unwrap();
+    let out = srv.stdout.take().unwrap();
+    let ready = Arc::new(Mutex::new(false));
+    let r2 = ready.clone();
+    std::thread::spawn(move || {
+        use std::io::BufRead;
+        for l in std::io::BufReader::new(out).lines().map_while(Result::ok) {
+            if l.contains("Done (") { *r2.lock().unwrap() = true; }
+        }
+    });
+    let t = Instant::now();
+    while !*ready.lock().unwrap() && t.elapsed() < Duration::from_secs(240) { std::thread::sleep(Duration::from_millis(300)); }
+    assert!(*ready.lock().unwrap(), "сервер для создания мира не запустился");
+    srv.stdin.as_mut().unwrap().write_all(b"stop\n").unwrap();
+    let _ = srv.wait();
+    // клиент
+    let _ = accounts::add_local("RoomTest");
+    accounts::select("local-roomtest").unwrap();
+    let loader = std::env::var("T_LOADER").unwrap_or_else(|_| "fabric".into());
+    let p = mc::create_profile(&ver, &loader, None, "roomtest", None).unwrap();
+    copy_dir(&sdir.join("RoomWorld"), &mc::inst_dir(&p.id).join("saves").join("RoomWorld"));
+    let st = load_settings();
+    let acct = accounts::active_fresh().unwrap();
+    let mut pr = mc::prepare(&p, &st, &acct, &|_: &str, _: f64, _: &str| {}).expect("подготовка игры");
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
+    pr.args.extend(["--quickPlaySingleplayer".to_string(), "RoomWorld".to_string()]);
+    let game = mc::Game::default();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(|_| {}), Arc::new(|_| {})).unwrap();
+    let gpid = child.id() as u64;
+    std::thread::spawn(move || {
+        for _ in 0..800 {
+            std::thread::sleep(Duration::from_millis(250));
+            if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
+                if v["pid"].as_u64() == Some(gpid) {
+                    if let Some(addr) = v["address"].as_str() {
+                        let _ = Command::new("hyprctl").args(["dispatch", &format!("hl.dsp.window.move({{ workspace = \"6\", follow = false, window = \"address:{addr}\" }})")]).output();
+                    }
+                }
+            }
+        }
+    });
+    // ждём загрузки мира и просим агента открыть его для сети
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let t = Instant::now();
+    let mut ok = false;
+    let mut last = String::new();
+    while t.elapsed() < Duration::from_secs(240) {
+        std::thread::sleep(Duration::from_secs(3));
+        let id = autoauth::control(&pr.gamedir, &format!("!publish {port}"));
+        last = autoauth::wait_ack(&pr.gamedir, &id, 4).unwrap_or_default();
+        if last == "sent" { ok = true; break; }
+    }
+    assert!(ok, "агент не открыл мир для сети, последний ответ: {last}");
+    println!("мир открыт для сети на порту {port}");
+    let direct = ping::status(&format!("127.0.0.1:{port}"));
+    println!("прямой пинг: {direct}");
+    assert_eq!(direct["online"], true);
+    // через ретранслятор: хозяин и гость, как у настоящих друзей
+    let sfx = format!("{:x}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % 0xfffffff);
+    let (na, nb) = (format!("tra{sfx}"), format!("trb{sfx}"));
+    accounts::noxel_auth(&na, "test-pass-123", true).unwrap();
+    accounts::noxel_auth(&nb, "test-pass-123", true).unwrap();
+    let ta = accounts::noxel_token(&format!("noxel-{}", na.to_lowercase())).unwrap();
+    let tb = accounts::noxel_token(&format!("noxel-{}", nb.to_lowercase())).unwrap();
+    social::friend_action(&ta, "add", &nb).unwrap();
+    social::friend_action(&tb, "accept", &na).unwrap();
+    tunnel::host_open(&ta, port).unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    let gp = tunnel::guest_open(&tb, &na).unwrap();
+    let via = ping::status(&format!("127.0.0.1:{gp}"));
+    println!("пинг через ретранслятор: {via}");
+    assert_eq!(via["online"], true, "мир не виден через ретранслятор");
+    tunnel::guest_close();
+    tunnel::host_close();
+    let _ = child.kill();
+    for t in [&ta, &tb] {
+        let _ = crate::skins::call("DELETE", "/account", Some(t), crate::skins::Body::Json(serde_json::json!({"password": "test-pass-123"})));
+    }
+}

@@ -177,6 +177,36 @@ public final class Hook {
 
     private static boolean silentLogged;
 
+    /**
+     * publish <порт>  открыть одиночный мир для сети на этом порту, без проверки лицензии у гостей (друзья без лицензии тоже зайдут)
+     * unpublish       закрыть мир для сети
+     * Работает в версиях с читаемыми именами классов (26.x). Возвращает null при успехе или причину отказа.
+     */
+    private static String control(String cmd) {
+        try {
+            ClassLoader game = Hook.class.getClassLoader().getParent();
+            Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft", true, game);
+            Object mc = mcClass.getMethod("getInstance").invoke(null);
+            Object srv = mcClass.getMethod("getSingleplayerServer").invoke(mc);
+            if (srv == null) return "no-world";
+            if (cmd.startsWith("publish ")) {
+                int port = Integer.parseInt(cmd.substring(8).trim());
+                srv.getClass().getMethod("setUsesAuthentication", boolean.class).invoke(srv, false);
+                Class<?> scope = Class.forName("net.minecraft.server.MinecraftServer$MultiplayerScope", true, game);
+                Object lan = scope.getMethod("valueOf", String.class).invoke(null, "LAN");
+                Object ok = srv.getClass().getMethod("publishServer", scope, int.class).invoke(srv, lan, port);
+                return Boolean.TRUE.equals(ok) ? null : "publish-failed";
+            }
+            if (cmd.equals("unpublish")) {
+                srv.getClass().getMethod("unpublishServer").invoke(srv);
+                return null;
+            }
+            return "unknown";
+        } catch (Throwable t) {
+            return "unsupported:" + t.getClass().getSimpleName();
+        }
+    }
+
     private static void ack(String what) {
         try {
             FileOutputStream f = new FileOutputStream(ackFile, true);
@@ -225,8 +255,17 @@ public final class Hook {
             readNew();
             if (queue.isEmpty()) return;
             if (!loggedQueue) { loggedQueue = true; log("в очереди команд: " + queue.size()); }
-            // тихий путь: команда уходит напрямую в сетевой обработчик игры, чат не открывается и клавиши не нажимаются
+            // управляющие команды лаунчера начинаются с «!» (открыть мир для друзей и т. п.), в чат они не попадают
             String[] head = queue.peek();
+            if (head != null && head[1].startsWith("!")) {
+                queue.poll();
+                id = head[0];
+                String r = control(head[1].substring(1));
+                ack(r == null ? "sent" : "error:" + r);
+                log("управляющая команда «" + head[1] + "»: " + (r == null ? "выполнена" : r));
+                return;
+            }
+            // тихий путь: команда уходит напрямую в сетевой обработчик игры, чат не открывается и клавиши не нажимаются
             if (head != null && head[1].startsWith("/") && silent(head[1].substring(1))) {
                 queue.poll();
                 id = head[0];

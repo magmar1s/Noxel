@@ -167,3 +167,29 @@ impl Auth {
         (self.notify)("skin", &host);
     }
 }
+
+/// Отправляет игре управляющую команду («!publish 25570» и т. п.). Возвращает номер команды для `wait_ack`.
+pub fn control(gamedir: &Path, text: &str) -> String {
+    let id = format!("ctl-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+    let dir = gamedir.join(".noxel");
+    let _ = fs::create_dir_all(&dir);
+    let line = format!("{id}\t{}\n", base64::engine::general_purpose::STANDARD.encode(text));
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(dir.join("cmd.txt")) {
+        let _ = f.write_all(line.as_bytes());
+    }
+    id
+}
+
+/// Ждёт ответа агента на команду: «sent» или «error:причина».
+pub fn wait_ack(gamedir: &Path, id: &str, secs: u64) -> Option<String> {
+    let end = Instant::now() + Duration::from_secs(secs);
+    while Instant::now() < end {
+        if let Ok(t) = fs::read_to_string(gamedir.join(".noxel/ack.txt")) {
+            if let Some(l) = t.lines().rev().find(|l| l.starts_with(id)) {
+                return l.split('\t').nth(1).map(String::from);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    }
+    None
+}
