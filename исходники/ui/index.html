@@ -1120,7 +1120,7 @@ function renderModsHead(){
   const noLoader = m.kind === 'mod' && p && NOMODS.includes(p.loader);
   el.innerHTML = `<div id="drop"><div>${I.up}Отпусти, чтобы добавить в профиль<small>${m.kind === 'mod' ? 'файлы .jar' : 'файлы .zip'} · «${esc(pname(p))}»</small></div></div><div class="mhead">
     <div class="mrow"><div class="ltitle" style="margin-right:6px"><h2>${KINDS.find(k => k[0] === m.kind)[1]}</h2></div><div id="mprof" style="min-width:230px"></div><div class="grow"></div><div class="seg" id="mtab"></div></div>
-    <div class="mrow">${m.tab === 'servers' ? '' : '<div class="seg" id="mkind"></div>'}${cat ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="mq" placeholder="Искать: ${({all:'Modrinth и CurseForge', modrinth:'Modrinth', curseforge:'CurseForge'})[m.src]}…" value="${esc(m.q)}" spellcheck="false"></div><div id="msort"></div>` : '<div class="grow"></div>'}
+    <div class="mrow">${m.tab === 'servers' || m.tab === 'packs' ? '' : '<div class="seg" id="mkind"></div>'}${cat ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="mq" placeholder="Искать: ${({all:'Modrinth и CurseForge', modrinth:'Modrinth', curseforge:'CurseForge'})[m.src]}…" value="${esc(m.q)}" spellcheck="false"></div><div id="msort"></div>` : '<div class="grow"></div>'}
       ${cat ? '<div class="seg" id="msrc"></div>' : ''}
       ${cat && m.src !== 'curseforge' && m.kind === 'mod' ? '<div class="seg" id="mclient" title="Клиентские моды работают на любом сервере: подсветка, миникарта, оптимизация, интерфейс"></div>' : ''}
       ${m.tab === 'installed' && m.kind === 'mod' && !noLoader ? `<button class="minibtn" id="mupd">${I.dl} Обновления</button>` : ''}
@@ -1129,7 +1129,7 @@ function renderModsHead(){
     <div class="mbody" id="mbody"></div><aside class="drawer glass" id="drawer"></aside>`;
   const reset = () => { m.hits = []; m.offset = 0; m.err = null; };
   mkDd($('#mprof'), S.profiles.map(x => [x.id, x.name, sub(x)]), m.profile, id => { m.profile = id; reset(); m.upd = null; renderModsHead(); refreshMods(); }, {});
-  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
+  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['packs','Сборки'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
   if ($('#mkind')) mkSeg($('#mkind'), KINDS, m.kind, k => { m.kind = k; reset(); m.upd = null; renderModsHead(); refreshMods(); });
   if (cat) {
     mkDd($('#msort'), SORTS, m.sort, s => { m.sort = s; reset(); renderModsHead(); searchMods(); }, {});
@@ -1157,7 +1157,7 @@ async function addOwn(paths){
 async function refreshMods(){
   const m = S.m; if (!m.profile) return;
   try { m.installed = await invoke('mods_list', {profileId: m.profile, kind: m.kind}); } catch (e) { m.installed = []; }
-  if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
+  if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (m.tab === 'packs') renderPacks(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
 }
 const PROV = {modrinth:'Modrinth', curseforge:'CurseForge', local:'Свой файл'};
 function elsewhereText(list){
@@ -1340,6 +1340,38 @@ async function renderServers(force){
   $$('[data-se]', el).forEach(b => b.onclick = () => editServer(+b.dataset.se));
   $$('[data-sd]', el).forEach(b => b.onclick = async () => { const s = list[+b.dataset.sd]; const ok = await modal(`Удалить «${s.name}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; saveServers(list.filter((_, i) => i !== +b.dataset.sd)); });
 }
+/* сборки модов (Modrinth .mrpack): ставятся как новый профиль со всеми модами и настройками */
+const PK = {q: '', sort: 'downloads', hits: null, busy: new Set(), prog: {}};
+async function renderPacks(force){
+  const el = $('#mbody'); if (!el) return;
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Готовые сборки с Modrinth. Каждая ставится отдельным профилем: моды, настройки и нужная версия игры.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="pkQ" placeholder="Искать сборку" value="${esc(PK.q)}" style="width:190px"><select class="inp" id="pkS"><option value="downloads">По скачиваниям</option><option value="relevance">По релевантности</option><option value="newest">Новые</option><option value="updated">Обновлённые</option></select></span></div><div id="pkList" class="srvgrid"></div>`;
+  $('#pkS').value = PK.sort;
+  let t = null;
+  const load = async () => {
+    $('#pkList').innerHTML = '<div class="sk" style="height:170px"></div>'.repeat(4);
+    try { PK.hits = (await invoke('packs_search', {query: PK.q, sort: PK.sort, offset: 0})).hits || []; } catch (e) { PK.hits = []; $('#pkList').innerHTML = `<div class="empty"><div><h3>Не получилось загрузить</h3><p>${esc(e)}</p></div></div>`; return; }
+    draw();
+  };
+  const draw = () => {
+    const box = $('#pkList'); if (!box) return;
+    box.innerHTML = (PK.hits || []).map((h, i) => `<div class="scard" style="--i:${Math.min(i, 12)}">
+      <div class="top"><div class="avatar" style="${h.icon ? `background:url(${esc(h.icon)}) center/cover` : ''}">${h.icon ? '' : esc(letter(h.title))}</div><div class="meta"><b>${esc(h.title)}</b><small>${esc(h.author)} · ${fmtNum(h.downloads)} скачиваний</small></div></div>
+      <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(h.desc)}</div>
+      <div class="chips">${h.mc ? `<span class="chip">Minecraft ${esc(h.mc)}</span>` : ''}${(h.loaders || []).map(l => `<span class="chip">${esc(LNAME[l] ? LNAME[l] : l)}</span>`).join('')}</div>
+      <div class="mrow"><button class="minibtn solid sm" data-pk="${esc(h.id)}" ${PK.busy.has(h.id) ? 'disabled' : ''}>${PK.busy.has(h.id) ? esc(PK.prog[h.id] || 'Ставлю…') : I.dl + ' Установить сборку'}</button><button class="minibtn sm" data-pu="${esc(h.url)}">${I.ext} Сайт</button></div></div>`).join('') || '<div class="empty"><div><h3>Ничего не нашлось</h3></div></div>';
+    $$('[data-pu]', box).forEach(b => b.onclick = () => invoke('open_url', {url: b.dataset.pu}).catch(toast));
+    $$('[data-pk]', box).forEach(b => b.onclick = async () => {
+      const id = b.dataset.pk, h = PK.hits.find(x => x.id === id); PK.busy.add(id); PK.prog[id] = 'Ставлю…'; draw();
+      try { const r = await invoke('packs_install', {projectId: id}); PK.busy.delete(id); draw(); await loadProfiles(); S.sel = r.profile; toast(`Сборка «${r.name}» установлена. Нажми «Играть»: игра докачается при первом запуске`); }
+      catch (e) { PK.busy.delete(id); draw(); modal('Не удалось поставить сборку', String(e)); }
+    });
+  };
+  $('#pkQ').oninput = e => { PK.q = e.target.value; clearTimeout(t); t = setTimeout(load, 350); };
+  $('#pkS').onchange = e => { PK.sort = e.target.value; load(); };
+  if (PK.hits && !force) draw(); else load();
+}
+T.event.listen('task', ({payload: t}) => { if (t && String(t.id).startsWith('pack:')) { const id = String(t.id).slice(5); PK.prog[id] = `${t.stage}${t.detail ? ' · ' + t.detail : ''}`; const b = $(`[data-pk="${id}"]`); if (b) b.textContent = PK.prog[id]; } });
+
 /* вкладка «Серверы»: популярные серверы с онлайном и быстрым заходом */
 const SV = {q: '', sort: 'online'};
 async function renderServerPage(force){
@@ -1589,6 +1621,7 @@ function applyAnim(){ document.documentElement.classList.toggle('still', !(S.set
 
 /* ── события ── */
 T.event.listen('task', ({payload: t}) => {
+  if (String(t.id).startsWith('pack:')) return;
   if (String(t.id).startsWith('mod:')) { if (S.creating && t.detail) { S.cstat = 'ставлю: ' + t.detail; const c = $('#cstat'); if (c) c.textContent = S.cstat; } return; }
   S.task = t; setProgress();
 });

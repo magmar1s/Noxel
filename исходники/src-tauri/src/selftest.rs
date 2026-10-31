@@ -362,3 +362,23 @@ fn autologin_flow() {
     assert!(ok, "автовход не сработал");
     println!("autologin_flow: всё прошло");
 }
+
+#[test]
+#[ignore]
+fn modpack_flow() {
+    let r = crate::packs::search("", "downloads", 0).expect("поиск сборок");
+    let hits = r["hits"].as_array().unwrap();
+    println!("найдено сборок: {}", hits.len());
+    assert!(!hits.is_empty());
+    for h in hits.iter().take(3) {
+        println!("  {} · {} · {}", h["title"], h["mc"], h["loaders"]);
+    }
+    let q = crate::packs::search("Fabulously Optimized", "relevance", 0).unwrap();
+    let id = q["hits"][0]["id"].as_str().expect("сборка найдена").to_string();
+    let res = crate::packs::install(&id, &|st, f, d| println!("[{st}] {:.0}% {d}", f * 100.0)).expect("установка сборки");
+    println!("профиль: {}", res);
+    let dir = crate::mc::inst_dir(res["profile"].as_str().unwrap());
+    let n = std::fs::read_dir(dir.join("mods")).map(|r| r.flatten().filter(|e| e.path().extension().map(|x| x == "jar").unwrap_or(false)).count()).unwrap_or(0);
+    println!("модов в профиле: {n}");
+    assert!(n > 5);
+}

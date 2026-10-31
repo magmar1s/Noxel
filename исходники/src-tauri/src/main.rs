@@ -5,6 +5,7 @@ mod autoauth;
 mod ping;
 mod mc;
 mod mods;
+mod packs;
 mod remote;
 mod skins;
 mod stats;
@@ -473,6 +474,19 @@ fn servers_install(app: AppHandle, profile_id: String, server_id: String) -> R<V
 }
 
 #[tauri::command(async)]
+fn packs_search(query: String, sort: String, offset: u32) -> R<Value> {
+    packs::search(&query, &sort, offset)
+}
+
+#[tauri::command(async)]
+fn packs_install(app: AppHandle, project_id: String) -> R<Value> {
+    let cb = progress_cb(&app, format!("pack:{project_id}"));
+    let r = packs::install(&project_id, &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+#[tauri::command(async)]
 fn launcher_check() -> R<Value> {
     remote::check()
 }
@@ -682,6 +696,8 @@ fn main() {
             clear_cache,
             accounts_list,
             servers_list,
+            packs_search,
+            packs_install,
             news_list,
             news_save,
             server_status,
