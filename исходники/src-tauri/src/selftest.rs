@@ -285,12 +285,16 @@ fn autologin_flow() {
     let _ = accounts::add_local("AutoTest");
     accounts::select("local-autotest").unwrap();
     let p = mc::create_profile(&ver, &std::env::var("T_LOADER").unwrap_or_else(|_| "vanilla".into()), None, &format!("autotest-{}", std::env::var("T_LOADER").unwrap_or_default()), None).unwrap();
-    let st = load_settings();
+    // автовход по умолчанию выключен, а тест проверяет именно его
+    let mut st = load_settings();
+    st.auto_auth = true;
+    st.auto_skin = true;
+    save_settings(&st);
     let acct = accounts::active_fresh().unwrap();
     let cb = |_: &str, _: f64, _: &str| {};
     let mut pr = mc::prepare(&p, &st, &acct, &cb).expect("подготовка игры");
     // окно теста может быть без фокуса: пусть игра не уходит в паузу
-    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\n");
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\n");
     pr.args.extend(["--quickPlayMultiplayer".to_string(), "127.0.0.1:25599".to_string()]);
     println!("агент подключён: {}", pr.args.iter().any(|a| a.starts_with("-javaagent:")));
     let auth = Arc::new(Mutex::new(autoauth::Auth::new(&acct.id, &pr.gamedir, Box::new(|k, h| println!("[автовход] {k} на {h}"))).unwrap()));

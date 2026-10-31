@@ -156,6 +156,27 @@ public final class Hook {
         }
     }
 
+    /**
+     * Minecraft.getInstance().getConnection().sendCommand(команда). Имена классов читаемы только в версиях без обфускации (26.x);
+     * в остальных случаях возвращает false, и команда вводится через чат.
+     */
+    private static boolean silent(String command) {
+        try {
+            ClassLoader game = Hook.class.getClassLoader().getParent();
+            Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft", true, game);
+            Object mc = mcClass.getMethod("getInstance").invoke(null);
+            Object conn = mcClass.getMethod("getConnection").invoke(mc);
+            if (conn == null) return false;
+            conn.getClass().getMethod("sendCommand", String.class).invoke(conn, command);
+            return true;
+        } catch (Throwable t) {
+            if (!silentLogged) { silentLogged = true; log("тихая отправка недоступна: " + t); }
+            return false;
+        }
+    }
+
+    private static boolean silentLogged;
+
     private static void ack(String what) {
         try {
             FileOutputStream f = new FileOutputStream(ackFile, true);
@@ -204,6 +225,16 @@ public final class Hook {
             readNew();
             if (queue.isEmpty()) return;
             if (!loggedQueue) { loggedQueue = true; log("в очереди команд: " + queue.size()); }
+            // тихий путь: команда уходит напрямую в сетевой обработчик игры, чат не открывается и клавиши не нажимаются
+            String[] head = queue.peek();
+            if (head != null && head[1].startsWith("/") && silent(head[1].substring(1))) {
+                queue.poll();
+                id = head[0];
+                ack("sent");
+                sentCount++;
+                log("команда отправлена напрямую для " + id);
+                return;
+            }
             long w = GLFW.glfwGetCurrentContext();
             if (w == 0L) return;
             if (screenOpen(w)) {                              // игрок в меню: ждём, чтобы не вводить в чужое окно
