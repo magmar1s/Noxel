@@ -1687,7 +1687,7 @@ function openUpdate(r){
       const v = await invoke('launcher_update');
       const busy = S.game && S.game.state === 'running';
       if (busy) { box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Игра сейчас запущена. Перезапусти лаунчер, когда закончишь играть: данные сохранены.</div><div class="btns"><button class="minibtn" id="uLater2">Позже</button><button class="minibtn solid" id="uRe">Перезапустить</button></div>`; $('#uLater2').onclick = closeX; $('#uRe').onclick = () => invoke('launcher_restart').catch(toast); }
-      else { box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Перезапускаю лаунчер… Профили, аккаунты и моды сохранены.</div>`; setTimeout(() => invoke('launcher_restart').catch(e => { closeX(); toast(e); }), 900); }
+      else { box.innerHTML = `<h3>Обновлено до ${esc(v)}</h3><div class="hint">Перезапускаю лаунчер… Профили, аккаунты и моды сохранены.</div>`; setTimeout(() => invoke('launcher_restart').catch(() => { box.innerHTML = '<h3>Обновление установлено</h3><div class="hint">Закрой Noxel и открой заново, чтобы начать работу с новой версией. Профили, аккаунты и миры не затронуты.</div><div class="btns"><button class="minibtn solid" id="xc">Понятно</button></div>'; $('#xc').onclick = closeX; }), 900); }
     }
     catch (e) { closeX(); modal('Не удалось обновить', String(e)); }
   };

@@ -77,7 +77,7 @@ pub fn fetch_verified(dest: &std::path::Path) -> R<String> {
 
 /// Скачивает новую сборку, проверяет её и подменяет файл лаунчера.
 pub fn update() -> R<String> {
-    let exe = std::env::current_exe().map_err(e)?;
+    let exe = exe_path()?;
     if exe.components().any(|c| c.as_os_str() == "target") {
         return Err("Это сборка для разработки: самообновление отключено".into());
     }
@@ -99,8 +99,17 @@ pub fn update() -> R<String> {
     Ok(version)
 }
 
+/// Путь к запущенному файлу. После самообновления Linux помечает его как «(deleted)»: отбрасываем пометку, иначе перезапуск не найдёт файл.
+fn exe_path() -> R<std::path::PathBuf> {
+    let p = std::env::current_exe().map_err(e)?;
+    Ok(match p.to_str().and_then(|s| s.strip_suffix(" (deleted)")) {
+        Some(t) => std::path::PathBuf::from(t),
+        None => p,
+    })
+}
+
 pub fn restart() -> R<()> {
-    let exe = std::env::current_exe().map_err(e)?;
+    let exe = exe_path()?;
     cmd(exe).spawn().map_err(e)?;
     Ok(())
 }
