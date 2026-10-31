@@ -23,7 +23,20 @@ pub fn friend_action(token: &str, action: &str, name: &str) -> R<Value> {
 }
 
 pub fn presence(token: &str, game: Option<String>, mc: Option<String>) -> R<Value> {
-    call("POST", "/presence", Some(token), Body::Json(json!({"game": game, "mc": mc})))
+    // порты для голосовых модов объявляем, только пока мир открыт для друзей
+    let ports = if crate::tunnel::host_port().is_some() { crate::tunnel::room_ports() } else { vec![] };
+    call("POST", "/presence", Some(token), Body::Json(json!({"game": game, "mc": mc, "ports": ports})))
+}
+
+/// Публикует для друзей список модов профиля хозяина: друг сможет поставить такие же.
+pub fn pack_publish(token: &str, profile_id: &str) -> R<Value> {
+    let p = crate::mc::load_profiles().into_iter().find(|p| p.id == profile_id).ok_or("профиль не найден")?;
+    let mods = crate::mods::pack_manifest(profile_id);
+    call("POST", "/pack", Some(token), Body::Json(json!({"mc": p.mc, "loader": p.loader, "loader_ver": p.loader_ver, "name": p.name, "mods": mods})))
+}
+
+pub fn pack_get(token: &str, host: &str) -> R<Value> {
+    call("GET", &format!("/pack/{host}"), Some(token), Body::None)
 }
 
 pub fn cloud_list(token: &str) -> R<Value> {

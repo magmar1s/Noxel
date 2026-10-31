@@ -53,6 +53,21 @@ fn save_index(profile_id: &str, m: &HashMap<String, Meta>) {
     write_json(&index_path(profile_id), m);
 }
 
+/// Моды профиля, поставленные через лаунчер (источник и id проекта): по ним друг соберёт такой же профиль.
+pub fn pack_manifest(profile_id: &str) -> Vec<Value> {
+    let dir = inst_dir(profile_id).join("mods");
+    let idx = load_index(profile_id);
+    let mut seen = std::collections::HashSet::new();
+    let mut out = vec![];
+    for (file, m) in idx {
+        if m.kind != "mod" || !dir.join(&file).exists() || !seen.insert(m.project_id.clone()) {
+            continue;
+        }
+        out.push(json!({"provider": m.provider, "id": m.project_id, "name": m.title}));
+    }
+    out
+}
+
 pub fn list(profile_id: &str, kind: &str) -> R<Value> {
     let dir = kind_dir(profile_id, kind)?;
     let idx = load_index(profile_id);

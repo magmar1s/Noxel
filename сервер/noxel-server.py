@@ -212,6 +212,8 @@ _tickets_lock = threading.Lock()
 _relay_lock = threading.Lock()
 _hosts = {}               # id аккаунта -> {"sock", "lock", "sessions"}
 _pending = {}             # id сессии -> {"ev", "sock", "done"}
+_flows = {}               # id UDP-потока (4 байта) -> {"g": адрес гостя, "h": адрес хозяина, "ts"}
+_packs = {}               # id аккаунта -> сборка модов хозяина мира (для друзей)
 ONLINE_SECS = 75
 
 
@@ -301,6 +303,8 @@ class Relay(socketserver.BaseRequestHandler):
                 self.join(s, parts[1], parts[2])
             elif len(parts) == 2 and parts[0] == "DATA":
                 self.data(s, parts[1])
+            elif len(parts) == 4 and parts[0] == "UDP" and parts[3].isdigit():
+                self.udp(s, parts[1], parts[2], int(parts[3]))
         except OSError:
             pass
         finally:
@@ -375,6 +379,44 @@ class Relay(socketserver.BaseRequestHandler):
             ctl["sessions"] -= 1
             p["done"].set()
 
+    def udp(self, s, ticket, host_name, port):
+        """Гость просит UDP-поток к порту хозяина (голосовой чат и т. п.). Соединение живёт, пока живёт поток."""
+        guest = ticket_account(ticket)
+        if guest is None:
+            s.sendall(b"ERR ticket\n")
+            return
+        h = db().execute("SELECT id FROM accounts WHERE name=?", (host_name,)).fetchone()
+        ok = h is not None and h["id"] != guest and are_friends(guest, h["id"])
+        _close_db()
+        if not ok:
+            s.sendall(b"ERR friend\n")
+            return
+        if port not in ((_presence.get(h["id"]) or {}).get("ports") or []):
+            s.sendall(b"ERR port\n")
+            return
+        ctl = _hosts.get(h["id"])
+        if not ctl:
+            s.sendall(b"ERR offline\n")
+            return
+        fid = secrets.token_bytes(4)
+        _flows[fid] = {"g": None, "h": None, "ts": time.time()}
+        try:
+            with ctl["lock"]:
+                ctl["sock"].sendall(("UDPFLOW %s %d\n" % (fid.hex(), port)).encode())
+            s.sendall(("OK %s\n" % fid.hex()).encode())
+            s.settimeout(None)
+            while s.recv(64):
+                pass
+        except OSError:
+            pass
+        finally:
+            _flows.pop(fid, None)
+            try:
+                with ctl["lock"]:
+                    ctl["sock"].sendall(("UDPEND %s\n" % fid.hex()).encode())
+            except OSError:
+                pass
+
     def data(self, s, sid):
         p = _pending.pop(sid, None)
         if not p:
@@ -384,6 +426,36 @@ class Relay(socketserver.BaseRequestHandler):
         p["done"].wait(12 * 3600)            # сокет закроется, когда гость отключится
 
 
+def udp_loop():
+    """UDP-ретранслятор: пакеты вида <поток 4 байта><роль G/H><данные> пересылаются между гостем и хозяином потока."""
+    u = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    u.bind(("0.0.0.0", RELAY_PORT))
+    last_clean = time.time()
+    while True:
+        try:
+            data, addr = u.recvfrom(2048)
+        except OSError:
+            continue
+        if len(data) < 5:
+            continue
+        f = _flows.get(data[:4])
+        role = data[4:5]
+        if f is None or role not in (b"G", b"H"):
+            continue
+        key, other, mark = ("g", "h", b"H") if role == b"G" else ("h", "g", b"G")
+        f[key] = addr
+        f["ts"] = time.time()
+        if f[other] and len(data) > 5:
+            try:
+                u.sendto(data[:4] + mark + data[5:], f[other])
+            except OSError:
+                pass
+        if time.time() - last_clean > 60:
+            last_clean = time.time()
+            for k in [k for k, v in _flows.items() if time.time() - v["ts"] > 900]:
+                _flows.pop(k, None)
+
+
 def start_relay():
     class Srv(socketserver.ThreadingTCPServer):
         allow_reuse_address = True
@@ -391,7 +463,8 @@ def start_relay():
         request_queue_size = 64
     srv = Srv(("0.0.0.0", RELAY_PORT), Relay)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    print("noxel relay on 0.0.0.0:%d" % RELAY_PORT, flush=True)
+    threading.Thread(target=udp_loop, daemon=True).start()
+    print("noxel relay on 0.0.0.0:%d (tcp+udp)" % RELAY_PORT, flush=True)
 
 
 class H(BaseHTTPRequestHandler):
@@ -565,7 +638,7 @@ class H(BaseHTTPRequestHandler):
                     pr = _presence.get(r["xid"])
                     online = bool(pr and now - pr["ts"] < ONLINE_SECS)
                     friends.append({"name": r["xname"], "online": online, "game": pr["game"] if online else None, "mc": pr["mc"] if online else None,
-                                    "room": online and r["xid"] in _hosts})
+                                    "room": online and r["xid"] in _hosts, "ports": (pr.get("ports") or []) if online else [], "pack": r["xid"] in _packs})
                 elif r["a"] == a["id"]:
                     outgoing.append(r["xname"])
                 else:
@@ -606,11 +679,25 @@ class H(BaseHTTPRequestHandler):
         if method == "POST" and p == "/presence":
             j = self.jbody()
             g, mc = j.get("game"), j.get("mc")
-            _presence[a["id"]] = {"ts": now, "game": str(g)[:40] if g else None, "mc": str(mc)[:20] if mc else None}
+            ports = [x for x in (j.get("ports") or []) if isinstance(x, int) and 1024 <= x <= 65535][:4] if isinstance(j.get("ports"), list) else []
+            _presence[a["id"]] = {"ts": now, "game": str(g)[:40] if g else None, "mc": str(mc)[:20] if mc else None, "ports": ports}
             if len(_presence) > 20000:
                 for k in [k for k, v in _presence.items() if now - v["ts"] > 3600]:
                     _presence.pop(k, None)
             self.send(200, {"ok": True, "room": a["id"] in _hosts})
+            return True
+        if method == "POST" and p == "/pack":
+            j = self.jbody()
+            mods = [{"provider": str(m.get("provider", ""))[:12], "id": str(m.get("id", ""))[:40], "name": str(m.get("name", ""))[:80]} for m in (j.get("mods") or []) if isinstance(m, dict)][:600]
+            _packs[a["id"]] = {"mc": str(j.get("mc", ""))[:20], "loader": str(j.get("loader", ""))[:12], "loader_ver": str(j.get("loader_ver") or "")[:40], "mods": mods, "name": str(j.get("name", ""))[:60]}
+            self.send(200, {"ok": True, "mods": len(mods)})
+            return True
+        m = re.match(r"^/pack/([A-Za-z0-9_]{3,16})$", p)
+        if method == "GET" and m:
+            o = db().execute("SELECT id FROM accounts WHERE name=?", (m.group(1),)).fetchone()
+            if not o or not are_friends(a["id"], o["id"]) or o["id"] not in _packs:
+                raise Err(404, "у друга нет опубликованной сборки")
+            self.send(200, _packs[o["id"]])
             return True
         if method == "POST" and p == "/relay/ticket":
             if not throttle(("tk", a["id"]), 60):

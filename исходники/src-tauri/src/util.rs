@@ -232,6 +232,8 @@ pub struct Settings {
     pub dav_auto: bool,
     /// Ставить мод Noxel (кнопка «Друзья» в игре) в профили Fabric для 26.x
     pub noxel_mod: bool,
+    /// Дополнительные UDP-порты для друзей (голосовой чат: Simple Voice Chat 24454, Plasmo Voice 60606), через запятую
+    pub room_ports: String,
     pub auto_skip: Vec<String>,
     pub on_launch: String,
     pub fullscreen: bool,
@@ -264,6 +266,7 @@ impl Default for Settings {
             dav_pass: String::new(),
             dav_auto: false,
             noxel_mod: true,
+            room_ports: "24454".into(),
             auto_skip: vec![],
             on_launch: "keep".into(),
             fullscreen: false,

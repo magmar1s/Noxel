@@ -507,6 +507,50 @@ fn social_flow() {
     assert_eq!(n, 0, "не друг получил доступ к миру");
     println!("не друг отклонён");
     tunnel::guest_close();
+    // UDP для голосовых модов: хозяин объявляет порт, гость слушает его у себя и гонит пакеты через сервер
+    let mut st = load_settings();
+    st.room_ports = "24456".into();
+    save_settings(&st);
+    let uecho = std::net::UdpSocket::bind("127.0.0.1:24456").expect("порт 24456 для проверки");
+    std::thread::spawn(move || {
+        let mut b = [0u8; 2048];
+        while let Ok((n, from)) = uecho.recv_from(&mut b) {
+            let _ = uecho.send_to(&b[..n], from);
+        }
+    });
+    social::presence(a, Some("26.2".into()), None).unwrap();            // порты объявляются, пока мир открыт
+    std::env::set_var("NOXEL_GUEST_BIND", "127.0.0.3");
+    tunnel::guest_open(b, &names[0]).unwrap();
+    std::thread::sleep(Duration::from_millis(600));
+    let uc = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    uc.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    let (mut ok_udp, mut bytes) = (0, 0);
+    uc.set_read_timeout(Some(Duration::from_millis(800))).unwrap();
+    for i in 0..30u8 {
+        let pkt = vec![i; 900];
+        uc.send_to(&pkt, "127.0.0.3:24456").unwrap();
+        let mut rb = [0u8; 2048];
+        if let Ok((n, _)) = uc.recv_from(&mut rb) {
+            if rb[..n] == pkt[..] { ok_udp += 1; bytes += n; }
+        }
+    }
+    println!("UDP через ретранслятор: вернулось {ok_udp} из 30 пакетов ({bytes} байт)");
+    assert!(ok_udp >= 25, "UDP через ретранслятор не работает");
+    // сборка друга: хозяин публикует список модов профиля, друг получает его (чужой не получает)
+    let pp = crate::mc::create_profile("1.21.1", "fabric", None, "pack-test", None).unwrap();
+    let pdir = crate::mc::inst_dir(&pp.id);
+    std::fs::create_dir_all(pdir.join("mods")).unwrap();
+    std::fs::create_dir_all(pdir.join(".noxel")).unwrap();
+    std::fs::write(pdir.join("mods/sodium.jar"), b"x").unwrap();
+    std::fs::write(pdir.join(".noxel/index.json"), r#"{"sodium.jar":{"project_id":"AANobbMI","title":"Sodium","provider":"modrinth","kind":"mod","version":"1"},"gone.jar":{"project_id":"zzz","title":"Gone","provider":"modrinth","kind":"mod","version":"1"}}"#).unwrap();
+    social::pack_publish(a, &pp.id).unwrap();
+    let pk = social::pack_get(b, &names[0]).expect("сборка друга");
+    println!("сборка друга: {pk}");
+    assert_eq!(pk["mc"], "1.21.1");
+    assert_eq!(pk["loader"], "fabric");
+    assert_eq!(pk["mods"].as_array().unwrap().len(), 1, "должен остаться только существующий мод");
+    assert!(social::pack_get(c, &names[0]).is_err(), "не друг получил сборку");
+    tunnel::guest_close();
     tunnel::host_close();
     // облако
     let p = crate::mc::create_profile("1.21.1", "vanilla", None, "cloud-test", None).unwrap();

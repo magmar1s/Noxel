@@ -4,6 +4,8 @@
 use crate::skins::{call, Body};
 use crate::util::*;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::net::{ToSocketAddrs, UdpSocket};
 use std::{
     io::{BufRead, BufReader, Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
@@ -84,6 +86,114 @@ fn pipe(a: TcpStream, b: TcpStream) {
     let _ = t.join();
 }
 
+/// Дополнительные UDP-порты друзей из настроек (голосовой чат и т. п.).
+pub fn room_ports() -> Vec<u16> {
+    load_settings().room_ports.split(|c: char| c == ',' || c == ' ' || c == ';').filter_map(|x| x.trim().parse::<u16>().ok()).filter(|p| *p >= 1024).take(4).collect()
+}
+
+fn unhex4(s: &str) -> Option<[u8; 4]> {
+    if s.len() != 8 {
+        return None;
+    }
+    let mut o = [0u8; 4];
+    for i in 0..4 {
+        o[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(o)
+}
+
+/// Хозяин: пересылает UDP между сервером и своим локальным портом (например, голосовой чат), пока поток не закроют.
+fn udp_host(relay: String, fid_hex: String, port: u16, end: Arc<AtomicBool>) {
+    let Some(fid) = unhex4(&fid_hex) else { return };
+    let Some(raddr) = relay.to_socket_addrs().ok().and_then(|mut a| a.next()) else { return };
+    let (Ok(rs), Ok(ls)) = (UdpSocket::bind("0.0.0.0:0"), UdpSocket::bind("127.0.0.1:0")) else { return };
+    if ls.connect(("127.0.0.1", port)).is_err() {
+        return;
+    }
+    let hello = [fid[0], fid[1], fid[2], fid[3], b'H'];
+    let _ = rs.send_to(&hello, raddr);
+    let _ = rs.set_read_timeout(Some(Duration::from_millis(300)));
+    let _ = ls.set_read_timeout(Some(Duration::from_millis(300)));
+    let (Ok(rs2), Ok(ls2)) = (rs.try_clone(), ls.try_clone()) else { return };
+    let end2 = end.clone();
+    thread::spawn(move || {
+        let mut buf = [0u8; 2048];
+        while !end2.load(Ordering::Relaxed) {
+            if let Ok((n, _)) = rs2.recv_from(&mut buf) {
+                if n > 5 {
+                    let _ = ls2.send(&buf[5..n]);
+                }
+            }
+        }
+    });
+    let mut buf = [0u8; 2048];
+    let mut last = Instant::now();
+    while !end.load(Ordering::Relaxed) {
+        if let Ok(n) = ls.recv(&mut buf[5..]) {
+            buf[..4].copy_from_slice(&fid);
+            buf[4] = b'H';
+            let _ = rs.send_to(&buf[..5 + n], raddr);
+        }
+        if last.elapsed() > Duration::from_secs(10) {
+            last = Instant::now();
+            let _ = rs.send_to(&hello, raddr);
+        }
+    }
+}
+
+/// Гость: слушает локальный UDP-порт (как у хозяина) и гонит пакеты через сервер к хозяину.
+fn udp_guest(token: String, relay: String, host: String, port: u16, stop: Arc<AtomicBool>) {
+    let Some(raddr) = relay.to_socket_addrs().ok().and_then(|mut a| a.next()) else { return };
+    let bind = std::env::var("NOXEL_GUEST_BIND").unwrap_or_else(|_| "127.0.0.1".into()); // для проверки на одном компьютере хозяин и гость слушают разные адреса
+    let Ok(local) = UdpSocket::bind((bind.as_str(), port)) else {
+        eprintln!("[комната] локальный UDP-порт {port} занят, голосовой чат не подключён");
+        return;
+    };
+    let _ = local.set_read_timeout(Some(Duration::from_millis(250)));
+    let mut buf = [0u8; 2048];
+    // активный поток: (адрес клиента, сокет к серверу, id потока, управляющее TCP-соединение)
+    let mut cur: Option<(std::net::SocketAddr, UdpSocket, [u8; 4], TcpStream)> = None;
+    while !stop.load(Ordering::Relaxed) {
+        let Ok((n, from)) = local.recv_from(&mut buf[5..]) else { continue };
+        if cur.as_ref().map(|c| c.0 != from).unwrap_or(true) {
+            cur = None; // закрывает прежний поток
+            let Ok(mut ctl) = connect(&relay) else { continue };
+            let Ok((t, _)) = ticket(&token) else { continue };
+            if ctl.write_all(format!("UDP {t} {host} {port}\n").as_bytes()).is_err() {
+                continue;
+            }
+            let _ = ctl.set_read_timeout(Some(Duration::from_secs(10)));
+            let line = read_line(&mut ctl).unwrap_or_default();
+            let Some(fid) = line.strip_prefix("OK ").and_then(unhex4) else { continue };
+            let _ = ctl.set_read_timeout(None);
+            let Ok(rs) = UdpSocket::bind("0.0.0.0:0") else { continue };
+            let _ = rs.set_read_timeout(Some(Duration::from_millis(300)));
+            let (Ok(rs2), Ok(l2)) = (rs.try_clone(), local.try_clone()) else { continue };
+            let (st2, client) = (stop.clone(), from);
+            thread::spawn(move || {
+                let mut b = [0u8; 2048];
+                // поток живёт, пока открыт его сокет у основного цикла; при замене рабочий поток выходит по ошибке сокета
+                while !st2.load(Ordering::Relaxed) {
+                    match rs2.recv_from(&mut b) {
+                        Ok((k, _)) if k > 5 => {
+                            let _ = l2.send_to(&b[5..k], client);
+                        }
+                        Ok(_) => {}
+                        Err(ref x) if matches!(x.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => {}
+                        Err(_) => break,
+                    }
+                }
+            });
+            cur = Some((from, rs, fid, ctl));
+        }
+        if let Some((_, rs, fid, _)) = &cur {
+            buf[..4].copy_from_slice(fid);
+            buf[4] = b'G';
+            let _ = rs.send_to(&buf[..5 + n], raddr);
+        }
+    }
+}
+
 // ── хозяин ──
 
 fn host_session(relay: String, id: String, port: u16) {
@@ -119,12 +229,30 @@ fn host_run(token: &str, port: u16, stop: &Arc<AtomicBool>, slot: &Arc<Mutex<Opt
             }
         }
     });
+    let mut flows: HashMap<String, Arc<AtomicBool>> = HashMap::new();
     for line in BufReader::new(s).lines() {
         let Ok(line) = line else { break };
         if let Some(id) = line.strip_prefix("CONN ") {
             let (relay, id) = (relay.clone(), id.trim().to_string());
             thread::spawn(move || host_session(relay, id, port));
+        } else if let Some(rest) = line.strip_prefix("UDPFLOW ") {
+            let mut it = rest.split_whitespace();
+            if let (Some(fid), Some(p)) = (it.next(), it.next().and_then(|x| x.parse::<u16>().ok())) {
+                if room_ports().contains(&p) {
+                    let end = Arc::new(AtomicBool::new(false));
+                    flows.insert(fid.to_string(), end.clone());
+                    let (relay, fid) = (relay.clone(), fid.to_string());
+                    thread::spawn(move || udp_host(relay, fid, p, end));
+                }
+            }
+        } else if let Some(fid) = line.strip_prefix("UDPEND ") {
+            if let Some(f) = flows.remove(fid.trim()) {
+                f.store(true, Ordering::Relaxed);
+            }
         }
+    }
+    for f in flows.values() {
+        f.store(true, Ordering::Relaxed);
     }
     Ok(())
 }
@@ -176,6 +304,14 @@ pub fn guest_open(token: &str, host_name: &str) -> R<u16> {
     let port = listener.local_addr().map_err(e)?.port();
     listener.set_nonblocking(true).map_err(e)?;
     let stop = Arc::new(AtomicBool::new(false));
+    // голосовые и другие UDP-порты, которые хозяин объявил друзьям
+    if let Ok(fr) = crate::social::friends(token) {
+        let ports: Vec<u16> = fr["friends"].as_array().and_then(|a| a.iter().find(|f| f["name"].as_str().map(|n| n.eq_ignore_ascii_case(host_name)).unwrap_or(false))).and_then(|f| f["ports"].as_array().cloned()).unwrap_or_default().iter().filter_map(|p| p.as_u64().map(|p| p as u16)).collect();
+        for p in ports {
+            let (t, r, h, st) = (token.to_string(), relay.clone(), host_name.to_string(), stop.clone());
+            thread::spawn(move || udp_guest(t, r, h, p, st));
+        }
+    }
     let (token, host, stop2) = (token.to_string(), host_name.to_string(), stop.clone());
     thread::spawn(move || {
         let mut tk = (first, Instant::now());
@@ -235,6 +371,8 @@ pub fn open_world(token: &str, profile_id: &str) -> R<Value> {
     match autoauth::wait_ack(&dir, &cid, 6).as_deref() {
         Some("sent") => {
             host_open(token, port)?;
+            let _ = crate::social::pack_publish(token, profile_id);
+            let _ = crate::social::presence(token, None, None);
             Ok(serde_json::json!({"port": port, "how": "auto"}))
         }
         Some("error:no-world") => Err("Зайди в одиночный мир (не на сервер) и повтори".into()),
@@ -243,6 +381,8 @@ pub fn open_world(token: &str, profile_id: &str) -> R<Value> {
             let lan = LAN_PORT.load(Ordering::Relaxed);
             if lan > 0 {
                 host_open(token, lan)?;
+                let _ = crate::social::pack_publish(token, profile_id);
+                let _ = crate::social::presence(token, None, None);
                 Ok(serde_json::json!({"port": lan, "how": "lan"}))
             } else {
                 Err(format!("Эта версия игры не умеет открывать мир сама ({}). В игре нажми Esc → «Открыть для сети», потом повтори", other.unwrap_or("нет ответа")))

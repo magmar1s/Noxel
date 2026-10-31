@@ -1538,8 +1538,8 @@ async function loadFriends(first){
     ${d.incoming.length ? `<div class="lbl" style="margin:6px 4px 8px"><span>Заявки в друзья</span></div>` + d.incoming.map(n => `<div class="ncard" style="margin-bottom:8px;flex-direction:row;align-items:center"><b style="flex:1">${esc(n)}</b><button class="minibtn solid sm" data-fa="${esc(n)}">Принять</button><button class="minibtn sm" data-fx="${esc(n)}">Отклонить</button></div>`).join('') : ''}
     <div class="lbl" style="margin:10px 4px 8px"><span>Друзья · ${d.friends.length}</span></div>
     ${d.friends.length ? d.friends.map(f => `<div class="ncard" style="margin-bottom:8px;flex-direction:row;align-items:center;gap:12px"><div class="avatar" style="flex:none">${esc(letter(f.name))}</div>
-      <div style="flex:1;min-width:0"><b>${esc(f.name)}</b><div class="hint">${f.online ? `<span style="color:#fff">● в сети</span>${f.game ? ' · играет ' + esc(f.game) : ' · в лаунчере'}` : 'не в сети'}${f.room ? ' · <b style="color:#fff">мир открыт</b>' : ''}</div></div>
-      ${f.room ? `<button class="minibtn solid sm" data-fj="${esc(f.name)}" data-mc="${esc(f.mc || '')}">${I.play} Зайти в мир</button>` : ''}<button class="ibtn sm" data-fx="${esc(f.name)}" title="Удалить из друзей">${I.trash}</button></div>`).join('') : '<div class="empty" style="padding:30px 0"><div><h3>Пока никого нет</h3><p>Введи ник друга выше: он должен быть зарегистрирован в Noxel.</p></div></div>'}
+      <div style="flex:1;min-width:0"><b>${esc(f.name)}</b><div class="hint">${f.online ? `<span style="color:#fff">● в сети</span>${f.game ? ' · играет ' + esc(f.game) : ' · в лаунчере'}` : 'не в сети'}${f.room ? ' · <b style="color:#fff">мир открыт</b>' : ''}${f.room && f.ports && f.ports.length ? ' · голосовой чат' : ''}${f.room && f.pack ? ' · есть моды' : ''}</div></div>
+      ${f.room ? `<button class="minibtn solid sm" data-fj="${esc(f.name)}" data-mc="${esc(f.mc || '')}" data-pack="${f.pack ? 1 : 0}">${I.play} Зайти в мир</button>` : ''}<button class="ibtn sm" data-fx="${esc(f.name)}" title="Удалить из друзей">${I.trash}</button></div>`).join('') : '<div class="empty" style="padding:30px 0"><div><h3>Пока никого нет</h3><p>Введи ник друга выше: он должен быть зарегистрирован в Noxel.</p></div></div>'}
     ${d.outgoing.length ? `<div class="lbl" style="margin:10px 4px 8px"><span>Ждут ответа</span></div>` + d.outgoing.map(n => `<div class="ncard" style="margin-bottom:8px;flex-direction:row;align-items:center"><span style="flex:1">${esc(n)}</span><button class="minibtn sm" data-fx="${esc(n)}">Отменить</button></div>`).join('') : ''}`;
   if (focus) { $('#frName').value = focus; $('#frName').focus(); }
   const act = async (action, name, msg) => { try { const r = await invoke('friend_action', {id: a.id, action, name}); toast(msg || (r.state === 'accepted' ? `${r.name} теперь в друзьях` : r.state === 'pending' ? `Заявка отправлена: ${r.name}` : 'Готово')); } catch (e) { modal('Не получилось', String(e)); } loadFriends(false); };
@@ -1550,9 +1550,23 @@ async function loadFriends(first){
   if ($('#frOpen')) $('#frOpen').onclick = async () => { const b = $('#frOpen'); b.disabled = true; b.textContent = 'Открываю…'; try { const r = await invoke('room_open', {id: a.id, profileId: S.game.id}); toast(r.how === 'auto' ? 'Мир открыт для друзей' : 'Мир подключён к друзьям'); } catch (e) { modal('Не получилось открыть мир', String(e)); } loadFriends(false); };
   if ($('#frClose')) $('#frClose').onclick = async () => { try { await invoke('room_close'); toast('Мир закрыт для друзей'); } catch (e) { toast(e); } loadFriends(false); };
   $$('[data-fj]', el).forEach(b => b.onclick = async () => {
-    const mcv = b.dataset.mc, same = S.profiles.find(p => p.mc === mcv && p.installed), pr = same || prof(S.sel) || S.profiles[0];
-    if (!pr) return modal('Нет профиля', 'Сначала добавь версию игры.');
+    const mcv = b.dataset.mc, same = S.profiles.find(p => p.mc === mcv && p.installed);
+    let pr = same || prof(S.sel) || S.profiles[0];
     if (S.game && S.game.state !== 'idle') return toast('Сначала закрой запущенную игру');
+    if (b.dataset.pack === '1') {
+      // у друга моды: предлагаем собрать такой же профиль, чтобы мир открылся без вылетов
+      let info = null; try { info = await invoke('room_pack_info', {id: a.id, hostName: b.dataset.fj}); } catch (e) {}
+      if (info && info.mods && info.mods.length) {
+        const ch = await modal(`У ${b.dataset.fj} есть моды`, `В его профиле ${info.mods.length} ${plural(info.mods.length, 'мод', 'мода', 'модов')} (${info.loader} · Minecraft ${info.mc}). Чтобы зайти, нужны такие же. Создать профиль как у друга?`, [{label:'Отмена', val:false}, {label:'Зайти без модов', val:'join'}, {label:'Создать такой же профиль', val:'make', cls:'solid'}]);
+        if (!ch) return;
+        if (ch === 'make') {
+          b.disabled = true; b.textContent = 'Собираю профиль…';
+          try { const r = await invoke('room_pack_install', {id: a.id, hostName: b.dataset.fj}); await loadProfiles(); pr = prof(r.profile) || pr; toast(`Профиль «${r.name}» готов, модов: ${r.installed}`); if (r.skipped && r.skipped.length) await modal('Часть модов не нашлась', 'Для этой версии игры нет файлов:\n\n' + r.skipped.join('\n')); }
+          catch (e) { b.disabled = false; b.innerHTML = I.play + ' Зайти в мир'; return modal('Не получилось', String(e)); }
+        }
+      }
+    }
+    if (!pr) return modal('Нет профиля', 'Сначала добавь версию игры.');
     if (mcv && pr.mc !== mcv) { const ok = await modal('Другая версия игры', `У друга игра ${mcv}, а у профиля «${pr.name}» ${pr.mc}. Зайти может не получиться. Продолжить?`, [{label:'Отмена', val:false}, {label:'Всё равно зайти', val:true, cls:'solid'}]); if (!ok) return; }
     b.disabled = true;
     try { await invoke('room_join', {id: a.id, hostName: b.dataset.fj, profileId: pr.id}); go('home'); } catch (e) { b.disabled = false; modal('Не удалось зайти', String(e)); }
@@ -1738,6 +1752,10 @@ function renderSettings(){
       ${sw('sDavAuto', 'Синхронизировать после игры', 'Изменённые миры сами загрузятся в твоё облако, когда закроешь игру', s.dav_auto)}
       <div class="mrow" style="margin-top:8px"><button class="minibtn sm" id="sDavTest">Проверить подключение</button></div>
       <div class="hint">Яндекс Диск: адрес <code>https://webdav.yandex.ru</code>, логин — твой Яндекс-логин, пароль приложения создаётся в Яндекс ID → Безопасность → Пароли приложений («Файлы WebDAV»). Google Диск так подключить нельзя: ему нужен отдельный ключ приложения. Пароль хранится только на этом компьютере.</div></div>
+    <div class="glass panel" style="--i:1"><h3>Общий мир и голосовой чат<small>Как друзья играют вместе через сервер Noxel</small></h3>
+      <div class="field"><label>UDP-порты для голосового чата</label><input class="inp" id="sRoomPorts" value="${esc(s.room_ports || '')}" placeholder="24454" spellcheck="false"></div>
+      <div class="hint">Через запятую, до четырёх. Simple Voice Chat использует 24454, Plasmo Voice 60606. Друзья услышат тебя, когда ты откроешь мир, а у них в игре будет такой же мод.</div>
+      ${sw('sMod', 'Мод Noxel в игре', 'Кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}</div>
     <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
       ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}
@@ -1769,18 +1787,18 @@ function renderSettings(){
       <div class="hint">Токен лежит на сервере в файле /etc/noxel/admin.token. С ним на вкладке «Серверы» появятся кнопки добавления и правки.</div></div>
   </div></div>`;
   let t; const save = () => { clearTimeout(t); t = setTimeout(async () => {
-    S.set = await invoke('settings_set', {s: {...S.set, ram_mb: +$('#sRam').value, java_path: $('#sJava').value, jvm_args: $('#sJvm').value, dav_url: $('#sDavUrl').value.trim(), dav_user: $('#sDavUser').value.trim(), dav_pass: $('#sDavPass').value, width: +$('#sW').value || 0, height: +$('#sH').value || 0, ms_client_id: $('#sMs').value, admin_token: $('#sAdm').value, threads: +$('#sTh').value}});
+    S.set = await invoke('settings_set', {s: {...S.set, ram_mb: +$('#sRam').value, java_path: $('#sJava').value, jvm_args: $('#sJvm').value, room_ports: $('#sRoomPorts').value.trim(), dav_url: $('#sDavUrl').value.trim(), dav_user: $('#sDavUser').value.trim(), dav_pass: $('#sDavPass').value, width: +$('#sW').value || 0, height: +$('#sH').value || 0, ms_client_id: $('#sMs').value, admin_token: $('#sAdm').value, threads: +$('#sTh').value}});
     const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
   }, 450); };
   const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
-  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sAnim', 'animations', applyAnim);
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); flag('sAnim', 'animations', applyAnim);
   mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
   mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
   const rg = $('#sRam'); const rp = () => { rg.style.setProperty('--p', ((rg.value - rg.min) / (rg.max - rg.min) * 100) + '%'); $('#sRamV').innerHTML = `${(rg.value / 1024).toFixed(1)}<small>ГБ</small>`; };
   rp(); rg.oninput = () => { rp(); save(); };
   $('#sRamAuto').onclick = () => { const mods = (prof(S.sel) || {}).mods || 0, want = mods > 120 ? 8192 : mods > 40 ? 6144 : mods > 0 ? 4096 : 3072; rg.value = Math.max(+rg.min, Math.min(+rg.max, Math.min(want, Math.floor(total * 0.5 / 512) * 512))); rp(); save(); toast(`Выбрано ${(rg.value / 1024).toFixed(1)} ГБ: под ${mods} модов и твоё количество памяти`); };
   const th = $('#sTh'); const tp = () => { th.style.setProperty('--p', ((th.value - th.min) / (th.max - th.min) * 100) + '%'); $('#sThV').textContent = th.value; }; tp(); th.oninput = () => { tp(); save(); };
-  ['sJava','sJvm','sW','sH','sMs','sAdm','sDavUrl','sDavUser','sDavPass'].forEach(id => $('#' + id).oninput = save);
+  ['sJava','sJvm','sW','sH','sMs','sAdm','sDavUrl','sDavUser','sDavPass','sRoomPorts'].forEach(id => $('#' + id).oninput = save);
   $('#sDavTest').onclick = async () => { const b = $('#sDavTest'); b.disabled = true; b.textContent = 'Проверяю…'; await save(); try { await invoke('dav_test'); toast('Облако подключено'); } catch (e) { modal('Не удалось подключиться', String(e)); } b.disabled = false; b.textContent = 'Проверить подключение'; };
   $('#sUpd').onclick = () => checkLauncher(false);
   $('#sNews').onclick = showNews;

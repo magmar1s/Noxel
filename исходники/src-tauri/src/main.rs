@@ -535,6 +535,27 @@ fn cloud_delete(id: String, cloud_id: u64) -> R<Value> {
     social::cloud_delete(&accounts::noxel_token(&id)?, cloud_id)
 }
 
+/// Создаёт профиль как у друга (версия игры, загрузчик, моды из его опубликованной сборки).
+#[tauri::command(async)]
+fn room_pack_install(app: AppHandle, id: String, host_name: String) -> R<Value> {
+    let token = accounts::noxel_token(&id)?;
+    let pack = social::pack_get(&token, &host_name)?;
+    let (mcv, loader) = (pack["mc"].as_str().unwrap_or(""), pack["loader"].as_str().unwrap_or(""));
+    let lver = pack["loader_ver"].as_str().filter(|s| !s.is_empty()).map(String::from);
+    let name = format!("Сборка {host_name}");
+    let p = mc::create_profile(mcv, loader, lver, &name, None)?;
+    let list: Vec<(String, String)> = pack["mods"].as_array().cloned().unwrap_or_default().iter().filter_map(|m| Some((m["provider"].as_str()?.to_string(), m["id"].as_str()?.to_string()))).collect();
+    let cb = progress_cb(&app, format!("mod:pack-{}", p.id));
+    let (ok, skipped) = if list.is_empty() || matches!(loader, "vanilla" | "optifine") { (vec![], vec![]) } else { mods::install_list(&p.id, &list, &cb)? };
+    let _ = app.emit("profiles-changed", ());
+    Ok(json!({"profile": p.id, "name": p.name, "installed": ok.len(), "skipped": skipped}))
+}
+
+#[tauri::command(async)]
+fn room_pack_info(id: String, host_name: String) -> R<Value> {
+    social::pack_get(&accounts::noxel_token(&id)?, &host_name)
+}
+
 #[tauri::command(async)]
 fn cloud_share(id: String, cloud_id: u64) -> R<Value> {
     social::cloud_share(&accounts::noxel_token(&id)?, cloud_id)
@@ -876,6 +897,8 @@ fn main() {
             dav_download,
             dav_sync,
             cloud_share,
+            room_pack_install,
+            room_pack_info,
             cloud_unshare,
             share_info,
             share_import,
