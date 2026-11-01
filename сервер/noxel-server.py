@@ -25,6 +25,7 @@ SERVERS = os.path.join(DATA, "servers.json")
 LAUNCHER = os.path.join(DATA, "launcher.json")
 NEWS = os.path.join(DATA, "news.json")
 RECO = os.path.join(DATA, "recommended.json")
+HORIZON = os.path.join(DATA, "horizon.json")
 WORLDS = os.path.join(DATA, "worlds")
 WORLD_MAX = 300 * 1024 * 1024          # размер мира в облаке
 WORLD_QUOTA = WORLD_MAX                # в облаке Noxel хранится один мир на аккаунт (новый заменяет старый)
@@ -885,12 +886,12 @@ class H(BaseHTTPRequestHandler):
         m = re.match(r"^/cf/(.+)$", p)
         if method == "GET" and m:
             return self.cf_proxy(m.group(1), u.query)
-        if method == "GET" and p in ("/servers", "/launcher", "/news", "/recommended"):
+        if method == "GET" and p in ("/servers", "/launcher", "/news", "/recommended", "/horizon"):
             try:
-                with open({"/servers": SERVERS, "/launcher": LAUNCHER, "/news": NEWS, "/recommended": RECO}[p], "rb") as f:
+                with open({"/servers": SERVERS, "/launcher": LAUNCHER, "/news": NEWS, "/recommended": RECO, "/horizon": HORIZON}[p], "rb") as f:
                     return self.send(200, raw=f.read())
             except OSError:
-                return self.send(200, {"/servers": {"version": 0, "servers": []}, "/news": {"version": 0, "items": []}, "/recommended": {"version": 0, "categories": []}}.get(p, {}))
+                return self.send(200, {"/servers": {"version": 0, "servers": []}, "/news": {"version": 0, "items": []}, "/recommended": {"version": 0, "categories": []}, "/horizon": {"version": 0, "launcher": None, "builds": []}}.get(p, {}))
         if method == "PUT" and p == "/recommended":
             tok = (self.headers.get("Authorization") or "")[7:].strip()
             admin = read_secret(ADMIN_FILE)
@@ -1055,8 +1056,49 @@ class H(BaseHTTPRequestHandler):
     def do_DELETE(self): self.handle_any("DELETE")
 
 
+def horizon_refresh():
+    """Релизы проекта Horizon (Minecraft на Rust) с GitHub: лаунчер Horizon по платформам и список сборок игры. Игроки берут список у нас, поэтому новые версии появляются у всех сами."""
+    req = urllib.request.Request("https://api.github.com/repos/horizon-rust/horizon/releases?per_page=40", headers={"User-Agent": "Noxel-feed", "Accept": "application/vnd.github+json"})
+    rel = json.load(urllib.request.urlopen(req, timeout=30))
+    launcher, builds = None, []
+    for r in rel:
+        tag = r.get("tag_name", "")
+        if r.get("draft"):
+            continue
+        if tag.startswith("launcher@"):
+            if launcher is None and not r.get("prerelease"):
+                assets = {}
+                for a in r.get("assets", []):
+                    n, dg = a.get("name", ""), (a.get("digest") or "")
+                    if not dg.startswith("sha256:"):
+                        continue
+                    key = "linux-x86_64" if n == "horizon-launcher-linux-x86_64.AppImage" else "windows-x64" if n == "horizon-launcher-windows-x64.zip" else None
+                    if key:
+                        assets[key] = {"name": n, "url": a["browser_download_url"], "sha256": dg[7:], "size": a.get("size", 0)}
+                if assets:
+                    launcher = {"version": tag.split("@", 1)[1], "date": (r.get("published_at") or "")[:10], "assets": assets}
+        elif len(builds) < 8:
+            builds.append({"tag": tag, "name": r.get("name") or tag, "nightly": bool(r.get("prerelease")), "date": (r.get("published_at") or "")[:10]})
+    if launcher:
+        tmp = HORIZON + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"version": int(time.time()), "launcher": launcher, "builds": builds, "site": "https://playhorizon.dev", "repo": "https://github.com/horizon-rust/horizon"}, f, ensure_ascii=False)
+        os.replace(tmp, HORIZON)
+        os.chmod(HORIZON, 0o644)
+
+
+def horizon_loop():
+    while True:
+        try:
+            horizon_refresh()
+        except Exception as e:
+            print("horizon feed:", e, flush=True)
+        time.sleep(1800)
+
+
 if __name__ == "__main__":
     init()
+    threading.Thread(target=horizon_loop, daemon=True).start()
     start_relay()
     srv = ThreadingHTTPServer((HOST, PORT), H)
     srv.daemon_threads = True

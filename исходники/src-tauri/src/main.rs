@@ -3,6 +3,7 @@
 mod accounts;
 mod dav;
 mod emotes;
+mod horizon;
 mod autoauth;
 mod ping;
 mod reco;
@@ -660,6 +661,26 @@ fn skin_from_nick(id: String, nick: String) -> R<String> {
 }
 
 #[tauri::command(async)]
+fn horizon_status() -> R<Value> {
+    horizon::status()
+}
+
+#[tauri::command(async)]
+fn horizon_install() -> R<Value> {
+    horizon::install()
+}
+
+#[tauri::command(async)]
+fn horizon_open() -> R<()> {
+    horizon::open()
+}
+
+#[tauri::command(async)]
+fn horizon_play() -> R<()> {
+    horizon::play()
+}
+
+#[tauri::command(async)]
 fn lib_list(profile_id: String, kind: String) -> R<Value> {
     emotes::list(&profile_id, &kind)
 }
@@ -959,6 +980,10 @@ fn main() {
             servers_list,
             packs_search,
             reco_list,
+            horizon_status,
+            horizon_install,
+            horizon_open,
+            horizon_play,
             lib_list,
             lib_read,
             lib_delete,

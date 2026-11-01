@@ -28,6 +28,10 @@ pub fn news_save(list: Value) -> R<Value> {
     call("PUT", "/news", Some(tok.trim()), Body::Json(list))
 }
 
+pub fn horizon_feed() -> R<Value> {
+    call("GET", "/horizon", None, Body::None)
+}
+
 pub fn reco() -> R<Value> {
     call("GET", "/recommended", None, Body::None)
 }

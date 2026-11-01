@@ -877,3 +877,20 @@ fn reco_flow() {
     assert!(!dir.join("fap.json").exists(), "файлы из раздела NSFW не должны скачиваться");
     assert!(crate::reco::install_file(&p.id, "https://example.com/x.zip", "mods", true, "", "x").is_err(), "папка mods запрещена");
 }
+
+/// Живая проверка Horizon: лента с сервера Noxel, скачивание лаунчера, проверка суммы и запуск с командой versions.
+#[test]
+#[ignore]
+fn horizon_flow() {
+    let st = crate::horizon::status().expect("статус");
+    println!("до установки: {st}");
+    assert!(st["feed_ok"].as_bool().unwrap_or(false), "лента не пришла");
+    let st = crate::horizon::install().expect("установка");
+    println!("после установки: {st}");
+    assert!(st["installed"].as_str().is_some());
+    let meta: serde_json::Value = read_json(&data_dir().join("horizon/installed.json")).unwrap();
+    let exe = data_dir().join("horizon").join(meta["exe"].as_str().unwrap());
+    let out = std::process::Command::new(&exe).env("APPIMAGE_EXTRACT_AND_RUN", "1").arg("versions").output().expect("запуск");
+    println!("код {:?}\n{}\n{}", out.status.code(), String::from_utf8_lossy(&out.stdout).lines().take(8).collect::<Vec<_>>().join("\n"), String::from_utf8_lossy(&out.stderr).lines().take(5).collect::<Vec<_>>().join("\n"));
+    assert!(out.status.success(), "лаунчер Horizon не запустился");
+}

@@ -202,7 +202,7 @@ pub fn manifest() -> R<Value> {
         .and_then(|m| m.modified())
         .ok()
         .and_then(|t| t.elapsed().ok())
-        .map(|d| d.as_secs() < 3600)
+        .map(|d| d.as_secs() < 600)
         .unwrap_or(false);
     if fresh {
         if let Some(v) = read_json::<Value>(&cache) {

@@ -874,17 +874,18 @@ function setDot(){ const d = $('#dot'); d.className = S.game.state === 'running'
 
 /* ── версии ── */
 async function loadVersions(force){
-  if (S.versions && !force) { renderVersions(); renderVDetail(); return; }
+  if (S.versions && !force && Date.now() - (S.versionsAt || 0) < 15 * 60 * 1000) { renderVersions(); renderVDetail(); return; }
   $('#vlist').innerHTML = '<div class="sk"></div>'.repeat(9);
   $('#vrefresh').classList.add('spin');
-  try { const r = await invoke('versions'); S.versions = r.versions; S.latest = r.latest; if (!S.vsel) selectVersion(r.latest.release, true); renderVersions(); }
+  try { const r = await invoke('versions'); S.versions = r.versions; S.latest = r.latest; S.versionsAt = Date.now(); if (!S.vsel) selectVersion(r.latest.release, true); renderVersions(); }
   catch (e) { $('#vlist').innerHTML = `<div class="empty"><div><h3>Нет связи</h3><p>${esc(e)}</p><button class="minibtn" id="vretry">Повторить</button></div></div>`; $('#vretry').onclick = () => loadVersions(true); }
   $('#vrefresh').classList.remove('spin');
 }
-const VTYPES = [['release','Релизы'],['snapshot','Снапшоты'],['old','Старые']];
+const VTYPES = [['release','Релизы'],['snapshot','Снапшоты'],['old','Старые'],['rust','Rust']];
 const vtype = v => v.type === 'release' ? 'release' : v.type === 'snapshot' ? 'snapshot' : 'old';
 function renderVersions(){
-  mkSeg($('#vseg'), VTYPES, S.vfilter, v => { S.vfilter = v; renderVersions(); });
+  mkSeg($('#vseg'), VTYPES, S.vfilter, v => { S.vfilter = v; renderVersions(); renderVDetail(); });
+  if (S.vfilter === 'rust') { renderHorizon(); return; }
   const q = S.vq.trim().toLowerCase();
   const list = (S.versions || []).filter(v => vtype(v) === S.vfilter && (!q || v.id.toLowerCase().includes(q)));
   const counts = {}; S.profiles.forEach(p => counts[p.mc] = (counts[p.mc] || 0) + 1);
@@ -910,7 +911,37 @@ function selectVersion(id, silent){
       .catch(() => { S.lv[id + '|' + l] = []; if (S.vsel === id) renderVDetail(); });
   }
 }
+/* ── Horizon: Minecraft на Rust. Список приходит с сервера Noxel, новые сборки появляются без обновления лаунчера ── */
+const HZ = {st: null, busy: ''};
+async function renderHorizon(force){
+  const list = $('#vlist'), det = $('#vdetail'); if (!list || !det) return;
+  if (!HZ.st || force) {
+    list.innerHTML = '<div class="sk"></div>'.repeat(5);
+    try { HZ.st = await invoke('horizon_status'); }
+    catch (e) { list.innerHTML = `<div class="empty"><div><h3>Нет связи</h3><p>${esc(e)}</p><button class="minibtn" id="hzRetry">Повторить</button></div></div>`; $('#hzRetry').onclick = () => renderHorizon(true); return; }
+  }
+  if (S.vfilter !== 'rust') return;
+  const st = HZ.st, busy = !!HZ.busy;
+  $('#vcount').textContent = st.builds.length ? String(st.builds.length) : '';
+  list.innerHTML = st.builds.length ? st.builds.map((b, i) => `<div class="row" style="--i:${Math.min(i, 14)};cursor:default"><div class="avatar" style="font-size:11px">${b.nightly ? 'NG' : 'RS'}</div><div class="meta"><b>${esc(b.name)}</b><small>${esc(b.date)}${b.nightly ? ' · ночная сборка' : ' · выпуск'}</small></div></div>`).join('') : '<div class="empty"><div><p>Список сборок пока пуст</p></div></div>';
+  det.innerHTML = ART + `<div class="vd"><div><div class="lbl">Minecraft на Rust</div><h1 style="margin-top:10px">Horizon</h1><div class="sub">Minecraft: Java Edition 26.3, написанный с нуля на Rust. Открытый код (MIT), создан независимой командой, не связан с Mojang и Noxel.</div></div>
+    <div class="kv" style="max-width:640px">
+      <div class="kvr"><span>Лаунчер Horizon</span><b>${st.installed ? 'установлен ' + esc(st.installed) : 'не установлен'}${st.update ? ' · есть ' + esc(st.latest) : ''}</b></div>
+      <div class="kvr"><span>Что нужно</span><b style="white-space:normal">Купленная Minecraft Java и вход через Microsoft в окне Horizon, видеокарта с Vulkan или DirectX 12</b></div>
+      <div class="kvr"><span>Моды</span><b style="white-space:normal">Моды Fabric и Forge не работают: у Horizon своя система модов</b></div>
+    </div>
+    <div class="hint" style="max-width:640px">Игру и проверку владения Minecraft ведёт сам Horizon, Noxel только ставит и запускает его лаунчер. Версии игры и обновления выбираются в окне Horizon.</div>
+    <div class="mrow" style="max-width:640px">
+      ${!st.supported ? '<button class="minibtn" disabled>Для этой системы сборки нет</button>' : st.installed ? `<button class="minibtn solid" id="hzPlay" ${busy ? 'disabled' : ''}>${I.play} Играть</button><button class="minibtn" id="hzOpen" ${busy ? 'disabled' : ''}>Открыть Horizon</button>${st.update ? `<button class="minibtn" id="hzInst" ${busy ? 'disabled' : ''}>Обновить лаунчер Horizon</button>` : ''}` : `<button class="minibtn solid" id="hzInst" ${busy ? 'disabled' : ''}>${busy ? 'Скачиваю…' : I.dl + ' Установить Horizon'}</button>`}
+      <button class="minibtn" id="hzSite">${I.ext} playhorizon.dev</button></div></div>`;
+  const run = async (what, fn, ok) => { HZ.busy = what; renderHorizon(); try { const r = await fn(); if (ok) ok(r); } catch (e) { modal('Horizon', String(e) + (what === 'play' ? '\n\nЕсли ещё не входил в Microsoft, нажми «Открыть Horizon» и войди там.' : '')); } HZ.busy = ''; renderHorizon(true); };
+  if ($('#hzInst')) $('#hzInst').onclick = () => run('install', () => invoke('horizon_install'), () => toast('Horizon установлен: войди в Microsoft в его окне'));
+  if ($('#hzPlay')) $('#hzPlay').onclick = () => run('play', () => invoke('horizon_play'), () => toast('Horizon запускается'));
+  if ($('#hzOpen')) $('#hzOpen').onclick = () => invoke('horizon_open').catch(e => modal('Horizon', String(e)));
+  $('#hzSite').onclick = () => invoke('open_url', {url: 'https://playhorizon.dev'}).catch(toast);
+}
 function renderVDetail(){
+  if (S.vfilter === 'rust') { renderHorizon(); return; }
   const el = $('#vdetail'); const id = S.vsel; if (!id) { el.innerHTML = ''; return; }
   const v = (S.versions || []).find(x => x.id === id) || {id, type:'release', time: ''};
   const lvs = l => l === 'vanilla' ? [] : (S.lv[id + '|' + l] || []);
@@ -984,16 +1015,16 @@ function skinViewer(host, o){
   host.innerHTML = '<div class="mc-stage"><div class="mc-rig"></div></div>';
   const stage = host.firstChild, rig = stage.firstChild;
   const mk = (cls, css) => { const d = document.createElement('div'); d.className = cls; if (css) d.style.cssText = css; return d; };
-  // тело состоит из верхней части (голова, торс, руки: сгибается в поясе) и ног, чтобы эмоции могли наклонять корпус
-  const body = mk('mc-abs'), uwrap = mk('mc-abs', `transform:translate3d(0,${4*K}px,0)`), ubody = mk('mc-abs'), P = {};
-  uwrap.append(ubody); body.append(uwrap); rig.append(body);
-  function box(u0, v0, w, h, d, g, url, sw, sh){
+  // части тела независимы, как в игре: у каждой своя ось (шея, плечо, бедро), поэтому поза эмоций совпадает с настоящей
+  const root = mk('mc-abs'), P = {}, J = {};
+  rig.append(root);
+  function box(u0, v0, w, h, d, g, url, sw, sh, vs = 0){
     const b = mk('mc-abs'), W = w + g, H = h + g, D = d + g;
     const faces = [
-      [u0+d, v0+d, w, h, W, H, `translateZ(${D*K/2}px)`],
-      [u0+2*d+w, v0+d, w, h, W, H, `rotateY(180deg) translateZ(${D*K/2}px)`],
-      [u0, v0+d, d, h, D, H, `rotateY(-90deg) translateZ(${W*K/2}px)`],
-      [u0+d+w, v0+d, d, h, D, H, `rotateY(90deg) translateZ(${W*K/2}px)`],
+      [u0+d, v0+d+vs, w, h, W, H, `translateZ(${D*K/2}px)`],
+      [u0+2*d+w, v0+d+vs, w, h, W, H, `rotateY(180deg) translateZ(${D*K/2}px)`],
+      [u0, v0+d+vs, d, h, D, H, `rotateY(-90deg) translateZ(${W*K/2}px)`],
+      [u0+d+w, v0+d+vs, d, h, D, H, `rotateY(90deg) translateZ(${W*K/2}px)`],
       [u0+d, v0, w, d, W, D, `rotateX(90deg) translateZ(${H*K/2}px)`],
       [u0+d+w, v0, w, d, W, D, `rotateX(-90deg) translateZ(${H*K/2}px) scaleY(-1)`],
     ];
@@ -1003,20 +1034,25 @@ function skinViewer(host, o){
     }
     return b;
   }
-  function part(c, name, grp, dy){
-    const pos = mk('mc-abs', `transform:translate3d(${c.x*K}px,${(c.y + dy)*K}px,0)`), sw = mk('mc-abs ' + (c.cls || '')), hold = mk('mc-abs', `transform:translate3d(0,${c.cy*K}px,0)`);
-    hold.append(box(c.u, c.v, c.w, c.h, c.d, 0, tex, 64, 64), box(c.ou, c.ov, c.w, c.h, c.d, c.g || .5, tex, 64, 64));
-    sw.append(hold); pos.append(sw); grp.append(pos); P[name] = sw;
+  function part(c, name){
+    const pos = mk('mc-abs', `transform:translate3d(${c.px*K}px,${c.py*K}px,0)`), sw = mk('mc-abs ' + (c.cls || ''), 'transform-origin:0 0'), hold = mk('mc-abs', `transform:translate3d(${(c.cx || 0)*K}px,${c.cy*K}px,0)`);
+    if (c.bend) {                                   // верх и низ отдельно: низ сгибается в середине (колено, локоть, пояс)
+      const hh = c.h / 2, up = mk('mc-abs', `transform:translate3d(0,${-hh/2*K}px,0)`), joint = mk('mc-abs', 'transform-origin:0 0'), low = mk('mc-abs', `transform:translate3d(0,${hh/2*K}px,0)`);
+      up.append(box(c.u, c.v, c.w, hh, c.d, 0, tex, 64, 64, 0), box(c.ou, c.ov, c.w, hh, c.d, c.g || .5, tex, 64, 64, 0));
+      low.append(box(c.u, c.v, c.w, hh, c.d, 0, tex, 64, 64, hh), box(c.ou, c.ov, c.w, hh, c.d, c.g || .5, tex, 64, 64, hh));
+      joint.append(low); hold.append(up, joint); J[name] = joint;
+    } else hold.append(box(c.u, c.v, c.w, c.h, c.d, 0, tex, 64, 64), box(c.ou, c.ov, c.w, c.h, c.d, c.g || .5, tex, 64, 64));
+    sw.append(hold); pos.append(sw); root.append(pos); P[name] = sw;
   }
-  part({x:0, y:-8, cy:-4, w:8, h:8, d:8, u:0, v:0, ou:32, ov:0, g:1, cls:'sw-n'}, 'head', ubody, -4);
-  part({x:0, y:-8, cy:6, w:8, h:12, d:4, u:16, v:16, ou:16, ov:32}, 'torso', ubody, -4);
-  part({x:-(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:40, v:16, ou:40, ov:32, cls:'sw-a'}, 'rightArm', ubody, -4);
-  part({x:(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:32, v:48, ou:48, ov:48, cls:'sw-b'}, 'leftArm', ubody, -4);
-  part({x:-2, y:4, cy:6, w:4, h:12, d:4, u:0, v:16, ou:0, ov:32, cls:'sw-b'}, 'rightLeg', body, 0);
-  part({x:2, y:4, cy:6, w:4, h:12, d:4, u:16, v:48, ou:0, ov:48, cls:'sw-a'}, 'leftLeg', body, 0);
+  part({px:0, py:-8, cy:-4, w:8, h:8, d:8, u:0, v:0, ou:32, ov:0, g:1, cls:'sw-n'}, 'head');
+  part({px:0, py:-8, cy:6, w:8, h:12, d:4, u:16, v:16, ou:16, ov:32, bend:1}, 'torso');
+  part({px:-5, py:-6, cx:1 - aw/2, cy:4, w:aw, h:12, d:4, u:40, v:16, ou:40, ov:32, cls:'sw-a', bend:1}, 'rightArm');
+  part({px:5, py:-6, cx:aw/2 - 1, cy:4, w:aw, h:12, d:4, u:32, v:48, ou:48, ov:48, cls:'sw-b', bend:1}, 'leftArm');
+  part({px:-1.9, py:4, cy:6, w:4, h:12, d:4, u:0, v:16, ou:0, ov:32, cls:'sw-b', bend:1}, 'rightLeg');
+  part({px:1.9, py:4, cy:6, w:4, h:12, d:4, u:16, v:48, ou:0, ov:48, cls:'sw-a', bend:1}, 'leftLeg');
   if (o.cape) {
-    const pos = mk('mc-abs', `transform:translate3d(0,${-12*K}px,${-2*K}px) rotateX(-9deg)`), hold = mk('mc-abs', `transform:translate3d(0,${8*K}px,${-.5*K}px) rotateY(180deg)`);
-    hold.append(box(0, 0, 10, 16, 1, 0, `url("${o.cape}")`, 64, 32)); pos.append(hold); ubody.append(pos);
+    const pos = mk('mc-abs', `transform:translate3d(0,0,${-2*K}px) rotateX(-9deg)`), hold = mk('mc-abs', `transform:translate3d(0,${8*K}px,${-.5*K}px) rotateY(180deg)`);
+    hold.append(box(0, 0, 10, 16, 1, 0, `url("${o.cape}")`, 64, 32)); pos.append(hold); P.torso.append(pos);
   }
   let ang = window.__ANG !== undefined ? window.__ANG : -30, drag = false, lx = 0, last = performance.now();
   const tick = t => {
@@ -1031,11 +1067,11 @@ function skinViewer(host, o){
   stage.addEventListener('pointermove', e => { if (drag) { ang += (e.clientX - lx) * .6; lx = e.clientX; } });
   stage.addEventListener('pointerup', () => { drag = false; });
   requestAnimationFrame(tick);
-  // управление позой для проигрывания эмоций: углы в градусах, смещения в пикселях модели
-  const tf = o => o ? `translate3d(${(o.x || 0) * K}px,${(o.y || 0) * K}px,${(o.z || 0) * K}px) rotateZ(${o.roll || 0}deg) rotateY(${o.yaw || 0}deg) rotateX(${o.pitch || 0}deg)` : '';
+  // управление позой для проигрывания эмоций. Игра считает в системе с осью Y вниз и Z назад, у нас Z к зрителю, поэтому Z и повороты вокруг X и Y меняют знак
+  const tf = o => o ? `translate3d(${(o.x || 0) * K}px,${(o.y || 0) * K}px,${-(o.z || 0) * K}px) rotateZ(${o.roll || 0}deg) rotateY(${-(o.yaw || 0)}deg) rotateX(${-(o.pitch || 0)}deg)` : '';
   return {
-    pose(p){ rig.classList.add('emoting'); body.style.transform = `rotateY(${p.turn || 0}deg)`; ubody.style.transform = tf(p.torso); for (const n of ['head', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg']) P[n].style.transform = tf(p[n]); },
-    clear(){ rig.classList.remove('emoting'); body.style.transform = ''; ubody.style.transform = ''; for (const n in P) P[n].style.transform = ''; },
+    pose(p){ rig.classList.add('emoting'); root.style.transform = `rotateY(${p.turn || 0}deg)`; for (const n in P) P[n].style.transform = tf(p[n]); for (const n in J) J[n].style.transform = `rotateX(${-((p[n] && p[n].bend) || 0)}deg)`; },
+    clear(){ rig.classList.remove('emoting'); root.style.transform = ''; for (const n in P) P[n].style.transform = ''; for (const n in J) J[n].style.transform = ''; },
   };
 }
 
@@ -1493,18 +1529,18 @@ function easeFn(name){
   const f = EASE_IN[m[2]];
   return m[1] === 'in' ? f : m[1] === 'out' ? t => 1 - f(1 - t) : t => t < .5 ? f(2 * t) / 2 : 1 - f(2 - 2 * t) / 2;
 }
-const EPARTS = ['head', 'torso', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg'], EPROPS = ['x', 'y', 'z', 'pitch', 'yaw', 'roll'];
+const EPARTS = ['head', 'torso', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg'], EPROPS = ['x', 'y', 'z', 'pitch', 'yaw', 'roll', 'bend'];
 function emoteTimeline(j){
   const e = j.emote || {}, tl = {turn: []}; EPARTS.forEach(p => tl[p] = {});
   for (const mv of (e.moves || [])) {
     const ease = easeFn(mv.easing), t = +mv.tick || 0;
-    if (mv.turn !== undefined) tl.turn.push({t, v: +mv.turn * 90, ease});
+    if (mv.turn !== undefined) tl.turn.push({t, v: +mv.turn * 360, ease});
     for (const p of EPARTS) if (mv[p]) for (const k of EPROPS) if (typeof mv[p][k] === 'number') { const a = (tl[p][k] = tl[p][k] || []); const i = a.findIndex(z => z.t === t); const key = {t, v: mv[p][k], ease}; if (i >= 0) a[i] = key; else a.push(key); }
   }
   const srt = a => a.sort((x, y) => x.t - y.t);
   srt(tl.turn); EPARTS.forEach(p => Object.values(tl[p]).forEach(srt));
   const num = (v, d) => (v === undefined || v === null || v === '') ? d : +v;
-  return {tl, deg: e.degrees === true || e.degrees === 'true', end: num(e.endTick, 0), stop: num(e.stopTick, 0), ret: num(e.returnTick, 0), loop: e.isLoop === true || e.isLoop === 'true'};
+  return {tl, deg: e.degrees === undefined || e.degrees === true || e.degrees === 'true', end: num(e.endTick, 0), stop: num(e.stopTick, 0), ret: num(e.returnTick, 0), loop: e.isLoop === true || e.isLoop === 'true'};
 }
 function sampleKeys(keys, t){
   if (!keys || !keys.length) return 0;
@@ -1522,9 +1558,15 @@ function emoteAbsolute(em){
 }
 function emotePose(em, tick){
   if (em.abs === undefined) em.abs = emoteAbsolute(em);
-  const toDeg = v => ((em.deg ? v : v * 180 / Math.PI) % 360), clampPos = v => Math.max(-24, Math.min(24, v)), out = {turn: sampleKeys(em.tl.turn, tick)};
+  const toDeg = v => (em.deg ? v : v * 180 / Math.PI), clampPos = v => Math.max(-24, Math.min(24, v)), out = {turn: sampleKeys(em.tl.turn, tick)};
   for (const p of EPARTS) { const o = {}; for (const k of EPROPS) { const keys = em.tl[p][k]; if (!keys) continue; const v = sampleKeys(keys, tick); o[k] = (k === 'x' || k === 'y' || k === 'z') ? clampPos(em.abs ? v - ((EREST[p] || {})[k] || 0) : v * 8) : toDeg(v); } out[p] = o; }
   return out;
+}
+/* после конца эмоции игра плавно возвращает тело в обычную позу */
+function fadePose(p, f){
+  if (!f) return p; const k = 1 - f, o = {turn: (p.turn || 0) * k};
+  for (const n of EPARTS) { o[n] = {}; for (const key in (p[n] || {})) o[n][key] = p[n][key] * k; }
+  return o;
 }
 /* запускает проигрывание на готовом 3D-игроке; возвращает управление (пауза, скорость, перемотка) */
 function playEmote(ctl, host, em){
@@ -1534,10 +1576,14 @@ function playEmote(ctl, host, em){
     if (idleNow()) { last = now; setTimeout(() => requestAnimationFrame(step), 400); return; }
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     if (!st.paused) st.run += dt * 20 * st.speed;
-    let t = st.run;
+    let t = st.run, fade = 0;
     if (em.loop && em.end > em.ret) { if (t > em.end) t = em.ret + ((t - em.ret) % (em.end - em.ret)); }
-    else { const cyc = em.end + 30; t = t % cyc; if (t > em.end) t = em.end; }
-    st.tick = t; ctl.pose(emotePose(em, t)); if (st.onTick) st.onTick(t); requestAnimationFrame(step);
+    else {
+      const stop = Math.max(em.stop, em.end), cyc = stop + 14; t = t % cyc;
+      if (t > em.end) { fade = stop > em.end ? Math.min(1, (t - em.end) / (stop - em.end)) : 1; fade = .5 - Math.cos(fade * Math.PI) / 2; t = em.end; }
+      st.fade = fade;
+    }
+    st.tick = t; ctl.pose(fadePose(emotePose(em, t), st.fade || 0)); if (st.onTick) st.onTick(t); requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
   return st;
