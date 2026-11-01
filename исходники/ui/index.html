@@ -560,7 +560,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
 
 <script>
 let _errShown = 0;
-function uiError(msg){ if (_errShown++ > 2) return; try { const t = document.createElement('div'); t.className = 'toast'; t.textContent = 'Ошибка интерфейса: ' + msg; document.getElementById('toasts').append(t); setTimeout(() => t.remove(), 12000); } catch (_) {} }
+function uiError(msg){ try { console.error('[Noxel] ' + msg); } catch (e) {} }  // ошибки интерфейса тихо уходят в консоль, игроку их не показываем
 addEventListener('error', e => uiError(e.message + (e.lineno ? ' (строка ' + e.lineno + ')' : '')));
 addEventListener('unhandledrejection', e => uiError(String((e.reason && e.reason.message) || e.reason)));
 const T = window.__TAURI__;
