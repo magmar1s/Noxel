@@ -1557,6 +1557,7 @@ async function renderEmotes(force){
   const el = $('#mbody'); if (!el) return; const p = S.m.profile;
   if (!p) { el.innerHTML = '<div class="empty"><div><h3>Нет профиля</h3><p>Создай профиль, чтобы собирать эмоции.</p></div></div>'; return; }
   if (!EM.list || force || EM.loaded !== p) { try { EM.list = await invoke('lib_list', {profileId: p, kind: 'emotes'}); EM.loaded = p; } catch (e) { EM.list = []; } }
+  if (!el.isConnected || $('#mbody') !== el) return;
   const all = EM.list, q = EM.q.toLowerCase();
   const cat = x => x.ticks <= 60 ? 'short' : x.ticks <= 160 ? 'mid' : 'long';
   let rows = all.filter(x => (!q || (x.name + ' ' + x.author + ' ' + x.desc).toLowerCase().includes(q)) && (EM.filt === 'all' || (EM.filt === 'loop' && x.loop) || (EM.filt === 'fav' && EM.fav.has(x.file)) || EM.filt === cat(x)));
@@ -1610,6 +1611,7 @@ async function renderModels(force){
   if (!p) { el.innerHTML = '<div class="empty"><div><h3>Нет профиля</h3></div></div>'; return; }
   if (!MD.list || force || MD.loaded !== p) { try { MD.list = await invoke('lib_list', {profileId: p, kind: 'models'}); MD.loaded = p; } catch (e) { MD.list = []; } }
   let reco = null; try { reco = S.reco || (S.reco = await invoke('reco_list')); } catch (e) {}
+  if (!el.isConnected || $('#mbody') !== el) return;
   const mc = ((reco && reco.categories) || []).find(c => c.id === 'models'), files = ((mc && mc.items) || []).filter(i => i.type === 'file');
   el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span><b>${MD.list.length}</b> ${plural(MD.list.length, 'модель', 'модели', 'моделей')} в профиле. В игре: клавиша G → «Модели». Нужен мод Customizable Player Models.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="minibtn solid sm" id="mdAdd">${I.up} Загрузить свою модель</button><button class="minibtn sm" id="mdFind">Найти в каталоге</button><button class="minibtn sm" id="mdFolder">${I.folder} Папка</button></span></div>
     ${MD.list.length ? `<div class="srvgrid">${MD.list.map((x, i) => `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${esc(letter(x.name))}</div><div class="meta"><b>${esc(x.name)}</b><small>${fmtSize(x.size)} · ${x.file.toLowerCase().endsWith('.cpmproject') ? 'проект' : 'модель'}</small></div></div><div class="mrow"><button class="minibtn sm" data-md="${i}">Удалить</button></div></div>`).join('')}</div>` : `<div class="empty" style="padding:26px 0"><div><h3>Своих моделей пока нет</h3><p>Нажми «Загрузить свою модель» и выбери файл .cpmmodel (или архив .zip с ними): лаунчер сам положит его в нужную папку.</p></div></div>`}
@@ -1632,7 +1634,9 @@ async function downloadReco(f, btn, after){
 }
 async function renderReco(force){
   const el = $('#mbody'); if (!el) return; const p = S.m.profile, pr = prof(p);
-  if (!S.reco || force) { el.innerHTML = '<div class="srvgrid">' + '<div class="sk" style="height:150px"></div>'.repeat(6) + '</div>'; try { S.reco = await invoke('reco_list'); } catch (e) { el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(e)}</p><button class="minibtn" id="rcRetry">Повторить</button></div></div>`; $('#rcRetry').onclick = () => renderReco(true); return; } }
+  const live = () => el.isConnected && $('#mbody') === el;   // пока ждали сервер, страницу могли перерисовать: тогда этот вызов уже не нужен
+  if (!S.reco || force) { el.innerHTML = '<div class="srvgrid">' + '<div class="sk" style="height:150px"></div>'.repeat(6) + '</div>'; try { S.reco = await invoke('reco_list'); } catch (e) { if (!live()) return; el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(e)}</p><button class="minibtn" id="rcRetry">Повторить</button></div></div>`; $('#rcRetry').onclick = () => renderReco(true); return; } }
+  if (!live()) return;
   const cats = (S.reco.categories || []); if (!cats.length) { el.innerHTML = '<div class="empty"><div><h3>Список пуст</h3><p>Администратор ещё не добавил рекомендации.</p></div></div>'; return; }
   if (!RC.cat || !cats.some(c => c.id === RC.cat)) RC.cat = cats[0].id;
   const cat = cats.find(c => c.id === RC.cat), admin = !!(S.set && S.set.admin_token), mods = cat.items.filter(i => i.type === 'mod');
@@ -1642,7 +1646,8 @@ async function renderReco(force){
     <div class="updbar" style="margin-bottom:12px"><span>${esc(cat.desc || '')}</span><span style="display:flex;gap:8px;flex-wrap:wrap">${mods.length ? `<button class="minibtn solid sm" id="rcAll">${I.dl} Поставить всё доступное</button>` : ''}<button class="minibtn sm" id="rcRef">Обновить</button>${admin ? '<button class="minibtn sm" id="rcEdit">Изменить список</button>' : ''}</span></div>
     <div class="srvgrid" id="rcGrid"></div>`;
   const draw = () => {
-    $('#rcGrid').innerHTML = cat.items.map((it, i) => {
+    const grid = el.querySelector('#rcGrid'); if (!grid || !live()) return;
+    grid.innerHTML = cat.items.map((it, i) => {
       if (it.type === 'mod') { const f = inf(it.id), name = it.name || f.title || it.id, bad = f.ok === false, done = f.installed || RC.busy.has(it.id) && false;
         return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar" style="${f.icon ? `background:url(${esc(f.icon)}) center/cover` : ''}">${f.icon ? '' : esc(letter(name))}</div><div class="meta"><b>${esc(name)}</b><small>${f.downloads ? fmtNum(f.downloads) + ' скачиваний' : esc(it.provider === 'curseforge' ? 'CurseForge' : 'Modrinth')}</small></div>${it.tag ? `<span class="badge">${esc(it.tag)}</span>` : ''}</div>
           <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc || f.desc || '')}</div>
@@ -1662,7 +1667,7 @@ async function renderReco(force){
     list.forEach(it => RC.busy.delete(it.id)); await loadInfo(); draw();
   };
   const loadInfo = async () => { if (!p || !mods.length) return; try { const r = await invoke('reco_info', {profileId: p, items: mods.map(i => [i.provider, i.id])}); for (const k in r) RC.info[p + '|' + k] = r[k]; } catch (e) {} };
-  draw(); loadInfo().then(() => { if ($('#rcGrid')) draw(); });
+  draw(); loadInfo().then(() => draw());
   $$('[data-rc]', el).forEach(b => b.onclick = () => { RC.cat = b.dataset.rc; renderReco(); });
   $('#rcRef').onclick = () => { S.reco = null; for (const k in RC.info) delete RC.info[k]; renderReco(true); };
   if ($('#rcAll')) $('#rcAll').onclick = () => installMods(mods);
