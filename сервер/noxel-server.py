@@ -24,6 +24,7 @@ ADMIN_FILE = os.environ.get("NOXEL_ADMIN_FILE", "/etc/noxel/admin.token")
 SERVERS = os.path.join(DATA, "servers.json")
 LAUNCHER = os.path.join(DATA, "launcher.json")
 NEWS = os.path.join(DATA, "news.json")
+RECO = os.path.join(DATA, "recommended.json")
 WORLDS = os.path.join(DATA, "worlds")
 WORLD_MAX = 300 * 1024 * 1024          # размер мира в облаке
 WORLD_QUOTA = WORLD_MAX                # в облаке Noxel хранится один мир на аккаунт (новый заменяет старый)
@@ -144,6 +145,40 @@ def clean_news(v):
         date = x.get("date") if isinstance(x.get("date"), int) and 0 < x["date"] < 4102444800 else int(time.time())
         out.append({"id": str(x.get("id") or ("n%d-%d" % (date, i)))[:40], "title": title, "body": body, "kind": kind, "date": date, "link": link, "pinned": bool(x.get("pinned"))})
     return {"version": int(time.time()), "items": out}
+
+
+def clean_reco(v):
+    """Рекомендуемые моды и подборки: {"categories": [{id, title, desc, items: [mod | search | file]}]}."""
+    if not isinstance(v, dict) or not isinstance(v.get("categories"), list) or len(v["categories"]) > 24:
+        raise Err(400, "ожидается {\"categories\": [...]}, не больше 24 разделов")
+    s = lambda x, n: str(x if x is not None else "").strip()[:n]
+    cats = []
+    for ci, c in enumerate(v["categories"]):
+        if not isinstance(c, dict) or not s(c.get("title"), 60):
+            raise Err(400, "раздел %d: нужен заголовок" % ci)
+        items = []
+        for ii, it in enumerate((c.get("items") or [])[:80]):
+            if not isinstance(it, dict):
+                raise Err(400, "раздел %d, запись %d: ожидается объект" % (ci, ii))
+            t = it.get("type")
+            if t == "mod":
+                if it.get("provider") not in ("modrinth", "curseforge") or not s(it.get("id"), 60):
+                    raise Err(400, "раздел %d, запись %d: нужны provider (modrinth/curseforge) и id" % (ci, ii))
+                items.append({"type": "mod", "provider": it["provider"], "id": s(it["id"], 60), "name": s(it.get("name"), 80), "desc": s(it.get("desc"), 300), "tag": s(it.get("tag"), 30)})
+            elif t == "search":
+                if it.get("kind") not in ("mod", "resourcepack", "shader") or not s(it.get("query"), 80):
+                    raise Err(400, "раздел %d, запись %d: нужны kind (mod/resourcepack/shader) и query" % (ci, ii))
+                items.append({"type": "search", "title": s(it.get("title"), 80) or s(it["query"], 80), "desc": s(it.get("desc"), 300), "query": s(it["query"], 80), "kind": it["kind"]})
+            elif t == "file":
+                url = s(it.get("url"), 400)
+                if not url.startswith("https://") or it.get("folder") not in ("emotes", "player_models", "resourcepacks", "shaderpacks"):
+                    raise Err(400, "раздел %d, запись %d: url должен начинаться с https://, folder: emotes, player_models, resourcepacks или shaderpacks" % (ci, ii))
+                items.append({"type": "file", "title": s(it.get("title"), 80), "desc": s(it.get("desc"), 300), "url": url, "folder": it["folder"], "extract": bool(it.get("extract")),
+                              "prefix": s(it.get("prefix"), 120), "license": s(it.get("license"), 40), "author": s(it.get("author"), 60)})
+            else:
+                raise Err(400, "раздел %d, запись %d: type должен быть mod, search или file" % (ci, ii))
+        cats.append({"id": re.sub(r"[^a-z0-9_-]", "", s(c.get("id"), 30).lower()) or "c%d" % ci, "title": s(c.get("title"), 60), "desc": s(c.get("desc"), 300), "items": items})
+    return {"version": int(time.time()), "categories": cats}
 
 
 def clean_servers(v):
@@ -480,7 +515,7 @@ class H(BaseHTTPRequestHandler):
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY and not self.path.startswith(("/noxel/v1/data", "/noxel/v1/servers")):
+        if n > MAX_BODY and not self.path.startswith(("/noxel/v1/data", "/noxel/v1/servers", "/noxel/v1/recommended")):
             raise Err(413, "слишком большой запрос")
         if n > MAX_DATA:
             raise Err(413, "слишком большой запрос")
@@ -850,12 +885,25 @@ class H(BaseHTTPRequestHandler):
         m = re.match(r"^/cf/(.+)$", p)
         if method == "GET" and m:
             return self.cf_proxy(m.group(1), u.query)
-        if method == "GET" and p in ("/servers", "/launcher", "/news"):
+        if method == "GET" and p in ("/servers", "/launcher", "/news", "/recommended"):
             try:
-                with open({"/servers": SERVERS, "/launcher": LAUNCHER, "/news": NEWS}[p], "rb") as f:
+                with open({"/servers": SERVERS, "/launcher": LAUNCHER, "/news": NEWS, "/recommended": RECO}[p], "rb") as f:
                     return self.send(200, raw=f.read())
             except OSError:
-                return self.send(200, {"/servers": {"version": 0, "servers": []}, "/news": {"version": 0, "items": []}}.get(p, {}))
+                return self.send(200, {"/servers": {"version": 0, "servers": []}, "/news": {"version": 0, "items": []}, "/recommended": {"version": 0, "categories": []}}.get(p, {}))
+        if method == "PUT" and p == "/recommended":
+            tok = (self.headers.get("Authorization") or "")[7:].strip()
+            admin = read_secret(ADMIN_FILE)
+            if not admin or not hmac.compare_digest(tok.encode(), admin.encode()):
+                throttle(("adm", self.ip()), 5)
+                raise Err(403, "нужен токен администратора")
+            data = clean_reco(self.jbody())
+            tmp = RECO + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump(data, f, ensure_ascii=False, indent=1)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, RECO)
+            return self.send(200, {"ok": True, "version": data["version"], "count": len(data["categories"])})
         if method == "PUT" and p == "/news":
             tok = (self.headers.get("Authorization") or "")[7:].strip()
             admin = read_secret(ADMIN_FILE)

@@ -133,7 +133,7 @@ pub fn remove(profile_id: &str, kind: &str, file: &str) -> R<()> {
     Ok(())
 }
 
-fn loaders_of(loader: &str) -> Vec<&'static str> {
+pub fn loaders_of(loader: &str) -> Vec<&'static str> {
     match loader {
         "fabric" => vec!["fabric"],
         "quilt" => vec!["quilt", "fabric"],
@@ -289,7 +289,7 @@ fn remember(profile_id: &str, file: &str, m: Meta) {
     save_index(profile_id, &idx);
 }
 
-fn already(profile_id: &str, kind: &str, project_id: &str) -> bool {
+pub fn already(profile_id: &str, kind: &str, project_id: &str) -> bool {
     let Ok(dir) = kind_dir(profile_id, kind) else { return false };
     load_index(profile_id).iter().any(|(f, m)| {
         m.project_id == project_id && m.kind == kind && (dir.join(f).exists() || dir.join(format!("{f}.disabled")).exists())

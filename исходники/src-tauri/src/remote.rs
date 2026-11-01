@@ -28,6 +28,18 @@ pub fn news_save(list: Value) -> R<Value> {
     call("PUT", "/news", Some(tok.trim()), Body::Json(list))
 }
 
+pub fn reco() -> R<Value> {
+    call("GET", "/recommended", None, Body::None)
+}
+
+pub fn reco_save(list: Value) -> R<Value> {
+    let tok = load_settings().admin_token;
+    if tok.trim().is_empty() {
+        return Err("Нужен токен администратора (Настройки → Администратор)".into());
+    }
+    call("PUT", "/recommended", Some(tok.trim()), Body::Json(list))
+}
+
 pub fn servers() -> R<Value> {
     call("GET", "/servers", None, Body::None)
 }

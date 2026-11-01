@@ -1,0 +1,520 @@
+{
+ "categories": [
+  {
+   "id": "perf",
+   "title": "Производительность",
+   "desc": "Больше кадров и плавнее игра без потери картинки.",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "sodium",
+     "name": "Sodium",
+     "desc": "Главный мод на FPS: новый движок отрисовки.",
+     "tag": "база"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "lithium",
+     "name": "Lithium",
+     "desc": "Ускоряет игровую логику, мобов и генерацию мира.",
+     "tag": "база"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "ferrite-core",
+     "name": "FerriteCore",
+     "desc": "Снижает расход памяти.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "entityculling",
+     "name": "Entity Culling",
+     "desc": "Не рисует то, что скрыто за стенами: меньше нагрузки.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "immediatelyfast",
+     "name": "ImmediatelyFast",
+     "desc": "Ускоряет интерфейс, текст и чат.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "dynamic-fps",
+     "name": "Dynamic FPS",
+     "desc": "Снижает нагрузку, когда игра свёрнута или в фоне.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "sodium-extra",
+     "name": "Sodium Extra",
+     "desc": "Дополнительные настройки графики для Sodium.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "reeses-sodium-options",
+     "name": "Reese's Sodium Options",
+     "desc": "Удобное окно настроек Sodium.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "c2me-fabric",
+     "name": "C2ME",
+     "desc": "Параллельная загрузка чанков: меньше подвисаний.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "moreculling",
+     "name": "More Culling",
+     "desc": "Ещё больше скрытых объектов не рисуется.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "badoptimizations",
+     "name": "BadOptimizations",
+     "desc": "Мелкие оптимизации отрисовки и памяти.",
+     "tag": ""
+    }
+   ]
+  },
+  {
+   "id": "graphics",
+   "title": "Графика и дальность",
+   "desc": "Шейдеры, огромная дальность прорисовки и красивые текстуры.",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "iris",
+     "name": "Iris Shaders",
+     "desc": "Поддержка шейдеров. Работает вместе с Sodium.",
+     "tag": "шейдеры"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "distanthorizons",
+     "name": "Distant Horizons",
+     "desc": "Далёкие горизонты: дальность прорисовки на сотни чанков.",
+     "tag": "дальность"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "voxy",
+     "name": "Voxy",
+     "desc": "Огромная дальность прорисовки на другом движке, очень быстро.",
+     "tag": "дальность"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "bobby",
+     "name": "Bobby",
+     "desc": "Запоминает уже виденные чанки и показывает их дальше обычной дальности.",
+     "tag": "дальность"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "entitytexturefeatures",
+     "name": "Entity Texture Features",
+     "desc": "Расширенные текстуры мобов и игроков: случайные облики, свечение.",
+     "tag": "текстуры"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "continuity",
+     "name": "Continuity",
+     "desc": "Соединённое стекло и красивые стыки блоков в ресурспаках.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "zoomify",
+     "name": "Zoomify",
+     "desc": "Приближение как в оптике, всё настраивается.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "lambdynamiclights",
+     "name": "LambDynamicLights",
+     "desc": "Динамическое освещение: факел в руке светит.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "visuality",
+     "name": "Visuality",
+     "desc": "Частицы и эффекты для атмосферы.",
+     "tag": ""
+    }
+   ]
+  },
+  {
+   "id": "vibe",
+   "title": "Атмосфера и звук",
+   "desc": "Звуки окружения, живой мир и приятная обстановка.",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "sound-physics-remastered",
+     "name": "Sound Physics Remastered",
+     "desc": "Реалистичное эхо и приглушение звука за стенами.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "ambientsounds",
+     "name": "AmbientSounds",
+     "desc": "Звуки природы: ветер, птицы, вода, пещеры.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "sound-controller",
+     "name": "Sound Controller",
+     "desc": "Громкость каждого звука отдельно.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "dark-loading-screen",
+     "name": "Dark Loading Screen",
+     "desc": "Тёмный экран загрузки вместо ярко-красного.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "rrls",
+     "name": "Remove Reloading Screen",
+     "desc": "Убирает полноэкранную загрузку при перезагрузке ресурсов.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "fancymenu",
+     "name": "FancyMenu",
+     "desc": "Свои меню, фоны и кнопки.",
+     "tag": "кастомизация"
+    }
+   ]
+  },
+  {
+   "id": "voice",
+   "title": "Голос и общение",
+   "desc": "Голосовой чат и общение с друзьями прямо в игре. Друзья в Noxel пробрасывают голос через сервер.",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "plasmo-voice",
+     "name": "Plasmo Voice",
+     "desc": "Голосовой чат с группами, радиусом слышимости и эффектами.",
+     "tag": "голос"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "simple-voice-chat",
+     "name": "Simple Voice Chat",
+     "desc": "Простой голосовой чат, как в играх. Порт 24454.",
+     "tag": "голос"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "patpat",
+     "name": "PatPat",
+     "desc": "Погладь игрока или питомца: милые анимации.",
+     "tag": "милота"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "chat-heads",
+     "name": "Chat Heads",
+     "desc": "Голова игрока рядом с его сообщением в чате.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "no-chat-reports",
+     "name": "No Chat Reports",
+     "desc": "Отключает подпись чата: твои сообщения не отправляются на проверку.",
+     "tag": "приватность"
+    }
+   ]
+  },
+  {
+   "id": "emotes",
+   "title": "Эмоции и модели",
+   "desc": "Танцы, жесты и свои модели игрока. Сами паки эмоций и модели смотри в разделах «Паки эмоций» и «Модели игрока».",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "emotecraft",
+     "name": "Emotecraft",
+     "desc": "Эмоции и танцы по кнопке, их видят другие игроки с модом.",
+     "tag": "эмоции"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "custom-player-models",
+     "name": "Customizable Player Models",
+     "desc": "Свои модели игрока вместо стандартной: форма, уши, хвост, крылья.",
+     "tag": "модели"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "online-emotes",
+     "name": "Online Emotes",
+     "desc": "Эмоции, которые видят все на сервере с мод.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "emotecraft-recording-addon",
+     "name": "Emotecraft Recording Addon",
+     "desc": "Запись своих эмоций прямо в игре.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "not-enough-animations",
+     "name": "Not Enough Animations",
+     "desc": "Плавные анимации игрока и предметов.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "3dskinlayers",
+     "name": "3D Skin Layers",
+     "desc": "Объёмный второй слой скина.",
+     "tag": ""
+    }
+   ]
+  },
+  {
+   "id": "comfort",
+   "title": "Удобство",
+   "desc": "Мелочи, из-за которых играть приятнее каждый день.",
+   "items": [
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "modmenu",
+     "name": "Mod Menu",
+     "desc": "Список установленных модов и их настроек.",
+     "tag": "база"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "betterf3",
+     "name": "BetterF3",
+     "desc": "Понятное меню отладки F3.",
+     "tag": "база"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "appleskin",
+     "name": "AppleSkin",
+     "desc": "Показывает сытость и насыщение еды.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "mouse-tweaks",
+     "name": "Mouse Tweaks",
+     "desc": "Быстрое перетаскивание предметов в инвентаре.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "inventory-profiles-next",
+     "name": "Inventory Profiles Next",
+     "desc": "Сортировка инвентаря в один клик.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "jei",
+     "name": "Just Enough Items",
+     "desc": "Рецепты всех предметов под рукой.",
+     "tag": "рецепты"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "xaeros-minimap",
+     "name": "Xaero's Minimap",
+     "desc": "Миникарта в углу экрана.",
+     "tag": "карта"
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "xaeros-world-map",
+     "name": "Xaero's World Map",
+     "desc": "Большая карта мира.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "journeymap",
+     "name": "JourneyMap",
+     "desc": "Карта мира с метками и миникартой, всё в одном.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "jade",
+     "name": "Jade",
+     "desc": "Подсказка о блоке или мобе, на которые смотришь.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "controlling",
+     "name": "Controlling",
+     "desc": "Поиск по настройкам управления.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "freecam",
+     "name": "Freecam",
+     "desc": "Свободная камера, чтобы осмотреть постройку.",
+     "tag": ""
+    },
+    {
+     "type": "mod",
+     "provider": "modrinth",
+     "id": "notenoughcrashes",
+     "name": "Not Enough Crashes",
+     "desc": "Игра не закрывается при ошибке, а показывает отчёт.",
+     "tag": ""
+    }
+   ]
+  },
+  {
+   "id": "emote-packs",
+   "title": "Паки эмоций",
+   "desc": "Готовые эмоции для Emotecraft. Файлы кладутся в папку emotes профиля, потом выбираются в игре (клавиша B по умолчанию).",
+   "items": [
+    {
+     "type": "file",
+     "title": "Эмоции сообщества Emotecraft",
+     "desc": "Около 45 готовых эмоций из архива сообщества (лицензия CC0). Раздел для взрослых из архива не скачивается.",
+     "url": "https://codeload.github.com/KosmX/Emotecraft-emotes/zip/refs/heads/master",
+     "folder": "emotes",
+     "extract": true,
+     "prefix": "Emotecraft-emotes-master/emotes/",
+     "license": "CC0",
+     "author": "KosmX и сообщество"
+    },
+    {
+     "type": "search",
+     "title": "Моды с эмоциями и анимациями",
+     "desc": "Дополнения к Emotecraft и другие моды про эмоции из Modrinth и CurseForge.",
+     "query": "emote",
+     "kind": "mod"
+    },
+    {
+     "type": "search",
+     "title": "Ресурспаки с эмоциями",
+     "desc": "Наборы эмоций и жестов в виде ресурспаков.",
+     "query": "emote",
+     "kind": "resourcepack"
+    },
+    {
+     "type": "search",
+     "title": "Анимации игрока",
+     "desc": "Новые походки, анимации ходьбы, плавания и боя.",
+     "query": "player animation",
+     "kind": "mod"
+    }
+   ]
+  },
+  {
+   "id": "models",
+   "title": "Модели игрока",
+   "desc": "Свои модели вместо стандартной: файлы .cpmmodel кладутся в папку player_models профиля, выбираются в игре клавишей G.",
+   "items": [
+    {
+     "type": "search",
+     "title": "Модели игрока: ресурспаки",
+     "desc": "Готовые наборы моделей и аватаров.",
+     "query": "player model",
+     "kind": "resourcepack"
+    },
+    {
+     "type": "search",
+     "title": "Моды для моделей игрока",
+     "desc": "Модели, расширения для CPM и альтернативы.",
+     "query": "player model",
+     "kind": "mod"
+    },
+    {
+     "type": "search",
+     "title": "Customizable Player Models: дополнения",
+     "desc": "Совместимость CPM с голосом, записью и другими модами.",
+     "query": "cpm",
+     "kind": "mod"
+    },
+    {
+     "type": "search",
+     "title": "Figura: аватары",
+     "desc": "Мощная система аватаров со скриптами (отдельный мод).",
+     "query": "figura",
+     "kind": "mod"
+    }
+   ]
+  }
+ ]
+}

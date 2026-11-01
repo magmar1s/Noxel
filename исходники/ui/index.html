@@ -389,6 +389,22 @@ button.tile:hover{border-color:var(--line2)}
 .sw-a{animation:swA 1.3s ease-in-out infinite;transform-origin:0 0}
 .sw-b{animation:swB 1.3s ease-in-out infinite;transform-origin:0 0}
 .sw-n{animation:nod 2.6s ease-in-out infinite;transform-origin:0 0}
+.emoting .sw-a,.emoting .sw-b,.emoting .sw-n{animation:none!important}
+.emlay{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);gap:14px;min-height:0;height:100%}
+.emlist{display:flex;flex-direction:column;gap:8px;min-height:0}
+.emrows{overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:4px;min-height:0;flex:1}
+.emrows::-webkit-scrollbar{display:none}
+.erow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;cursor:pointer;color:var(--fg2);border:1px solid transparent}
+.erow:hover{background:var(--fill)}.erow.on{background:var(--fill2);color:var(--fg);border-color:var(--line2)}
+.erow b{font-weight:600;color:var(--fg);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.erow small{color:var(--fg3);font-size:11.5px;white-space:nowrap}
+.erow .star{color:var(--fg3);font-size:15px;line-height:1}.erow .star.on{color:#fff}
+.egrp{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);padding:10px 12px 4px}
+.empv{display:flex;flex-direction:column;gap:10px;min-height:0;padding:14px;border-radius:20px;background:rgba(0,0,0,.28);border:1px solid var(--line)}
+.empv .view{flex:1;min-height:220px;position:relative;border-radius:14px;overflow:hidden}
+.chiprow{display:flex;flex-wrap:wrap;gap:6px}
+.fchip{padding:5px 12px;border-radius:16px;font-size:12px;border:1px solid var(--line);color:var(--fg2);cursor:pointer;background:transparent}
+.fchip.on{background:var(--fg);color:#000;border-color:var(--fg)}
 .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .mini .tile b{font-size:15px}
 .hist{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 10px;scrollbar-width:none}
@@ -963,6 +979,9 @@ function skinViewer(host, o){
   host.innerHTML = '<div class="mc-stage"><div class="mc-rig"></div></div>';
   const stage = host.firstChild, rig = stage.firstChild;
   const mk = (cls, css) => { const d = document.createElement('div'); d.className = cls; if (css) d.style.cssText = css; return d; };
+  // тело состоит из верхней части (голова, торс, руки: сгибается в поясе) и ног, чтобы эмоции могли наклонять корпус
+  const body = mk('mc-abs'), uwrap = mk('mc-abs', `transform:translate3d(0,${4*K}px,0)`), ubody = mk('mc-abs'), P = {};
+  uwrap.append(ubody); body.append(uwrap); rig.append(body);
   function box(u0, v0, w, h, d, g, url, sw, sh){
     const b = mk('mc-abs'), W = w + g, H = h + g, D = d + g;
     const faces = [
@@ -979,20 +998,20 @@ function skinViewer(host, o){
     }
     return b;
   }
-  function part(c){
-    const pos = mk('mc-abs', `transform:translate3d(${c.x*K}px,${c.y*K}px,0)`), sw = mk('mc-abs ' + (c.cls || '')), hold = mk('mc-abs', `transform:translate3d(0,${c.cy*K}px,0)`);
+  function part(c, name, grp, dy){
+    const pos = mk('mc-abs', `transform:translate3d(${c.x*K}px,${(c.y + dy)*K}px,0)`), sw = mk('mc-abs ' + (c.cls || '')), hold = mk('mc-abs', `transform:translate3d(0,${c.cy*K}px,0)`);
     hold.append(box(c.u, c.v, c.w, c.h, c.d, 0, tex, 64, 64), box(c.ou, c.ov, c.w, c.h, c.d, c.g || .5, tex, 64, 64));
-    sw.append(hold); pos.append(sw); rig.append(pos);
+    sw.append(hold); pos.append(sw); grp.append(pos); P[name] = sw;
   }
-  part({x:0, y:-8, cy:-4, w:8, h:8, d:8, u:0, v:0, ou:32, ov:0, g:1, cls:'sw-n'});
-  part({x:0, y:-8, cy:6, w:8, h:12, d:4, u:16, v:16, ou:16, ov:32});
-  part({x:-(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:40, v:16, ou:40, ov:32, cls:'sw-a'});
-  part({x:(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:32, v:48, ou:48, ov:48, cls:'sw-b'});
-  part({x:-2, y:4, cy:6, w:4, h:12, d:4, u:0, v:16, ou:0, ov:32, cls:'sw-b'});
-  part({x:2, y:4, cy:6, w:4, h:12, d:4, u:16, v:48, ou:0, ov:48, cls:'sw-a'});
+  part({x:0, y:-8, cy:-4, w:8, h:8, d:8, u:0, v:0, ou:32, ov:0, g:1, cls:'sw-n'}, 'head', ubody, -4);
+  part({x:0, y:-8, cy:6, w:8, h:12, d:4, u:16, v:16, ou:16, ov:32}, 'torso', ubody, -4);
+  part({x:-(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:40, v:16, ou:40, ov:32, cls:'sw-a'}, 'rightArm', ubody, -4);
+  part({x:(4 + aw/2), y:-8, cy:6, w:aw, h:12, d:4, u:32, v:48, ou:48, ov:48, cls:'sw-b'}, 'leftArm', ubody, -4);
+  part({x:-2, y:4, cy:6, w:4, h:12, d:4, u:0, v:16, ou:0, ov:32, cls:'sw-b'}, 'rightLeg', body, 0);
+  part({x:2, y:4, cy:6, w:4, h:12, d:4, u:16, v:48, ou:0, ov:48, cls:'sw-a'}, 'leftLeg', body, 0);
   if (o.cape) {
-    const pos = mk('mc-abs', `transform:translate3d(0,${-8*K}px,${-2*K}px) rotateX(-9deg)`), hold = mk('mc-abs', `transform:translate3d(0,${8*K}px,${-.5*K}px) rotateY(180deg)`);
-    hold.append(box(0, 0, 10, 16, 1, 0, `url("${o.cape}")`, 64, 32)); pos.append(hold); rig.append(pos);
+    const pos = mk('mc-abs', `transform:translate3d(0,${-12*K}px,${-2*K}px) rotateX(-9deg)`), hold = mk('mc-abs', `transform:translate3d(0,${8*K}px,${-.5*K}px) rotateY(180deg)`);
+    hold.append(box(0, 0, 10, 16, 1, 0, `url("${o.cape}")`, 64, 32)); pos.append(hold); ubody.append(pos);
   }
   let ang = window.__ANG !== undefined ? window.__ANG : -30, drag = false, lx = 0, last = performance.now();
   const tick = t => {
@@ -1004,6 +1023,12 @@ function skinViewer(host, o){
   stage.addEventListener('pointermove', e => { if (drag) { ang += (e.clientX - lx) * .6; lx = e.clientX; } });
   stage.addEventListener('pointerup', () => { drag = false; });
   requestAnimationFrame(tick);
+  // управление позой для проигрывания эмоций: углы в градусах, смещения в пикселях модели
+  const tf = o => o ? `translate3d(${(o.x || 0) * K}px,${(o.y || 0) * K}px,${(o.z || 0) * K}px) rotateZ(${o.roll || 0}deg) rotateY(${o.yaw || 0}deg) rotateX(${o.pitch || 0}deg)` : '';
+  return {
+    pose(p){ rig.classList.add('emoting'); body.style.transform = `rotateY(${p.turn || 0}deg)`; ubody.style.transform = tf(p.torso); for (const n of ['head', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg']) P[n].style.transform = tf(p[n]); },
+    clear(){ rig.classList.remove('emoting'); body.style.transform = ''; ubody.style.transform = ''; for (const n in P) P[n].style.transform = ''; },
+  };
 }
 
 async function loadAccounts(){
@@ -1229,7 +1254,7 @@ function renderModsHead(){
   const noLoader = m.kind === 'mod' && p && NOMODS.includes(p.loader);
   el.innerHTML = `<div id="drop"><div>${I.up}Отпусти, чтобы добавить в профиль<small>${m.kind === 'mod' ? 'файлы .jar' : 'файлы .zip'} · «${esc(pname(p))}»</small></div></div><div class="mhead">
     <div class="mrow"><div class="ltitle" style="margin-right:6px"><h2>${KINDS.find(k => k[0] === m.kind)[1]}</h2></div><div id="mprof" style="min-width:230px"></div><div class="grow"></div><div class="seg" id="mtab"></div></div>
-    <div class="mrow">${m.tab === 'servers' || m.tab === 'packs' ? '' : '<div class="seg" id="mkind"></div>'}${cat ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="mq" placeholder="Искать: ${({all:'Modrinth и CurseForge', modrinth:'Modrinth', curseforge:'CurseForge'})[m.src]}…" value="${esc(m.q)}" spellcheck="false"></div><div id="msort"></div>` : '<div class="grow"></div>'}
+    <div class="mrow">${['servers', 'packs', 'reco', 'emotes', 'models'].includes(m.tab) ? '' : '<div class="seg" id="mkind"></div>'}${cat ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="mq" placeholder="Искать: ${({all:'Modrinth и CurseForge', modrinth:'Modrinth', curseforge:'CurseForge'})[m.src]}…" value="${esc(m.q)}" spellcheck="false"></div><div id="msort"></div>` : '<div class="grow"></div>'}
       ${cat ? '<div class="seg" id="msrc"></div>' : ''}
       ${cat && m.src !== 'curseforge' && m.kind === 'mod' ? '<div class="seg" id="mclient" title="Клиентские моды работают на любом сервере: подсветка, миникарта, оптимизация, интерфейс"></div>' : ''}
       ${m.tab === 'installed' && m.kind === 'mod' && !noLoader ? `<button class="minibtn" id="mupd">${I.dl} Обновления</button>` : ''}
@@ -1238,7 +1263,7 @@ function renderModsHead(){
     <div class="mbody" id="mbody"></div><aside class="drawer glass" id="drawer"></aside>`;
   const reset = () => { m.hits = []; m.offset = 0; m.err = null; };
   mkDd($('#mprof'), S.profiles.map(x => [x.id, x.name, sub(x)]), m.profile, id => { m.profile = id; reset(); m.upd = null; renderModsHead(); refreshMods(); }, {});
-  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['packs','Сборки'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
+  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['reco','Рекомендуемое'],['emotes','Эмоции'],['models','Модели'],['packs','Сборки'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
   if ($('#mkind')) mkSeg($('#mkind'), KINDS, m.kind, k => { m.kind = k; reset(); m.upd = null; renderModsHead(); refreshMods(); });
   if (cat) {
     mkDd($('#msort'), SORTS, m.sort, s => { m.sort = s; reset(); renderModsHead(); searchMods(); }, {});
@@ -1266,7 +1291,7 @@ async function addOwn(paths){
 async function refreshMods(){
   const m = S.m; if (!m.profile) return;
   try { m.installed = await invoke('mods_list', {profileId: m.profile, kind: m.kind}); } catch (e) { m.installed = []; }
-  if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (m.tab === 'packs') renderPacks(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
+  if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (m.tab === 'packs') renderPacks(); else if (m.tab === 'reco') renderReco(); else if (m.tab === 'emotes') renderEmotes(); else if (m.tab === 'models') renderModels(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
 }
 const PROV = {modrinth:'Modrinth', curseforge:'CurseForge', local:'Свой файл'};
 function elsewhereText(list){
@@ -1449,6 +1474,196 @@ async function renderServers(force){
   $$('[data-se]', el).forEach(b => b.onclick = () => editServer(+b.dataset.se));
   $$('[data-sd]', el).forEach(b => b.onclick = async () => { const s = list[+b.dataset.sd]; const ok = await modal(`Удалить «${s.name}»?`, 'Запись пропадёт у всех игроков.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; saveServers(list.filter((_, i) => i !== +b.dataset.sd)); });
 }
+/* ── эмоции: проигрыватель (формат Emotecraft JSON), библиотека и «Рекомендуемое» ── */
+const EASE_IN = {sine: t => 1 - Math.cos(t * Math.PI / 2), quad: t => t * t, cubic: t => t ** 3, quart: t => t ** 4, quint: t => t ** 5, expo: t => t === 0 ? 0 : 2 ** (10 * t - 10), circ: t => 1 - Math.sqrt(1 - t * t), back: t => 2.70158 * t ** 3 - 1.70158 * t * t,
+  elastic: t => t === 0 || t === 1 ? t : -(2 ** (10 * t - 10)) * Math.sin((t * 10 - 10.75) * 2 * Math.PI / 3), bounce: t => 1 - bounceOut(1 - t)};
+function bounceOut(x){ const n = 7.5625, d = 2.75; if (x < 1 / d) return n * x * x; if (x < 2 / d) return n * (x -= 1.5 / d) * x + .75; if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + .9375; return n * (x -= 2.625 / d) * x + .984375; }
+function easeFn(name){
+  const n = String(name || 'linear').toLowerCase().replace(/_/g, '');
+  if (n === 'linear') return t => t; if (n === 'constant') return t => t < 1 ? 0 : 1;
+  const m = n.match(/^(?:ease)?(inout|in|out)(sine|quad|cubic|quart|quint|expo|circ|back|elastic|bounce)$/); if (!m) return t => t;
+  const f = EASE_IN[m[2]];
+  return m[1] === 'in' ? f : m[1] === 'out' ? t => 1 - f(1 - t) : t => t < .5 ? f(2 * t) / 2 : 1 - f(2 - 2 * t) / 2;
+}
+const EPARTS = ['head', 'torso', 'rightArm', 'leftArm', 'rightLeg', 'leftLeg'], EPROPS = ['x', 'y', 'z', 'pitch', 'yaw', 'roll'];
+function emoteTimeline(j){
+  const e = j.emote || {}, tl = {turn: []}; EPARTS.forEach(p => tl[p] = {});
+  for (const mv of (e.moves || [])) {
+    const ease = easeFn(mv.easing), t = +mv.tick || 0;
+    if (mv.turn !== undefined) tl.turn.push({t, v: +mv.turn * 90, ease});
+    for (const p of EPARTS) if (mv[p]) for (const k of EPROPS) if (typeof mv[p][k] === 'number') { const a = (tl[p][k] = tl[p][k] || []); const i = a.findIndex(z => z.t === t); const key = {t, v: mv[p][k], ease}; if (i >= 0) a[i] = key; else a.push(key); }
+  }
+  const srt = a => a.sort((x, y) => x.t - y.t);
+  srt(tl.turn); EPARTS.forEach(p => Object.values(tl[p]).forEach(srt));
+  const num = (v, d) => (v === undefined || v === null || v === '') ? d : +v;
+  return {tl, deg: e.degrees === true || e.degrees === 'true', end: num(e.endTick, 0), stop: num(e.stopTick, 0), ret: num(e.returnTick, 0), loop: e.isLoop === true || e.isLoop === 'true'};
+}
+function sampleKeys(keys, t){
+  if (!keys || !keys.length) return 0;
+  if (t <= keys[0].t) return keys[0].t > 0 ? keys[0].v * keys[0].ease(Math.max(0, t) / keys[0].t) : keys[0].v;
+  let i = 0; while (i + 1 < keys.length && keys[i + 1].t <= t) i++;
+  const a = keys[i], b = keys[i + 1]; if (!b) return a.v;
+  return a.v + (b.v - a.v) * b.ease((t - a.t) / (b.t - a.t));
+}
+const EREST = {rightArm: {x: -5, y: 2, z: 0}, leftArm: {x: 5, y: 2, z: 0}, rightLeg: {x: -1.9, y: 12, z: .1}, leftLeg: {x: 1.9, y: 12, z: .1}};
+/* в официальных файлах позиции абсолютные (нога y≈12), в части модов уже относительные и в долях 1/8 */
+function emoteAbsolute(em){
+  for (const p of ['leftLeg', 'rightLeg']) for (const k of (em.tl[p].y || [])) if (Math.abs(k.v) >= 6) return true;
+  for (const p of ['leftArm', 'rightArm']) for (const k of (em.tl[p].x || [])) if (Math.abs(k.v) >= 3) return true;
+  return false;
+}
+function emotePose(em, tick){
+  if (em.abs === undefined) em.abs = emoteAbsolute(em);
+  const toDeg = v => ((em.deg ? v : v * 180 / Math.PI) % 360), clampPos = v => Math.max(-24, Math.min(24, v)), out = {turn: sampleKeys(em.tl.turn, tick)};
+  for (const p of EPARTS) { const o = {}; for (const k of EPROPS) { const keys = em.tl[p][k]; if (!keys) continue; const v = sampleKeys(keys, tick); o[k] = (k === 'x' || k === 'y' || k === 'z') ? clampPos(em.abs ? v - ((EREST[p] || {})[k] || 0) : v * 8) : toDeg(v); } out[p] = o; }
+  return out;
+}
+/* запускает проигрывание на готовом 3D-игроке; возвращает управление (пауза, скорость, перемотка) */
+function playEmote(ctl, host, em){
+  const st = {speed: 1, paused: false, run: 0, tick: 0, end: em.end || 1, stopped: false}; let last = performance.now();
+  const step = now => {
+    if (st.stopped || !host.isConnected) { if (host.isConnected) ctl.clear(); return; }
+    const dt = Math.min(.1, (now - last) / 1000); last = now;
+    if (!st.paused) st.run += dt * 20 * st.speed;
+    let t = st.run;
+    if (em.loop && em.end > em.ret) { if (t > em.end) t = em.ret + ((t - em.ret) % (em.end - em.ret)); }
+    else { const cyc = em.end + 30; t = t % cyc; if (t > em.end) t = em.end; }
+    st.tick = t; ctl.pose(emotePose(em, t)); if (st.onTick) st.onTick(t); requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  return st;
+}
+async function previewSkin(){ const a = active(); return {skin: await skinSrc(a && a.skin ? a.skin.hash : null), model: a && a.skin ? a.skin.model : 'classic', who: a ? a.name : ''}; }
+const fmtSec = ticks => (ticks / 20).toFixed(ticks >= 200 ? 0 : 1).replace('.', ',') + ' с';
+const EM = {list: null, sel: null, q: '', sort: 'name', filt: 'all', group: 'none', st: null, fav: new Set(), loaded: ''};
+try { EM.fav = new Set(JSON.parse(localStorage.getItem('nx_emote_fav') || '[]')); } catch (e) {}
+const saveFav = () => { try { localStorage.setItem('nx_emote_fav', JSON.stringify([...EM.fav])); } catch (e) {} };
+async function importFiles(kind, exts, title){
+  const p = S.m.profile; if (!p) return toast('Сначала выбери профиль');
+  const r = await T.dialog.open({multiple: true, title, filters: [{name: title, extensions: exts}]}); if (!r) return null;
+  try { const res = await invoke('lib_import', {profileId: p, kind, paths: Array.isArray(r) ? r : [r]}); toast(`Добавлено: ${res.added}${res.skipped ? ', пропущено: ' + res.skipped : ''}`); return res; }
+  catch (e) { modal('Не получилось', String(e)); return null; }
+}
+async function renderEmotes(force){
+  const el = $('#mbody'); if (!el) return; const p = S.m.profile;
+  if (!p) { el.innerHTML = '<div class="empty"><div><h3>Нет профиля</h3><p>Создай профиль, чтобы собирать эмоции.</p></div></div>'; return; }
+  if (!EM.list || force || EM.loaded !== p) { try { EM.list = await invoke('lib_list', {profileId: p, kind: 'emotes'}); EM.loaded = p; } catch (e) { EM.list = []; } }
+  const all = EM.list, q = EM.q.toLowerCase();
+  const cat = x => x.ticks <= 60 ? 'short' : x.ticks <= 160 ? 'mid' : 'long';
+  let rows = all.filter(x => (!q || (x.name + ' ' + x.author + ' ' + x.desc).toLowerCase().includes(q)) && (EM.filt === 'all' || (EM.filt === 'loop' && x.loop) || (EM.filt === 'fav' && EM.fav.has(x.file)) || EM.filt === cat(x)));
+  const key = {name: (a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()), author: (a, b) => (a.author || 'я').toLowerCase().localeCompare((b.author || 'я').toLowerCase()) || key.name(a, b), len: (a, b) => a.ticks - b.ticks || key.name(a, b), loop: (a, b) => (b.loop - a.loop) || key.name(a, b)}[EM.sort];
+  rows.sort(key);
+  const glabel = x => EM.group === 'author' ? (x.author || 'Без автора') : EM.group === 'len' ? ({short: 'Короткие, до 3 секунд', mid: 'Средние, 3–8 секунд', long: 'Длинные, больше 8 секунд'})[cat(x)] : EM.group === 'loop' ? (x.loop ? 'Зацикленные' : 'Одноразовые') : '';
+  let html = '', lastG = null;
+  for (const x of rows) { const g = glabel(x); if (g !== lastG) { lastG = g; if (g) html += `<div class="egrp">${esc(g)}</div>`; } html += `<div class="erow ${EM.sel === x.file ? 'on' : ''}" data-f="${esc(x.file)}"><span class="star ${EM.fav.has(x.file) ? 'on' : ''}" data-s="${esc(x.file)}">${EM.fav.has(x.file) ? '★' : '☆'}</span><b>${esc(x.name)}</b><small>${x.author ? esc(x.author) + ' · ' : ''}${x.preview ? fmtSec(x.ticks) : 'без предпросмотра'}${x.loop ? ' · ⟳' : ''}</small></div>`; }
+  const chip = (v, t) => `<button class="fchip ${EM.filt === v ? 'on' : ''}" data-fl="${v}">${t}</button>`;
+  el.innerHTML = `<div class="emlay"><div class="emlist">
+      <div class="updbar" style="margin:0"><span><b>${all.length}</b> ${plural(all.length, 'эмоция', 'эмоции', 'эмоций')} в профиле. Клавиша B в игре открывает выбор.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="minibtn solid sm" id="emAdd">${I.plus} Добавить файлы</button><button class="minibtn sm" id="emPack">Паки и библиотека</button></span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="emQ" placeholder="Поиск по названию и автору" value="${esc(EM.q)}" style="flex:1;min-width:150px"><select class="inp" id="emS"><option value="name">По названию</option><option value="author">По автору</option><option value="len">По длительности</option><option value="loop">Сначала зацикленные</option></select><select class="inp" id="emG"><option value="none">Без групп</option><option value="author">По автору</option><option value="len">По длине</option><option value="loop">По типу</option></select></div>
+      <div class="chiprow">${chip('all', 'Все')}${chip('fav', '★ Избранное')}${chip('loop', 'Зацикленные')}${chip('short', 'Короткие')}${chip('mid', 'Средние')}${chip('long', 'Длинные')}</div>
+      <div class="emrows">${html || `<div class="empty" style="padding:30px 0"><div><h3>${all.length ? 'Ничего не нашлось' : 'Эмоций пока нет'}</h3><p>${all.length ? 'Измени поиск или фильтр.' : 'Скачай пак из «Паки и библиотека» или добавь свои файлы .json, .emotecraft или архив .zip.'}</p></div></div>`}</div></div>
+    <div class="empv"><div class="view" id="emView"></div><div id="emInfo" class="hint">Выбери эмоцию слева: она сыграет на скине аккаунта, выбранного в лаунчере.</div><div id="emCtl"></div></div></div>`;
+  $('#emS').value = EM.sort; $('#emG').value = EM.group;
+  $('#emQ').oninput = e => { EM.q = e.target.value; clearTimeout(EM.t); EM.t = setTimeout(() => { const pos = e.target.selectionStart; renderEmotes(); const q2 = $('#emQ'); if (q2) { q2.focus(); q2.setSelectionRange(pos, pos); } }, 200); };
+  $('#emS').onchange = e => { EM.sort = e.target.value; renderEmotes(); }; $('#emG').onchange = e => { EM.group = e.target.value; renderEmotes(); };
+  $$('[data-fl]', el).forEach(b => b.onclick = () => { EM.filt = b.dataset.fl; renderEmotes(); });
+  $('#emAdd').onclick = async () => { if (await importFiles('emotes', ['json', 'emotecraft', 'emote', 'zip'], 'Эмоции')) { EM.list = null; renderEmotes(); } };
+  $('#emPack').onclick = () => { RC.cat = 'emote-packs'; m_setTab('reco'); };
+  $$('[data-s]', el).forEach(b => b.onclick = e => { e.stopPropagation(); const f = b.dataset.s; EM.fav.has(f) ? EM.fav.delete(f) : EM.fav.add(f); saveFav(); renderEmotes(); });
+  $$('.erow', el).forEach(r => r.onclick = () => { EM.sel = r.dataset.f; $$('.erow', el).forEach(x => x.classList.toggle('on', x === r)); showEmote(rows.find(x => x.file === EM.sel)); });
+  if (EM.sel && rows.find(x => x.file === EM.sel)) showEmote(rows.find(x => x.file === EM.sel));
+}
+function m_setTab(t){ S.m.tab = t; renderModsHead(); refreshMods(); }
+async function showEmote(x){
+  const host = $('#emView'), info = $('#emInfo'), ctlBox = $('#emCtl'); if (!host || !x) return;
+  if (EM.st) EM.st.stopped = true;
+  const sk = await previewSkin(); const ctl = skinViewer(host, {skin: sk.skin, model: sk.model, scale: 8});
+  info.innerHTML = `<b style="color:var(--fg);font-size:16px">${esc(x.name)}</b><br>${x.author ? 'Автор: ' + esc(x.author) + '<br>' : ''}${x.desc ? esc(x.desc) + '<br>' : ''}${x.preview ? fmtSec(x.ticks) + (x.loop ? ' · зацикленная' : '') : ''}<br><span style="color:var(--fg3)">Играет на скине «${esc(sk.who || 'Player')}»</span>`;
+  ctlBox.innerHTML = '';
+  if (!x.preview) { info.innerHTML += '<br>Предпросмотр доступен для эмоций в формате .json. Файл .emotecraft можно использовать в игре как обычно.'; ctlBox.innerHTML = `<div class="mrow"><button class="minibtn sm" id="emDel">Удалить файл</button></div>`; }
+  else {
+    let em; try { em = emoteTimeline(JSON.parse(await invoke('lib_read', {profileId: S.m.profile, file: x.file}))); } catch (e) { info.innerHTML += '<br>Не удалось прочитать эмоцию: ' + esc(e); return; }
+    const st = EM.st = playEmote(ctl, host, em);
+    ctlBox.innerHTML = `<div class="mrow"><button class="minibtn sm" id="emPlay">Пауза</button><button class="minibtn sm" data-sp="0.5">0,5×</button><button class="minibtn sm on" data-sp="1">1×</button><button class="minibtn sm" data-sp="2">2×</button><button class="minibtn sm" id="emDel">Удалить файл</button></div><input type="range" id="emSeek" min="0" max="${em.end || 1}" step="0.1" value="0" style="width:100%;margin-top:8px">`;
+    const seek = $('#emSeek'); let drag = false;
+    seek.onpointerdown = () => { drag = true; }; seek.onpointerup = () => { drag = false; };
+    seek.oninput = () => { st.run = +seek.value; st.paused = true; $('#emPlay').textContent = 'Играть'; };
+    st.onTick = t => { if (!drag) seek.value = t; };
+    $('#emPlay').onclick = e => { st.paused = !st.paused; e.target.textContent = st.paused ? 'Играть' : 'Пауза'; };
+    $$('[data-sp]', ctlBox).forEach(b => b.onclick = () => { st.speed = +b.dataset.sp; $$('[data-sp]', ctlBox).forEach(z => z.classList.toggle('solid', z === b)); });
+  }
+  $('#emDel').onclick = async () => { const ok = await modal(`Удалить «${x.name}»?`, 'Файл эмоции пропадёт из папки профиля.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; try { await invoke('lib_delete', {profileId: S.m.profile, kind: 'emotes', file: x.file}); EM.sel = null; EM.list = null; renderEmotes(); } catch (e) { toast(e); } };
+}
+/* модели игрока (Customizable Player Models): свои файлы грузятся прямо отсюда */
+const MD = {list: null, loaded: ''};
+async function renderModels(force){
+  const el = $('#mbody'); if (!el) return; const p = S.m.profile;
+  if (!p) { el.innerHTML = '<div class="empty"><div><h3>Нет профиля</h3></div></div>'; return; }
+  if (!MD.list || force || MD.loaded !== p) { try { MD.list = await invoke('lib_list', {profileId: p, kind: 'models'}); MD.loaded = p; } catch (e) { MD.list = []; } }
+  let reco = null; try { reco = S.reco || (S.reco = await invoke('reco_list')); } catch (e) {}
+  const mc = ((reco && reco.categories) || []).find(c => c.id === 'models'), files = ((mc && mc.items) || []).filter(i => i.type === 'file');
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span><b>${MD.list.length}</b> ${plural(MD.list.length, 'модель', 'модели', 'моделей')} в профиле. В игре: клавиша G → «Модели». Нужен мод Customizable Player Models.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="minibtn solid sm" id="mdAdd">${I.up} Загрузить свою модель</button><button class="minibtn sm" id="mdFind">Найти в каталоге</button><button class="minibtn sm" id="mdFolder">${I.folder} Папка</button></span></div>
+    ${MD.list.length ? `<div class="srvgrid">${MD.list.map((x, i) => `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${esc(letter(x.name))}</div><div class="meta"><b>${esc(x.name)}</b><small>${fmtSize(x.size)} · ${x.file.toLowerCase().endsWith('.cpmproject') ? 'проект' : 'модель'}</small></div></div><div class="mrow"><button class="minibtn sm" data-md="${i}">Удалить</button></div></div>`).join('')}</div>` : `<div class="empty" style="padding:26px 0"><div><h3>Своих моделей пока нет</h3><p>Нажми «Загрузить свою модель» и выбери файл .cpmmodel (или архив .zip с ними): лаунчер сам положит его в нужную папку.</p></div></div>`}
+    ${files.length ? `<div class="lbl" style="margin:18px 4px 8px"><span>Готовые модели из подборки</span></div><div class="srvgrid">${files.map((f, i) => `<div class="scard"><div class="top"><div class="avatar">${esc(letter(f.title))}</div><div class="meta"><b>${esc(f.title)}</b><small>${esc([f.author, f.license].filter(Boolean).join(' · '))}</small></div></div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(f.desc)}</div><div class="mrow"><button class="minibtn solid sm" data-mf="${i}">${I.dl} Скачать в профиль</button></div></div>`).join('')}</div>` : `<div class="hint" style="margin:18px 4px">Готовые модели с прямой ссылкой появятся здесь, как только их добавят в подборку на сервере Noxel (раздел «Рекомендуемое» → «Модели игрока» уже содержит поиск по каталогам).</div><div class="mrow" style="margin:0 4px"><button class="minibtn sm" id="mdReco">Открыть «Модели игрока» в рекомендуемом</button></div>`}`;
+  $('#mdAdd').onclick = async () => { if (await importFiles('models', ['cpmmodel', 'cpmproject', 'zip'], 'Модели игрока')) { MD.list = null; renderModels(); } };
+  $('#mdFind').onclick = () => { Object.assign(S.m, {tab: 'catalog', kind: 'resourcepack', q: 'player model', hits: [], offset: 0}); renderModsHead(); refreshMods(); };
+  $('#mdFolder').onclick = () => invoke('open_folder', {profileId: p, sub: 'player_models'}).catch(toast);
+  if ($('#mdReco')) $('#mdReco').onclick = () => { RC.cat = 'models'; m_setTab('reco'); };
+  $$('[data-md]', el).forEach(b => b.onclick = async () => { const x = MD.list[+b.dataset.md]; const ok = await modal(`Удалить «${x.name}»?`, 'Файл модели пропадёт из папки профиля.', [{label:'Отмена', val:false}, {label:'Удалить', val:true, cls:'solid'}]); if (!ok) return; try { await invoke('lib_delete', {profileId: p, kind: 'models', file: x.file}); MD.list = null; renderModels(); } catch (e) { toast(e); } });
+  $$('[data-mf]', el).forEach(b => b.onclick = () => downloadReco(files[+b.dataset.mf], b, () => { MD.list = null; renderModels(); }));
+}
+/* «Рекомендуемое»: список и подборки приходят с сервера Noxel, поэтому меняются без обновления лаунчера */
+const RC = {cat: null, info: {}, busy: new Set()};
+async function downloadReco(f, btn, after){
+  const p = S.m.profile; if (!p) return toast('Сначала выбери профиль');
+  btn.disabled = true; const old = btn.innerHTML; btn.textContent = 'Скачиваю…';
+  try { const r = await invoke('reco_file', {profileId: p, url: f.url, folder: f.folder, extract: !!f.extract, prefix: f.prefix || '', name: f.title || 'файл'}); toast(`Готово: файлов ${r.files}`); EM.list = null; MD.list = null; if (after) after(); }
+  catch (e) { modal('Не получилось', String(e)); }
+  btn.disabled = false; btn.innerHTML = old;
+}
+async function renderReco(force){
+  const el = $('#mbody'); if (!el) return; const p = S.m.profile, pr = prof(p);
+  if (!S.reco || force) { el.innerHTML = '<div class="srvgrid">' + '<div class="sk" style="height:150px"></div>'.repeat(6) + '</div>'; try { S.reco = await invoke('reco_list'); } catch (e) { el.innerHTML = `<div class="empty"><div><h3>Не получилось</h3><p>${esc(e)}</p><button class="minibtn" id="rcRetry">Повторить</button></div></div>`; $('#rcRetry').onclick = () => renderReco(true); return; } }
+  const cats = (S.reco.categories || []); if (!cats.length) { el.innerHTML = '<div class="empty"><div><h3>Список пуст</h3><p>Администратор ещё не добавил рекомендации.</p></div></div>'; return; }
+  if (!RC.cat || !cats.some(c => c.id === RC.cat)) RC.cat = cats[0].id;
+  const cat = cats.find(c => c.id === RC.cat), admin = !!(S.set && S.set.admin_token), mods = cat.items.filter(i => i.type === 'mod');
+  const infoKey = `${p}|${cat.id}`;
+  const inf = id => RC.info[p + '|' + id] || {};
+  el.innerHTML = `<div class="chiprow" style="margin-bottom:10px">${cats.map(c => `<button class="fchip ${c.id === RC.cat ? 'on' : ''}" data-rc="${esc(c.id)}">${esc(c.title)}</button>`).join('')}</div>
+    <div class="updbar" style="margin-bottom:12px"><span>${esc(cat.desc || '')}</span><span style="display:flex;gap:8px;flex-wrap:wrap">${mods.length ? `<button class="minibtn solid sm" id="rcAll">${I.dl} Поставить всё доступное</button>` : ''}<button class="minibtn sm" id="rcRef">Обновить</button>${admin ? '<button class="minibtn sm" id="rcEdit">Изменить список</button>' : ''}</span></div>
+    <div class="srvgrid" id="rcGrid"></div>`;
+  const draw = () => {
+    $('#rcGrid').innerHTML = cat.items.map((it, i) => {
+      if (it.type === 'mod') { const f = inf(it.id), name = it.name || f.title || it.id, bad = f.ok === false, done = f.installed || RC.busy.has(it.id) && false;
+        return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar" style="${f.icon ? `background:url(${esc(f.icon)}) center/cover` : ''}">${f.icon ? '' : esc(letter(name))}</div><div class="meta"><b>${esc(name)}</b><small>${f.downloads ? fmtNum(f.downloads) + ' скачиваний' : esc(it.provider === 'curseforge' ? 'CurseForge' : 'Modrinth')}</small></div>${it.tag ? `<span class="badge">${esc(it.tag)}</span>` : ''}</div>
+          <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc || f.desc || '')}</div>
+          <div class="mrow">${f.installed ? '<button class="minibtn sm" disabled>Уже стоит</button>' : bad ? `<button class="minibtn sm" disabled>Нет для ${esc(pr ? pr.mc : 'этой версии')}</button>` : `<button class="minibtn solid sm" data-rm="${i}" ${RC.busy.has(it.id) ? 'disabled' : ''}>${RC.busy.has(it.id) ? 'Ставлю…' : I.dl + ' Поставить'}</button>`}</div></div>`; }
+      if (it.type === 'search') return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${I.mod}</div><div class="meta"><b>${esc(it.title)}</b><small>Modrinth и CurseForge</small></div></div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc)}</div><div class="mrow"><button class="minibtn solid sm" data-rs="${i}">Открыть подборку</button></div></div>`;
+      return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${I.dl}</div><div class="meta"><b>${esc(it.title)}</b><small>${esc([it.author, it.license].filter(Boolean).join(' · ') || it.folder)}</small></div></div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc)}</div><div class="mrow"><button class="minibtn solid sm" data-rf="${i}">${I.dl} Скачать в профиль</button></div></div>`;
+    }).join('');
+    $$('[data-rm]', el).forEach(b => b.onclick = () => installMods([cat.items[+b.dataset.rm]]));
+    $$('[data-rs]', el).forEach(b => b.onclick = () => { const it = cat.items[+b.dataset.rs]; Object.assign(S.m, {tab: 'catalog', kind: it.kind, q: it.query, hits: [], offset: 0}); renderModsHead(); refreshMods(); });
+    $$('[data-rf]', el).forEach(b => b.onclick = () => { const it = cat.items[+b.dataset.rf]; downloadReco(it, b, () => { if (it.folder === 'emotes') { toast('Эмоции добавлены: открой вкладку «Эмоции»'); } }); });
+  };
+  const installMods = async list => {
+    list = list.filter(it => !inf(it.id).installed && inf(it.id).ok !== false); if (!list.length) return toast('Всё уже стоит или недоступно для этой версии');
+    list.forEach(it => RC.busy.add(it.id)); draw();
+    try { const r = await invoke('mods_install_many', {profileId: p, items: list.map(it => [it.provider, it.id])}); toast(r.installed.length ? `Установлено: ${r.installed.length}` : 'Ничего нового не поставилось'); if (r.skipped.length) modal('Часть не поставилась', 'Для этой версии игры нет подходящих файлов:\n\n' + r.skipped.join('\n')); await loadProfiles(); }
+    catch (e) { modal('Не удалось установить', String(e)); }
+    list.forEach(it => RC.busy.delete(it.id)); await loadInfo(); draw();
+  };
+  const loadInfo = async () => { if (!p || !mods.length) return; try { const r = await invoke('reco_info', {profileId: p, items: mods.map(i => [i.provider, i.id])}); for (const k in r) RC.info[p + '|' + k] = r[k]; } catch (e) {} };
+  draw(); loadInfo().then(() => { if ($('#rcGrid')) draw(); });
+  $$('[data-rc]', el).forEach(b => b.onclick = () => { RC.cat = b.dataset.rc; renderReco(); });
+  $('#rcRef').onclick = () => { S.reco = null; for (const k in RC.info) delete RC.info[k]; renderReco(true); };
+  if ($('#rcAll')) $('#rcAll').onclick = () => installMods(mods);
+  if ($('#rcEdit')) $('#rcEdit').onclick = () => {
+    const box = $('#xbox'); box.innerHTML = `<h3>Рекомендуемое: список на сервере</h3><div class="hint" style="margin-bottom:8px">JSON: разделы с записями типов mod, search и file. Сохранение сразу меняет список у всех игроков, обновлять лаунчер не нужно.</div><textarea class="inp" id="rcJson" spellcheck="false" style="min-height:340px;font-family:monospace;font-size:12px"></textarea><div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="rcSave">Сохранить</button></div>`;
+    $('#rcJson').value = JSON.stringify({categories: cats}, null, 1); $('#xc').onclick = closeX; $('#xmodal').classList.add('on');
+    $('#rcSave').onclick = async () => { let j; try { j = JSON.parse($('#rcJson').value); } catch (e) { return toast('Ошибка в JSON: ' + e.message); } try { await invoke('reco_save', {list: j}); closeX(); toast('Сохранено на сервере'); S.reco = null; renderReco(true); } catch (e) { modal('Не удалось сохранить', String(e)); } };
+  };
+}
+
 /* сборки модов (Modrinth .mrpack): ставятся как новый профиль со всеми модами и настройками */
 const PK = {q: '', sort: 'downloads', mc: '', hits: null, busy: new Set(), prog: {}};
 const PK_VERS = ['26.2', '26.1', '1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.7.10'];

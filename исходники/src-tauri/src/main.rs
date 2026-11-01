@@ -2,8 +2,10 @@
 
 mod accounts;
 mod dav;
+mod emotes;
 mod autoauth;
 mod ping;
+mod reco;
 mod mc;
 mod localapi;
 mod mods;
@@ -658,6 +660,53 @@ fn skin_from_nick(id: String, nick: String) -> R<String> {
 }
 
 #[tauri::command(async)]
+fn lib_list(profile_id: String, kind: String) -> R<Value> {
+    emotes::list(&profile_id, &kind)
+}
+
+#[tauri::command(async)]
+fn lib_read(profile_id: String, file: String) -> R<String> {
+    emotes::read(&profile_id, &file)
+}
+
+#[tauri::command(async)]
+fn lib_delete(profile_id: String, kind: String, file: String) -> R<()> {
+    emotes::delete(&profile_id, &kind, &file)
+}
+
+#[tauri::command(async)]
+fn lib_import(profile_id: String, kind: String, paths: Vec<String>) -> R<Value> {
+    emotes::import(&profile_id, &kind, &paths)
+}
+
+#[tauri::command(async)]
+fn reco_list() -> R<Value> {
+    remote::reco()
+}
+
+#[tauri::command(async)]
+fn reco_save(list: Value) -> R<Value> {
+    remote::reco_save(list)
+}
+
+#[tauri::command(async)]
+fn reco_info(profile_id: String, items: Vec<(String, String)>) -> R<Value> {
+    reco::info(&profile_id, &items)
+}
+
+#[tauri::command(async)]
+fn mods_install_many(app: AppHandle, profile_id: String, items: Vec<(String, String)>) -> R<Value> {
+    let cb = progress_cb(&app, format!("mod:reco-{profile_id}"));
+    let (ok, skipped) = mods::install_list(&profile_id, &items, &cb)?;
+    Ok(json!({"installed": ok, "skipped": skipped}))
+}
+
+#[tauri::command(async)]
+fn reco_file(profile_id: String, url: String, folder: String, extract: bool, prefix: String, name: String) -> R<Value> {
+    reco::install_file(&profile_id, &url, &folder, extract, &prefix, &name)
+}
+
+#[tauri::command(async)]
 fn packs_search(query: String, sort: String, offset: u32, mc: Option<String>) -> R<Value> {
     packs::search(&query, &sort, offset, mc.as_deref().unwrap_or(""))
 }
@@ -889,6 +938,15 @@ fn main() {
             accounts_list,
             servers_list,
             packs_search,
+            reco_list,
+            lib_list,
+            lib_read,
+            lib_delete,
+            lib_import,
+            reco_save,
+            reco_info,
+            mods_install_many,
+            reco_file,
             worlds_list,
             friends_list,
             friend_action,

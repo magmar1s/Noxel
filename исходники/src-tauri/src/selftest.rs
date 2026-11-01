@@ -849,3 +849,31 @@ fn mod_flow() {
     }
     assert!(found.iter().all(|x| *x), "мод не отработал: {:?}", found);
 }
+
+/// Рекомендуемые моды: список с сервера, проверка наличия под версию профиля и установка архива с эмоциями.
+#[test]
+#[ignore]
+fn reco_flow() {
+    let r = crate::remote::reco().expect("список с сервера");
+    let cats = r["categories"].as_array().unwrap();
+    println!("разделов: {}", cats.len());
+    assert!(cats.len() >= 6);
+    let p = crate::mc::create_profile("26.2", "fabric", None, "reco-test", None).unwrap();
+    let items: Vec<(String, String)> = ["sodium", "distanthorizons", "falling-leaves", "plasmo-voice"].iter().map(|s| ("modrinth".to_string(), s.to_string())).chain(std::iter::once(("curseforge".to_string(), "394468".to_string()))).collect();
+    let info = crate::reco::info(&p.id, &items).expect("проверка наличия");
+    for k in ["sodium", "distanthorizons", "falling-leaves", "plasmo-voice", "394468"] {
+        println!("  {k}: ok={} название={} установлен={}", info[k]["ok"], info[k]["title"], info[k]["installed"]);
+    }
+    assert_eq!(info["sodium"]["ok"], true);
+    assert_eq!(info["falling-leaves"]["ok"], false, "мод без сборки под 26.2 должен быть помечен недоступным");
+    assert!(info["394468"]["ok"].is_null());
+    // архив эмоций: только папка emotes, без раздела для взрослых
+    let e = cats.iter().find(|c| c["id"] == "emote-packs").expect("раздел эмоций")["items"][0].clone();
+    let res = crate::reco::install_file(&p.id, e["url"].as_str().unwrap(), "emotes", true, e["prefix"].as_str().unwrap(), "эмоции").expect("установка эмоций");
+    let dir = crate::mc::inst_dir(&p.id).join("emotes");
+    let n = std::fs::read_dir(&dir).unwrap().count();
+    println!("эмоции установлены: {res}, файлов в папке: {n}");
+    assert!(n >= 30);
+    assert!(!dir.join("fap.json").exists(), "файлы из раздела NSFW не должны скачиваться");
+    assert!(crate::reco::install_file(&p.id, "https://example.com/x.zip", "mods", true, "", "x").is_err(), "папка mods запрещена");
+}
