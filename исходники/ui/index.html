@@ -24,6 +24,11 @@ button:disabled{cursor:default}
 svg{display:block;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .num{font-variant-numeric:tabular-nums}
 html.still *,html.still *::before,html.still *::after{animation:none!important;transition:none!important}
+/* лёгкий режим: без размытия фона под панелями и без тяжёлых теней, живой фон не двигается; окно в фоне и игра на экране ничего не рисуют */
+html.lite .glass{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.012)),linear-gradient(rgba(13,13,15,.93),rgba(13,13,15,.93));box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 10px 24px -14px rgba(0,0,0,.6)}
+html.lite #bg .orb{filter:none;animation:none;will-change:auto}
+html.lite #modal,html.lite #xmodal{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(0,0,0,.72)}
+html.idle :is(.nbtn.upd,.racc i.busy,.spinner,.sk,.bar i,.bar i::after,.stage .art svg,#drop svg,.sw-a,.sw-b,.sw-n,.rail-acc>i.busy,.live i,.ibtn.spin svg){animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* ── фон: серые градиенты и медленно плывущие пятна ── */
@@ -1015,7 +1020,10 @@ function skinViewer(host, o){
   }
   let ang = window.__ANG !== undefined ? window.__ANG : -30, drag = false, lx = 0, last = performance.now();
   const tick = t => {
-    if (!host.isConnected) return; const dt = t - last; last = t;
+    if (!host.isConnected) return;
+    if (idleNow()) { setTimeout(() => requestAnimationFrame(tick), 400); last = performance.now(); return; }
+    if (t - last < (document.documentElement.classList.contains('lite') ? 33 : 0)) { requestAnimationFrame(tick); return; }
+    const dt = t - last; last = t;
     if (!drag && window.__ANG === undefined && !document.documentElement.classList.contains('still')) ang += dt * 0.022;
     rig.style.transform = `rotateX(-7deg) rotateY(${ang}deg)`; requestAnimationFrame(tick);
   };
@@ -1523,6 +1531,7 @@ function playEmote(ctl, host, em){
   const st = {speed: 1, paused: false, run: 0, tick: 0, end: em.end || 1, stopped: false}; let last = performance.now();
   const step = now => {
     if (st.stopped || !host.isConnected) { if (host.isConnected) ctl.clear(); return; }
+    if (idleNow()) { last = now; setTimeout(() => requestAnimationFrame(step), 400); return; }
     const dt = Math.min(.1, (now - last) / 1000); last = now;
     if (!st.paused) st.run += dt * 20 * st.speed;
     let t = st.run;
@@ -2005,6 +2014,7 @@ function renderSettings(){
       <div class="hint">Список рекомендуемых серверов и обновления лаунчера тоже приходят с сервера Noxel, поэтому переустанавливать лаунчер не нужно.</div></div>
     <div class="glass panel" style="--i:6"><h3>Лаунчер<small>Внешний вид</small></h3>
       ${sw('sAnim', 'Анимации', 'Плавные переходы, свечение и живой фон', s.animations)}
+      ${sw('sLite', 'Лёгкий режим', 'Без размытия под панелями и с неподвижным фоном: меньше памяти и нагрузки, работает быстрее', liteOn())}
       <div class="opt"><div class="t"><b>Версия ${esc(S.sys ? S.sys.version : '')}</b><small>Обновления берутся с сервера Noxel и проверяются подписью</small></div><div style="display:flex;gap:8px"><button class="minibtn sm" id="sUpd">Проверить</button><button class="minibtn sm" id="sNews">Новости</button></div></div></div>
     <div class="glass panel" style="--i:7"><h3>Данные<small>Здесь лежат профили, моды, миры и Java</small></h3>
       <div class="chip" style="align-self:flex-start;max-width:100%;user-select:text"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.sys ? S.sys.data_dir : '')}</span></div>
@@ -2018,7 +2028,8 @@ function renderSettings(){
     const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
   }, 450); };
   const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
-  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); flag('sAnim', 'animations', applyAnim);
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); $('#sLite').onclick = e => { const b = e.currentTarget; b.classList.toggle('on'); try { localStorage.setItem('nx_lite', b.classList.contains('on') ? '1' : '0'); } catch (x) {} applyLite(); };
+  flag('sAnim', 'animations', applyAnim);
   mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
   mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
   const rg = $('#sRam'); const rp = () => { rg.style.setProperty('--p', ((rg.value - rg.min) / (rg.max - rg.min) * 100) + '%'); $('#sRamV').innerHTML = `${(rg.value / 1024).toFixed(1)}<small>ГБ</small>`; };
@@ -2032,7 +2043,13 @@ function renderSettings(){
   $('#sDir').onclick = () => invoke('open_folder', {profileId: null, sub: null});
   $('#sClr').onclick = async () => { try { const n = await invoke('clear_cache'); toast(n ? `Освобождено ${fmtSize(n)}` : 'Кэш уже пуст'); } catch (e) { toast(e); } };
 }
-function applyAnim(){ document.documentElement.classList.toggle('still', !(S.set && S.set.animations)); }
+function applyAnim(){ document.documentElement.classList.toggle('still', !(S.set && S.set.animations)); applyLite(); }
+const liteOn = () => { try { return localStorage.getItem('nx_lite') !== '0'; } catch (e) { return true; } };
+function applyLite(){ document.documentElement.classList.toggle('lite', liteOn()); }
+/* пока окно скрыто или не в фокусе, анимации и 3D-превью стоят: процессор и видеокарта не греются зря */
+const idleNow = () => document.hidden || !document.hasFocus();
+function applyIdle(){ document.documentElement.classList.toggle('idle', idleNow()); }
+['visibilitychange', 'focus', 'blur'].forEach(e => (e === 'visibilitychange' ? document : window).addEventListener(e, applyIdle)); applyLite(); applyIdle();
 
 /* ── события ── */
 T.event.listen('task', ({payload: t}) => {

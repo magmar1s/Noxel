@@ -1,6 +1,6 @@
 [package]
 name = "noxel"
-version = "0.11.0"
+version = "0.11.1"
 description = "Noxel — лаунчер Minecraft"
 edition = "2021"
 
@@ -22,7 +22,10 @@ md-5 = "0.10"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_SystemInformation"] }
+windows-sys = { version = "0.59", features = ["Win32_System_SystemInformation", "Win32_System_ProcessStatus", "Win32_System_Threading"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

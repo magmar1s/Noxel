@@ -903,6 +903,25 @@ fn ensure_webview2() {
     }
 }
 
+/// Возвращает системе освобождённую память процесса: куча Rust сама её не отдаёт, и лаунчер за часы работы «пухнет».
+fn start_memory_trim() {
+    #[cfg(target_os = "linux")]
+    unsafe {
+        libc::mallopt(libc::M_ARENA_MAX, 2);
+    }
+    std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_secs(45));
+        #[cfg(target_os = "linux")]
+        unsafe {
+            libc::malloc_trim(0);
+        }
+        #[cfg(windows)]
+        unsafe {
+            windows_sys::Win32::System::ProcessStatus::K32EmptyWorkingSet(windows_sys::Win32::System::Threading::GetCurrentProcess());
+        }
+    });
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(|a| a == "--prefetch").unwrap_or(false) {
@@ -917,6 +936,7 @@ fn main() {
     }
     let _ = fs::create_dir_all(data_dir());
     localapi::start();
+    start_memory_trim();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
