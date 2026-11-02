@@ -1,6 +1,6 @@
 [package]
 name = "noxel"
-version = "0.12.0"
+version = "0.13.2"
 description = "Noxel — лаунчер Minecraft"
 edition = "2021"
 
