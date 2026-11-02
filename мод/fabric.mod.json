@@ -4,23 +4,14 @@
   "version": "0.1.0",
   "name": "Noxel",
   "description": "Друзья, общий мир и облачные миры прямо из игры. Работает вместе с лаунчером Noxel.",
-  "authors": [
-    "Noxel"
-  ],
+  "authors": ["Noxel"],
   "license": "MIT",
   "environment": "client",
-  "entrypoints": {
-    "client": [
-      "noxel.mod.NoxelClient"
-    ]
-  },
+  "entrypoints": { "client": ["noxel.mod.NoxelClient"] },
   "depends": {
     "fabricloader": ">=0.16.0",
     "minecraft": ">=26.2",
     "java": ">=25",
     "fabric-screen-api-v1": "*"
-  },
-  "mixins": [
-    "noxel.mixins.json"
-  ]
+  }
 }

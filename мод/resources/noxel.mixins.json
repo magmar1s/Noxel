@@ -1,8 +1,0 @@
-{
-  "required": false,
-  "minVersion": "0.8",
-  "package": "noxel.mod.mixin",
-  "compatibilityLevel": "JAVA_21",
-  "client": ["HandMixin"],
-  "injectors": { "defaultRequire": 0 }
-}

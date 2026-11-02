@@ -14,11 +14,6 @@ public final class NoxelClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        try {
-            noxel.mod.vis.Hud.init();                       // визуалы работают и без лаунчера
-        } catch (Throwable t) {
-            System.out.println("[Noxel] визуалы не запустились: " + t);
-        }
         if (!Api.available()) return;                       // игра запущена не лаунчером Noxel
         System.out.println("[Noxel] мод запущен");
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
