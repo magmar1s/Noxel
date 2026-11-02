@@ -894,3 +894,66 @@ fn horizon_flow() {
     println!("код {:?}\n{}\n{}", out.status.code(), String::from_utf8_lossy(&out.stdout).lines().take(8).collect::<Vec<_>>().join("\n"), String::from_utf8_lossy(&out.stderr).lines().take(5).collect::<Vec<_>>().join("\n"));
     assert!(out.status.success(), "лаунчер Horizon не запустился");
 }
+
+/// Визуалы Noxel в настоящей игре 26.2: мод сам создаёт тестовый мир, включает все модули и снимает HUD и меню.
+/// Запуск: NOXEL_HOME=<папка с ссылками minecraft и runtime> NX_SHOTS=<куда сложить снимки> cargo test --release visuals_flow -- --ignored --nocapture
+#[test]
+#[ignore]
+fn visuals_flow() {
+    use crate::{accounts, localapi, mc};
+    use std::process::Command;
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+    let ver = "26.2";
+    mc::prefetch(ver, 8, false, &|_, _, _| {}).expect("предзагрузка игры");
+    localapi::start();
+    let _ = accounts::add_local("VisTest");
+    let p = mc::create_profile(ver, "fabric", None, "vistest", None).unwrap();
+    let mods = mc::inst_dir(&p.id).join("mods");
+    std::fs::create_dir_all(&mods).unwrap();
+    let api = std::fs::read_dir("/mnt/D/project/Noxel/данные/instances").unwrap().flatten().flat_map(|e| std::fs::read_dir(e.path().join("mods")).into_iter().flatten().flatten()).find(|f| f.file_name().to_string_lossy().starts_with("fabric-api")).expect("fabric-api").path();
+    std::fs::copy(&api, mods.join(api.file_name().unwrap())).unwrap();
+    let st = load_settings();
+    let acct = accounts::active_fresh().unwrap();
+    crate::cosmetics::set(&serde_json::json!({"sword": "", "totem": "gold", "knife": {"model": "karambit", "tex": "karambit_blue"}, "swords": ["all"]})).unwrap();
+    let mut pr = mc::prepare(&p, &st, &acct, &|_: &str, _: f64, _: &str| {}).expect("подготовка игры");
+    assert!(pr.gamedir.join("resourcepacks/Noxel Cosmetics.zip").exists(), "лаунчер не собрал ресурспак косметики");
+    pr.args.insert(0, "-Dnoxel.visuals.selftest=1".to_string());
+    for a in ["--width", "1600", "--height", "900"] { pr.args.push(a.to_string()); }
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\nguiScale:3\nresourcePacks:[\"vanilla\",\"file/Noxel Cosmetics.zip\"]\n");
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let l2 = log.clone();
+    let game = mc::Game::default();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |l| l2.lock().unwrap().extend(l)), Arc::new(|_| {})).unwrap();
+    let gpid = child.id() as u64;
+    std::thread::spawn(move || {
+        for _ in 0..1200 {
+            std::thread::sleep(Duration::from_millis(250));
+            if let Some(v) = Command::new("hyprctl").args(["activewindow", "-j"]).output().ok().and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok()) {
+                if v["pid"].as_u64() == Some(gpid) {
+                    if let Some(addr) = v["address"].as_str() {
+                        let _ = Command::new("hyprctl").args(["dispatch", &format!("hl.dsp.window.move({{ workspace = \"6\", follow = false, window = \"address:{addr}\" }})")]).output();
+                    }
+                }
+            }
+        }
+    });
+    let t = Instant::now();
+    while t.elapsed() < Duration::from_secs(420) {
+        if log.lock().unwrap().iter().any(|l| l.contains("проверка закончена")) { break; }
+        if child.try_wait().ok().flatten().is_some() { break; }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    std::thread::sleep(Duration::from_secs(3));
+    let _ = child.kill();
+    for l in log.lock().unwrap().iter().filter(|l| l.contains("Noxel") || l.contains("ERROR") || l.contains("Exception") || l.contains("at noxel")).take(60) { println!("{l}"); }
+    if let Ok(out) = std::env::var("NX_SHOTS") {
+        let _ = std::fs::create_dir_all(&out);
+        if let Ok(rd) = std::fs::read_dir(pr.gamedir.join("screenshots")) {
+            let mut v: Vec<_> = rd.flatten().collect();
+            v.sort_by_key(|e| e.file_name());
+            for (i, e) in v.iter().enumerate() { let _ = std::fs::copy(e.path(), format!("{out}/{:02}.png", i)); }
+        }
+    }
+    assert!(log.lock().unwrap().iter().any(|l| l.contains("проверка закончена")), "проверка визуалов не дошла до конца");
+}

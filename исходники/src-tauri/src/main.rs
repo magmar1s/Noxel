@@ -4,6 +4,9 @@ mod accounts;
 mod dav;
 mod emotes;
 mod horizon;
+mod cosmetics;
+mod media;
+mod visuals;
 mod autoauth;
 mod ping;
 mod reco;
@@ -661,6 +664,49 @@ fn skin_from_nick(id: String, nick: String) -> R<String> {
 }
 
 #[tauri::command(async)]
+fn cos_packs() -> R<Value> {
+    cosmetics::packs()
+}
+#[tauri::command(async)]
+fn cos_pack_install(app: AppHandle, project_id: String, profile_id: String) -> R<String> {
+    let cb = progress_cb(&app, format!("mod:{project_id}"));
+    cosmetics::install_pack(&project_id, &profile_id, &cb)
+}
+#[tauri::command]
+fn cos_catalog() -> Value {
+    cosmetics::catalog()
+}
+#[tauri::command]
+fn cos_get() -> Value {
+    cosmetics::get()
+}
+#[tauri::command(async)]
+fn cos_set(cfg: Value) -> R<()> {
+    cosmetics::set(&cfg)
+}
+
+#[tauri::command]
+fn vis_catalog() -> Value {
+    visuals::catalog()
+}
+#[tauri::command]
+fn vis_load() -> Value {
+    visuals::load()
+}
+#[tauri::command]
+fn vis_save(cfg: Value) -> R<()> {
+    visuals::save(&cfg)
+}
+#[tauri::command]
+fn vis_export() -> String {
+    visuals::export()
+}
+#[tauri::command]
+fn vis_import(code: String) -> R<()> {
+    visuals::import(&code)
+}
+
+#[tauri::command(async)]
 fn horizon_status() -> R<Value> {
     horizon::status()
 }
@@ -981,6 +1027,16 @@ fn main() {
             packs_search,
             reco_list,
             horizon_status,
+            cos_packs,
+            cos_pack_install,
+            cos_catalog,
+            cos_get,
+            cos_set,
+            vis_catalog,
+            vis_load,
+            vis_save,
+            vis_export,
+            vis_import,
             horizon_install,
             horizon_open,
             horizon_play,

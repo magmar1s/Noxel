@@ -13,3 +13,6 @@ Noxel.desktop
 установщик/src-tauri/target/
 установщик/src-tauri/gen/
 агент/build/
+
+# сборка мода (результат build.sh)
+мод/build/

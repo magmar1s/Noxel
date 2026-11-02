@@ -1060,6 +1060,8 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
         args.push(format!("-Dnoxel.api=http://127.0.0.1:{port}"));
         args.push(format!("-Dnoxel.key={key}"));
     }
+    let _ = crate::cosmetics::apply_to(&gamedir);
+    args.push(format!("-Dnoxel.visuals={}", crate::visuals::path().display()));
     if st.noxel_mod {
         crate::autoauth::install_mod(p, &gamedir);
     }

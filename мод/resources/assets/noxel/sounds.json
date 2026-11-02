@@ -1,0 +1,8 @@
+{
+  "knife.draw": { "sounds": ["noxel:knife_draw"] },
+  "knife.flip": { "sounds": ["noxel:knife_flip"] },
+  "knife.swing": { "sounds": ["noxel:knife_swing"] },
+  "knife.hit": { "sounds": ["noxel:knife_hit"] },
+  "ui.tick": { "sounds": ["noxel:ui_tick"] },
+  "ui.sparkle": { "sounds": ["noxel:sparkle"] }
+}

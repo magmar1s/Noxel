@@ -46,6 +46,83 @@ html.idle :is(.nbtn.upd,.racc i.busy,.spinner,.sk,.bar i,.bar i::after,.stage .a
   background-size:56px 56px;-webkit-mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent);mask-image:radial-gradient(70% 70% at 50% 40%,#000,transparent)}
 #app{position:relative;height:100%;display:grid;grid-template-columns:90px 1fr;gap:14px;padding:14px}
 
+
+/* ── визуалы ── */
+.vtabs{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.vtab{padding:8px 14px;border-radius:30px;font-size:12.5px;font-weight:550;color:var(--fg2);background:rgba(0,0,0,.3);border:1px solid var(--line);transition:all .25s var(--ease)}
+.vtab:hover{background:var(--fill2);color:var(--fg)}
+.vtab.on{background:color-mix(in srgb,var(--acc,#9a7bff) 24%,transparent);border-color:color-mix(in srgb,var(--acc,#9a7bff) 70%,transparent);color:#fff;box-shadow:0 0 18px -4px var(--acc,#9a7bff)}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:6px 6px 20px}
+.vcard{position:relative;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:20px;background:rgba(0,0,0,.28);border:1px solid var(--line);cursor:pointer;transition:transform .35s var(--spring),border-color .25s,background .25s;animation:up .5s var(--ease) both;animation-delay:calc(var(--i,0)*25ms)}
+.vcard:hover{transform:translateY(-3px);background:rgba(255,255,255,.06)}
+.vcard.on{border-color:color-mix(in srgb,var(--acc,#9a7bff) 55%,transparent);box-shadow:0 0 26px -10px var(--acc,#9a7bff)}
+.vcard .vt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.vcard .vt b{font-size:14px;font-weight:620}
+.vcard p{font-size:12px;color:var(--fg3);line-height:1.4;min-height:34px}
+.vpv{height:74px;border-radius:14px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1b2338,#243018 60%,#2a1d3a);border:1px solid var(--line)}
+.vpv .g{display:inline-flex;flex-direction:column;gap:3px;padding:7px 10px;border-radius:10px;background:rgba(14,14,20,.72);border:1px solid rgba(255,255,255,.14);font-size:10.5px;color:#eee;min-width:96px;box-shadow:0 8px 20px -8px #000}
+.vpv .g i{font-style:normal;display:flex;justify-content:space-between;gap:14px;color:#9a9aa8}
+.vpv .g i em{font-style:normal;color:#f2f2f7}
+.vpv .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:20px;background:rgba(14,14,20,.78);border:1px solid rgba(255,255,255,.16);font-size:11px;color:#f2f2f7}
+.vpv .pill u{width:6px;height:6px;border-radius:50%;background:var(--acc,#9a7bff);box-shadow:0 0 8px var(--acc,#9a7bff)}
+.vpv .kb{display:grid;grid-template-columns:repeat(3,20px);gap:3px}
+.vpv .kb b{height:20px;border-radius:5px;background:rgba(14,14,20,.78);border:1px solid rgba(255,255,255,.16);font-size:9px;display:grid;place-items:center;font-weight:600}
+.vpv .kb b.d{background:var(--acc,#9a7bff);color:#111}
+.vpv .rd{width:58px;height:58px;border-radius:50%;background:radial-gradient(circle,#3b5a2f,#243018);border:1px solid rgba(255,255,255,.3);position:relative}
+.vpv .rd u{position:absolute;width:5px;height:5px;border-radius:50%}
+.vpv .ch{position:relative;width:26px;height:26px}
+.vpv .ch u{position:absolute;background:var(--acc,#9a7bff);box-shadow:0 0 0 1px #000a}
+.vpv .bars{display:flex;align-items:flex-end;gap:2px;height:30px}
+.vpv .bars u{width:5px;background:var(--acc,#9a7bff);border-radius:2px}
+.kimg{width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55));animation:kf 4s ease-in-out infinite}
+@keyframes kf{0%,100%{transform:rotate(-3deg) translateY(0)}50%{transform:rotate(3deg) translateY(-3px)}}
+.cpx{width:56px;height:56px;image-rendering:pixelated;background-size:56px auto;background-repeat:no-repeat;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6))}
+@keyframes cf{to{background-position:0 calc(var(--n)*-56px)}}
+/* анимация превью: каждая карточка показывает, как модуль выглядит и «дышит» в игре */
+@keyframes bw{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
+.vpv .bars u{transform-origin:bottom;animation:bw .9s ease-in-out infinite alternate}
+.vpv .bars u:nth-child(2n){animation-duration:1.3s;animation-delay:.15s}
+.vpv .bars u:nth-child(3n){animation-duration:.7s;animation-delay:.3s}
+@keyframes kd{0%,35%{background:var(--acc);color:#111;transform:scale(.92)}45%,100%{background:rgba(14,14,20,.78);color:#fff;transform:none}}
+.vpv .kb b.d{background:rgba(14,14,20,.78);color:#fff}
+.vpv .kb b:nth-child(2){animation:kd 2.6s infinite}
+.vpv .kb b:nth-child(4){animation:kd 2.6s .65s infinite}
+.vpv .kb b:nth-child(5){animation:kd 2.6s 1.3s infinite}
+.vpv .kb b:nth-child(6){animation:kd 2.6s 1.95s infinite}
+@keyframes sw{to{transform:rotate(360deg)}}
+.vpv .rd::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 290deg,color-mix(in srgb,var(--acc) 55%,transparent) 360deg);animation:sw 2.4s linear infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+.vpv .rd u{animation:bl 1.6s infinite}
+.vpv .rd u:nth-child(2){animation-delay:.5s}
+@keyframes cp{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
+.vpv .ch{animation:cp 1.8s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.vpv .pill,.vpv .g{animation:fl 3s ease-in-out infinite}
+.vcard:hover .vpv .pill,.vcard:hover .vpv .g{animation-duration:1.2s}
+.vdrawer{position:fixed;top:14px;right:14px;bottom:14px;width:min(430px,92vw);z-index:60;display:flex;flex-direction:column;border-radius:26px;transform:translateX(110%);transition:transform .5s var(--ease)}
+.vdrawer.on{transform:none}
+.vdrawer .dh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:18px 20px 8px}
+.vdrawer .dh h3{font-size:17px;font-weight:650}
+.vdrawer .db{flex:1;overflow-y:auto;padding:6px 20px 20px;display:flex;flex-direction:column;gap:12px;scrollbar-width:none}
+.vdrawer .db::-webkit-scrollbar{display:none}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 12px;border-radius:14px;background:rgba(0,0,0,.26);border:1px solid var(--line)}
+.vrow b{font-size:13px;font-weight:560}
+.vrow .vc{display:flex;align-items:center;gap:10px;min-width:150px}
+.vrow .vc input[type=range]{width:120px}
+.vrow .vc .num{min-width:34px;text-align:right;font-size:12px;color:var(--fg2)}
+.vsel{padding:6px 12px;border-radius:20px;font-size:12px;background:var(--fill2);border:1px solid var(--line)}
+.vsel:hover{background:var(--fill3)}
+.vdots{display:flex;gap:8px;flex-wrap:wrap}
+.vdot{width:26px;height:26px;border-radius:50%;border:2px solid transparent;transition:transform .3s var(--spring)}
+.vdot:hover{transform:scale(1.15)}
+.vdot.on{border-color:#fff;box-shadow:0 0 14px var(--c)}
+.vnote{font-size:12px;color:var(--fg3);line-height:1.5;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.vnote b{color:var(--fg2)}
+.vsrv{display:grid;grid-template-columns:1.1fr 1fr 2fr;gap:0;font-size:12.5px;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.vsrv>div{padding:10px 12px;border-bottom:1px solid var(--line)}
+.vsrv>div:nth-last-child(-n+3){border-bottom:0}
+.vsrv .h{font-weight:620;color:var(--fg2);background:rgba(255,255,255,.04)}
+
 /* ── заставка ── */
 #splash{position:fixed;inset:0;z-index:300;display:grid;place-items:center;align-content:center;gap:22px;background:#050506;transition:opacity .7s var(--ease),visibility .7s}
 #splash.gone{opacity:0;visibility:hidden}
@@ -227,6 +304,7 @@ input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(255,255,
 @keyframes sheen{to{transform:translateX(100%)}}
 .bar.ind i{width:35%!important;animation:ind 1.3s var(--ease) infinite}
 @keyframes ind{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+
 
 /* ── главная ── */
 .stage{position:relative;overflow:hidden;min-height:0;display:flex;flex-direction:column}
@@ -501,6 +579,30 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
 .srow .ctl{display:flex;align-items:center;gap:6px}
 .srow .switch{width:36px;height:22px}.srow .switch::after{width:14px;height:14px;top:3px;left:3px}.srow .switch.on::after{transform:translateX(14px)}
 .pls{font-size:11.5px;color:var(--fg3);white-space:nowrap}.pls.on{color:var(--fg)}
+
+/* ── акцентный стиль (по умолчанию фиолетовый «жидкое стекло»; цвет меняется на странице «Визуалы → Стиль») ── */
+:root{--acc:#9a7bff}
+#bg{background:
+  radial-gradient(900px 620px at 12% -8%,color-mix(in srgb,var(--acc) 22%,#0a0a0f) 0%,transparent 62%),
+  radial-gradient(820px 700px at 104% 108%,color-mix(in srgb,var(--acc) 16%,#0a0a0f) 0%,transparent 58%),
+  linear-gradient(180deg,#09090d,#050507)}
+#bg .orb{background:radial-gradient(circle,color-mix(in srgb,var(--acc) 38%,transparent),transparent 70%)}
+.glass{border-color:color-mix(in srgb,var(--acc) 18%,rgba(255,255,255,.1));box-shadow:inset 0 1px 0 color-mix(in srgb,var(--acc) 38%,rgba(255,255,255,.2)),inset 0 -1px 0 rgba(255,255,255,.03),0 24px 60px -12px rgba(0,0,0,.6),0 0 40px -22px var(--acc)}
+.glass::before{background:radial-gradient(340px circle at var(--mx,50%) var(--my,0%),color-mix(in srgb,var(--acc) 16%,transparent),transparent 65%)}
+.nav-pill{background:var(--acc);box-shadow:0 0 16px var(--acc)}
+.nbtn.on{color:#fff;background:color-mix(in srgb,var(--acc) 20%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acc) 55%,transparent),0 0 26px -8px var(--acc)}
+.nbtn[data-p=home]:not(.on){color:#fff;background:color-mix(in srgb,var(--acc) 16%,transparent);box-shadow:0 0 22px -6px var(--acc)}
+.nbtn.has-new::after{background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.row.sel::before{background:var(--acc);box-shadow:0 0 12px var(--acc)}
+.switch.on{background:color-mix(in srgb,var(--acc) 60%,transparent);border-color:var(--acc)}
+.switch.on::after{background:#fff;box-shadow:0 0 10px var(--acc)}
+.minibtn.solid{background:linear-gradient(180deg,color-mix(in srgb,var(--acc) 62%,#fff),var(--acc));color:#0b0b10;border-color:var(--acc);box-shadow:0 8px 26px -10px var(--acc)}
+.minibtn.solid:hover{background:color-mix(in srgb,var(--acc) 72%,#fff)}
+.bar i{background:linear-gradient(90deg,color-mix(in srgb,var(--acc) 55%,transparent),var(--acc))}
+input[type=range]{background:linear-gradient(90deg,var(--acc) var(--p,50%),var(--fill2) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 30%,transparent),0 4px 12px rgba(0,0,0,.6)}
+.badge.w{background:var(--acc);border-color:var(--acc);color:#0b0b10}
+.seg button.on{color:#0b0b10}
 </style>
 </head>
 <body>
@@ -550,6 +652,7 @@ textarea.inp{height:110px;padding:10px 14px;resize:none;font-family:var(--mono);
 
     <section class="page" id="p-friends"><div class="glass sheet" id="friendspage"></div></section>
     <section class="page" id="p-news"><div class="glass sheet" id="newspage"></div></section>
+    <section class="page" id="p-visuals"><div class="glass sheet" id="vispage"></div></section>
     <section class="page" id="p-servers"><div class="glass sheet" id="srvpage"></div></section>
     <section class="page" id="p-settings"><div class="glass sheet" id="settings"></div></section>
   </main>
@@ -580,6 +683,7 @@ const I = {
   ver:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
   mod:'<svg viewBox="0 0 24 24"><path d="M10 4a2 2 0 1 1 4 0v2h4a1 1 0 0 1 1 1v4h-2a2 2 0 1 0 0 4h2v4a1 1 0 0 1-1 1h-4v-2a2 2 0 1 0-4 0v2H6a1 1 0 0 1-1-1v-4h2a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></svg>',
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-5.5 8-5.5s6.5 1.5 8 5.5"/></svg>',
+  eye:'<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>',
   plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
   trash:'<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></svg>',
@@ -686,7 +790,8 @@ addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('
 document.addEventListener('mousemove', e => { const g = e.target.closest && e.target.closest('.glass'); if (g) { const r = g.getBoundingClientRect(); g.style.setProperty('--mx', (e.clientX - r.left) + 'px'); g.style.setProperty('--my', (e.clientY - r.top) + 'px'); } });
 
 /* ── навигация ── */
-const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['friends','Друзья',I.users],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['visuals','Визуалы',I.eye],['servers','Серверы',I.srv],['friends','Друзья',I.users],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+invoke('vis_load').then(c => { const a = ((c || {}).style || {}).accent; const m = {'Фиолетовый':'#9a7bff','Лёд':'#6fd3ff','Мята':'#5be3a8','Роза':'#ff7bb0','Янтарь':'#ffb84d','Белый':'#f2f2f5','Радуга':'#ff7bb0'}; if (a && m[a]) document.documentElement.style.setProperty('--acc', m[a]); }).catch(() => {});
 $('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}" title="${t}">${ic}<span class="lbl">${t}</span></button>`).join(''));
 $$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
 $('#railAcc').onclick = () => go('accounts');
@@ -697,6 +802,7 @@ function go(p){
   if (p === 'home') { renderProfiles(); renderHero(); }
   if (p === 'versions') { loadVersions(); }
   if (p === 'mods') { initMods(); }
+  if (p === 'visuals') { renderVisuals(); }
   if (p === 'servers') { renderServerPage(); }
   if (p === 'news') { renderNews(true); }
   if (p === 'friends') { renderFriends(); }
@@ -704,6 +810,179 @@ function go(p){
   if (p === 'settings') { renderSettings(); }
 }
 
+/* ── Визуалы ── */
+const VIS = {cat: null, cfg: {}, catalog: null, tab: 'Информация', sel: null, timer: null, safe: false};
+const VACC = {'Фиолетовый':'#9a7bff','Лёд':'#6fd3ff','Мята':'#5be3a8','Роза':'#ff7bb0','Янтарь':'#ffb84d','Белый':'#f2f2f5','Радуга':'#ff7bb0'};
+const VRISK = new Set(['radar','tags','predict','target','combo','near','tntworld','tnt','storage','cps']);
+const VTABS = ['Информация','Бой','Мир','Экран','Прочее','Помощники'];
+const VWARN = new Set(['autotool','autototem']);
+function vOn(m){ const v = (VIS.cfg.modules || {})[m.id]; return v && v.on !== undefined ? !!v.on : !!m.on; }
+function vVal(m, o){ const v = (VIS.cfg.modules || {})[m.id]; return v && v[o.key] !== undefined ? v[o.key] : o.def; }
+function vSetMod(id, k, val){ VIS.cfg.modules = VIS.cfg.modules || {}; (VIS.cfg.modules[id] = VIS.cfg.modules[id] || {})[k] = val; vSave(); }
+function vSave(){ clearTimeout(VIS.timer); VIS.timer = setTimeout(() => invoke('vis_save', {cfg: VIS.cfg}).catch(() => {}), 250); }
+function vStyle(k, d){ return (VIS.cfg.style || {})[k] ?? d; }
+function vApplyAccent(){ const c = VACC[vStyle('accent', 'Фиолетовый')] || '#9a7bff'; document.documentElement.style.setProperty('--acc', c); }
+const VPV = {
+  island: () => `<span class="pill"><u></u>Noxel 15:42 · 144 fps · 28 мс</span>`,
+  watermark: () => `<span class="pill"><u></u>Noxel · Player</span>`,
+  perf: () => `<div class="g"><i>FPS<em>144</em></i><i>Пинг<em>28 мс</em></i><div class="bars">${[8,14,11,18,12,20,15,9,17,13].map(h => `<u style="height:${h}px"></u>`).join('')}</div></div>`,
+  coords: () => `<div class="g"><i>XYZ<em>128 72 -40</em></i><i>Курс<em>СВ</em></i><i>Биом<em>plains</em></i></div>`,
+  clock: () => `<div class="g"><i>Время<em>15:42</em></i><i>В игре<em>08:20</em></i><i>Сессия<em>1:12</em></i></div>`,
+  speed: () => `<span class="pill"><u></u>4.3 бл/с</span>`,
+  cps: () => `<span class="pill"><u></u>CPS 9 | 4</span>`,
+  server: () => `<div class="g"><i>Адрес<em>play.srv.ru</em></i><i>Пинг<em>31 мс</em></i><i>Игроки<em>124</em></i></div>`,
+  potions: () => `<div class="g"><i>Скорость II<em>3:12</em></i><i>Сила<em>1:05</em></i></div>`,
+  armor: () => `<div class="g"><i>Шлем<em>94%</em></i><i>Нагрудник<em>71%</em></i><i>Ботинки<em>38%</em></i></div>`,
+  items: () => `<div class="g"><i>Тотемы<em>×3</em></i><i>Жемчуг<em>×12</em></i><i>Яблоки<em>×8</em></i></div>`,
+  keys: () => `<div class="kb"><b></b><b class="d">W</b><b></b><b class="d">A</b><b>S</b><b>D</b></div>`,
+  near: () => `<div class="g"><i>Kaktus<em>7 м</em></i><i>Frostbyte<em>14 м</em></i></div>`,
+  target: () => `<div class="g"><i>Kaktus<em>3.4 м</em></i><div class="bars" style="height:5px;background:#333;border-radius:3px;overflow:hidden"><u style="width:70%;height:5px;background:#5be3a8"></u></div><i>14 / 20<em>⛨ 14</em></i></div>`,
+  radar: () => `<div class="rd"><u style="left:36px;top:14px;background:#ff6b6b"></u><u style="left:14px;top:38px;background:#ffc14d"></u><u style="left:27px;top:27px;background:var(--acc)"></u></div>`,
+  crosshair: () => `<div class="ch"><u style="left:11px;top:0;width:2px;height:7px"></u><u style="left:11px;top:17px;width:2px;height:7px"></u><u style="left:0;top:11px;width:7px;height:2px"></u><u style="left:17px;top:11px;width:7px;height:2px"></u></div>`,
+  media: () => `<div class="g"><i>Название трека<em>♪</em></i><i>Исполнитель<em></em></i></div>`,
+  waypoints: () => `<div class="g"><i>Дом<em>↗ 120 м</em></i><i>Шахта<em>← 340 м</em></i></div>`,
+  compass: () => `<span class="pill"><u></u>ЮЗ · З · СЗ · С · СВ</span>`,
+  combo: () => `<span class="pill"><u></u>Комбо ×7</span>`,
+  death: () => `<span class="pill"><u></u>Смерть: 120 64 -33</span>`,
+  inventory: () => `<div class="kb" style="grid-template-columns:repeat(6,14px)">${'<b style="height:14px"></b>'.repeat(12)}</div>`,
+};
+async function renderVisuals(){
+  const el = $('#vispage'); if (!el) return;
+  if (!VIS.catalog) {
+    try { VIS.catalog = await invoke('vis_catalog'); VIS.cfg = await invoke('vis_load'); } catch (e) { el.innerHTML = '<div class="empty"><div><h3>Не удалось загрузить визуалы</h3></div></div>'; return; }
+    vApplyAccent();
+  }
+  const cat = VIS.catalog, tabs = [...VTABS, 'Стиль', 'Наборы', 'Косметика', 'Честность'];
+  const mods = cat.modules;
+  const total = mods.filter(vOn).length;
+  el.innerHTML = `<div class="mhead"><div class="ltitle"><h2>Визуалы<small>${total} из ${mods.length} включено · меню в игре: правый Shift</small></h2><div style="display:flex;gap:8px"><button class="minibtn sm" id="vExp">${I.copy} Скопировать код</button><button class="minibtn sm" id="vImp">${I.dl} Вставить код</button></div></div>
+    <div class="vtabs">${tabs.map(t => `<button class="vtab ${VIS.tab === t ? 'on' : ''}" data-t="${t}">${t}</button>`).join('')}</div></div>
+    <div class="mbody" id="vbody"></div><div class="vdrawer glass" id="vdrawer"></div>`;
+  $$('.vtab', el).forEach(b => b.onclick = () => { VIS.tab = b.dataset.t; VIS.sel = null; renderVisuals(); });
+  $('#vExp').onclick = async () => { const c = await invoke('vis_export'); try { await navigator.clipboard.writeText(c); toast('Код настроек скопирован: отправь его другу'); } catch (e) { modalHtml('Код настроек', `<div class="field"><input class="inp" readonly value="${esc(c)}" onclick="this.select()"></div>`); } };
+  $('#vImp').onclick = async () => {
+    const ok = await modalHtml('Вставить код настроек', `<div class="field"><label>Код, который начинается с NXV1:</label><input class="inp" id="vCode" placeholder="NXV1:..." spellcheck="false"></div>`, [{label: 'Применить', val: true, cls: 'solid'}, {label: 'Отмена', val: false}]);
+    if (!ok) return;
+    try { await invoke('vis_import', {code: $('#vCode').value}); VIS.cfg = await invoke('vis_load'); vApplyAccent(); toast('Настройки применены'); renderVisuals(); } catch (e) { modal('Не получилось', String(e)); }
+  };
+  const body = $('#vbody');
+  if (VTABS.includes(VIS.tab)) visModules(body, mods.filter(m => m.cat === VIS.tab));
+  else if (VIS.tab === 'Стиль') visStyle(body);
+  else if (VIS.tab === 'Наборы') visPresets(body);
+  else if (VIS.tab === 'Косметика') visCosmetics(body);
+  else visHonest(body);
+  if (VIS.sel) openDrawer(VIS.sel);
+}
+function visModules(body, list){
+  body.innerHTML = `<div class="vgrid">${list.map((m, i) => {
+    const on = vOn(m), pv = (VPV[m.id] || (() => `<span style="color:#9a9aa8;font-size:11px">${esc(m.panel ? 'панель' : 'работает в игре')}</span>`))();
+    return `<div class="vcard ${on ? 'on' : ''}" data-id="${m.id}" style="--i:${i}"><div class="vpv">${pv}</div>
+      <div class="vt"><b>${esc(m.name)}${VWARN.has(m.id) ? ' <span title="Автоматизация: на многих серверах запрещена" style="color:#ff6b6b;font-size:11px">⚠</span>' : ''}${VRISK.has(m.id) ? ' <span title="Показывает данные о бое: на строгих серверах проверь правила" style="color:#ffc14d;font-size:11px">●</span>' : ''}</b><button class="switch ${on ? 'on' : ''}" data-sw="${m.id}"></button></div><p>${esc(m.desc)}</p></div>`;
+  }).join('')}</div>${VIS.tab === 'Помощники' ? visAssist() : ''}<div class="vnote" style="margin:0 6px 20px"><b>●</b> — модуль показывает сведения о бою (цель, CPS, радар, предсказания). Они ничего не делают за тебя, но на серверах со строгими правилами про моды сначала загляни в вкладку «Честность».</div>`;
+  $$('[data-rm]', body).forEach(b => b.onclick = () => { VIS.cfg.assistBlock.splice(+b.dataset.rm, 1); vSave(); renderVisuals(); });
+  const ba = $('#vBlkAdd'); if (ba) ba.onclick = () => { const v = $('#vBlk').value.trim(); if (!v) return; (VIS.cfg.assistBlock = VIS.cfg.assistBlock || []).push(v); vSave(); renderVisuals(); };
+  $$('.vcard', body).forEach(c => c.onclick = e => {
+    const m = VIS.catalog.modules.find(x => x.id === c.dataset.id);
+    if (e.target.closest('[data-sw]')) { const on = !vOn(m); vSetMod(m.id, 'on', on); renderVisuals(); return; }
+    VIS.sel = m.id; openDrawer(m.id);
+  });
+}
+function visAssist(){
+  const list = (VIS.cfg.assistBlock || []);
+  return `<div class="vnote" style="margin:0 6px 12px;border-color:rgba(255,107,107,.4)"><b style="color:#ff8b8b">⚠ Это автоматизация.</b> Умный инструмент и тотем в левой руке делают действия за тебя. На многих серверах это запрещено и карается баном; на своём сервере или в одиночной игре всё в порядке. Модули выключены по умолчанию. Игра перестанет их использовать на серверах из списка:
+    <div class="vtabs" style="margin-top:10px">${list.map((x, i) => `<button class="vtab on" data-rm="${i}">${esc(x)} ×</button>`).join('') || '<span style="color:var(--fg3)">список пуст</span>'}
+    <input class="inp" id="vBlk" placeholder="play.example.ru" style="max-width:220px" spellcheck="false"><button class="minibtn sm" id="vBlkAdd">Запретить на сервере</button></div></div>`;
+}
+function openDrawer(id){
+  const m = VIS.catalog.modules.find(x => x.id === id), d = $('#vdrawer'); if (!m || !d) return;
+  d.classList.add('on');
+  d.innerHTML = `<div class="dh"><h3>${esc(m.name)}</h3><div style="display:flex;gap:8px;align-items:center"><button class="switch ${vOn(m) ? 'on' : ''}" id="dSw"></button><button class="ibtn sm" id="dX">${I.x}</button></div></div>
+    <div class="db"><div class="vpv" style="height:96px">${(VPV[m.id] || (() => ''))()}</div><div class="vnote">${esc(m.desc)}</div>
+    ${m.opts.length ? m.opts.map(o => visOpt(m, o)).join('') : '<div class="vnote">У этого модуля нет настроек: включил и работает.</div>'}
+    ${m.panel ? '<div class="vnote">Положение на экране меняй в игре: меню (правый Shift) → модуль → «Переместить».</div>' : ''}
+    <button class="minibtn sm" id="dReset">Сбросить настройки модуля</button></div>`;
+  $('#dX').onclick = () => { VIS.sel = null; d.classList.remove('on'); };
+  $('#dSw').onclick = () => { vSetMod(m.id, 'on', !vOn(m)); renderVisuals(); };
+  $('#dReset').onclick = () => { if (VIS.cfg.modules) delete VIS.cfg.modules[m.id]; vSave(); renderVisuals(); };
+  $$('[data-k]', d).forEach(inp => {
+    const o = m.opts.find(x => x.key === inp.dataset.k);
+    if (o.kind === 'num') inp.oninput = () => { const v = Math.round(+inp.value / o.step) * o.step; vSetMod(m.id, o.key, +v.toFixed(3)); inp.style.setProperty('--p', ((v - o.min) / (o.max - o.min) * 100) + '%'); inp.closest('.vc').querySelector('.num').textContent = o.step >= 1 ? Math.round(v) : v.toFixed(2); };
+    if (o.kind === 'bool') inp.onclick = () => { const on = !(+vVal(m, o) >= .5); vSetMod(m.id, o.key, on ? 1 : 0); inp.classList.toggle('on', on); };
+    if (o.kind === 'choice') inp.onclick = () => { const n = (Math.round(+vVal(m, o)) + 1) % o.choices.length; vSetMod(m.id, o.key, n); inp.textContent = o.choices[n]; };
+  });
+}
+function visOpt(m, o){
+  const v = +vVal(m, o);
+  if (o.kind === 'bool') return `<div class="vrow"><b>${esc(o.name)}</b><button class="switch ${v >= .5 ? 'on' : ''}" data-k="${o.key}"></button></div>`;
+  if (o.kind === 'choice') return `<div class="vrow"><b>${esc(o.name)}</b><button class="vsel" data-k="${o.key}">${esc(o.choices[Math.max(0, Math.min(o.choices.length - 1, Math.round(v)))])}</button></div>`;
+  return `<div class="vrow"><b>${esc(o.name)}</b><div class="vc"><input type="range" data-k="${o.key}" min="${o.min}" max="${o.max}" step="${o.step}" value="${v}" style="--p:${(v - o.min) / (o.max - o.min) * 100}%"><span class="num">${o.step >= 1 ? Math.round(v) : v.toFixed(2)}</span></div></div>`;
+}
+function visStyle(body){
+  const th = VIS.catalog.themes, st = vStyle('style', 'Жидкое стекло'), ac = vStyle('accent', 'Фиолетовый');
+  body.innerHTML = `<div class="sgrid"><div class="glass panel"><h3>Стиль стекла<small>Так выглядят все панели в игре</small></h3><div class="vtabs">${th.styles.map(s => `<button class="vtab ${s === st ? 'on' : ''}" data-st="${s}">${s}</button>`).join('')}</div></div>
+    <div class="glass panel"><h3>Цвет акцента<small>Он же красит сам лаунчер</small></h3><div class="vdots">${th.accents.map(a => `<button class="vdot ${a === ac ? 'on' : ''}" data-ac="${a}" title="${a}" style="background:${VACC[a]};--c:${VACC[a]}"></button>`).join('')}</div></div>
+    <div class="glass panel"><h3>Скругление и стекло</h3><div class="vrow"><b>Скругление</b><div class="vc"><input type="range" id="vRad" min="0" max="9" step="1" value="${vStyle('radius', 7)}"><span class="num">${vStyle('radius', 7)}</span></div></div>
+    <div class="vrow"><b>Плотность стекла</b><div class="vc"><input type="range" id="vGl" min="0.2" max="1" step="0.05" value="${vStyle('glass', .9)}"><span class="num">${(+vStyle('glass', .9)).toFixed(2)}</span></div></div></div></div>`;
+  const set = (k, v) => { VIS.cfg.style = VIS.cfg.style || {}; VIS.cfg.style[k] = v; vSave(); };
+  $$('[data-st]', body).forEach(b => b.onclick = () => { set('style', b.dataset.st); renderVisuals(); });
+  $$('[data-ac]', body).forEach(b => b.onclick = () => { set('accent', b.dataset.ac); vApplyAccent(); renderVisuals(); });
+  $('#vRad').oninput = e => { set('radius', +e.target.value); e.target.nextElementSibling.textContent = e.target.value; e.target.style.setProperty('--p', e.target.value / 9 * 100 + '%'); };
+  $('#vGl').oninput = e => { set('glass', +e.target.value); e.target.nextElementSibling.textContent = (+e.target.value).toFixed(2); e.target.style.setProperty('--p', (e.target.value - .2) / .8 * 100 + '%'); };
+}
+function visPresets(body){
+  const pr = VIS.catalog.presets;
+  body.innerHTML = `<div class="sgrid">${Object.entries(pr).map(([n, p], i) => `<div class="glass panel" style="--i:${i}"><h3>${esc(n)}<small>${esc(p.desc)}</small></h3><div class="hint">${p.ids.length} модулей</div><button class="minibtn solid" data-pr="${esc(n)}">Включить набор</button></div>`).join('')}</div>`;
+  $$('[data-pr]', body).forEach(b => b.onclick = () => { const p = pr[b.dataset.pr]; VIS.cfg.modules = VIS.cfg.modules || {}; VIS.catalog.modules.forEach(m => { (VIS.cfg.modules[m.id] = VIS.cfg.modules[m.id] || {}).on = p.ids.includes(m.id); }); vSave(); toast(`Набор «${b.dataset.pr}» включён`); VIS.tab = 'Информация'; renderVisuals(); });
+}
+function visHonest(body){
+  body.innerHTML = `<div class="sgrid"><div class="glass panel"><h3>Что делает Noxel Visuals<small>И чего не делает никогда</small></h3>
+    <div class="vnote"><b>Только рисует.</b> Панели, подписи, траектории, прицел, радар. Ничего не нажимает за тебя, не двигает камеру, не меняет скорость, дальность или урон. Нет автоматической смены предметов, авто-кликера и «аур».</div>
+    <div class="vnote"><b>Не следит за тобой.</b> Никакого сканирования процессов, привязки к железу и запрета запускать программы. Мод открыт, работает без интернета и без аккаунта; настройки лежат в одном файле <code>visuals.json</code>, его можно посмотреть и поправить руками.</div>
+    <div class="vnote"><b>Ничего не отправляет.</b> Метки, память о сундуках и настройки остаются на твоём компьютере. В облако они не уходят, пока ты сам не поделишься кодом.</div></div>
+    <div class="glass panel"><h3>Серверы и правила<small>Честно о риске</small></h3>
+    <div class="vsrv"><div class="h">Что включено</div><div class="h">Риск</div><div class="h">Пояснение</div>
+      <div>Оформление: остров, часы, прицел, хотбар</div><div>🟢 минимальный</div><div>Это только внешний вид, как у любого лаунчера с HUD.</div>
+      <div>Информация: FPS, координаты, эффекты, броня, запасы, метки</div><div>🟢 низкий</div><div>Данные, которые и так есть в игре, только красивее.</div>
+      <div>● Бой: цель, CPS, радар, предсказание бросков, здоровье над игроками</div><div>🟡 зависит от сервера</div><div>Показывают расчётные данные. Часть серверов запрещает любые клиентские моды: правила читай у администрации.</div></div>
+    <div class="vnote">Мы не знаем правил каждого сервера и не даём гарантий допуска. Безопасный выбор: набор <b>«Классика»</b>. Если сервер просит не использовать моды, не используй.</div></div></div>`;
+}
+const COSHINT = {'countercraft-knife-pack': 'Как включить нож: возьми меч, в наковальне назови его «M9 Bayonet», «Bayonet» или «Stilletto» (есть ещё Gradient-версии).'};
+async function visCosmetics(body){
+  if (!VIS.cos) { try { VIS.cos = await invoke('cos_catalog'); VIS.cosSel = await invoke('cos_get'); } catch (e) { body.innerHTML = '<div class="vnote">Не удалось загрузить косметику</div>'; return; } }
+  const sel = VIS.cosSel || {}, cat = VIS.cos;
+  const px = it => `<div class="cpx" style="--n:${it.frames};background-image:url(data:image/png;base64,${it.png});${it.frames > 1 ? 'animation:cf calc(var(--n)*.28s) steps(var(--n)) infinite' : ''}"></div>`;
+  const grid = (list, key) => list.map(it => `<div class="vcard ${sel[key] === it.id ? 'on' : ''}" data-k="${key}" data-id="${it.id}" style="align-items:center;text-align:center"><div class="vpv" style="width:100%">${px(it)}</div><b style="font-size:13px">${esc(it.name)}</b><p style="min-height:0">${esc(it.desc)}${it.frames > 1 ? ' · анимация' : ''}</p></div>`).join('');
+  const prof = S.profiles.find(p => p.id === S.sel);
+  const km = (cat.knives && cat.knives.models) || [], ksel = sel.knife || {};
+  const knivesHtml = km.map(m => {
+    const curTex = (ksel.model === m.id ? m.textures.find(t => t.id === ksel.tex) : null) || m.textures[0];
+    const dots = m.textures.length > 1 ? `<div class="vdots" style="justify-content:center">${m.textures.map(t => `<button class="vdot ${ksel.model === m.id && ksel.tex === t.id ? 'on' : ''}" data-km="${m.id}" data-kt="${t.id}" title="${esc(t.name)}" style="background:${t.color || '#999'};--c:${t.color || '#999'}"></button>`).join('')}</div>` : '';
+    return `<div class="vcard ${ksel.model === m.id ? 'on' : ''}" data-km="${m.id}" data-kt="${curTex.id}" style="align-items:center;text-align:center"><div class="vpv" style="width:100%;height:150px"><img class="kimg" style="width:140px;height:140px" src="data:image/png;base64,${curTex.preview}" alt=""></div><b style="font-size:14px">${esc(m.name)}</b><p style="min-height:0">${esc(m.desc)}</p>${dots}<p style="min-height:0;font-size:10.5px">Автор модели: ${esc(m.author)} · ${esc(m.license)}</p></div>`;
+  }).join('');
+  body.innerHTML = `<div class="vnote" style="margin:6px">Скины мечей и тотемов лаунчер собирает сам (ресурспак «Noxel Cosmetics» включается во всех профилях). Это наши рисунки. Объёмные 3D-ножи сделаны другими авторами с открытой лицензией: они уже внутри Noxel, имя автора и лицензия указаны на карточке и в самом ресурспаке. Больше ножей можно взять из паков ниже: лаунчер скачает и включит их в выбранном профиле${prof ? ' (сейчас «' + esc(prof.name) + '»)' : ''}.</div>
+  <div class="ltitle" style="padding:6px 8px"><h2 style="font-size:16px">3D-ножи <small>настоящие объёмные модели · заменяют все мечи</small></h2><button class="minibtn sm" data-clr="knife">Вернуть мечи</button></div>
+  <div class="vgrid" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${knivesHtml}</div>
+  <div class="ltitle" style="padding:6px 8px"><h2 style="font-size:16px">Ещё больше ножей <small>паки других авторов с Modrinth: Noxel скачает и включит в профиле</small></h2></div>
+  <div id="cosPacks" class="vgrid"><div class="vnote">Загружаю список…</div></div>
+  <div class="ltitle" style="padding:6px 8px"><h2 style="font-size:16px">Мечи <small>${cat.swords.length} плоских скинов</small></h2><button class="minibtn sm" data-clr="sword">Сбросить меч</button></div><div class="vgrid">${grid(cat.swords, 'sword')}</div>
+  <div class="ltitle" style="padding:6px 8px"><h2 style="font-size:16px">Тотемы <small>${cat.totems.length} скинов (видны и при воскрешении)</small></h2><button class="minibtn sm" data-clr="totem">Сбросить тотем</button></div><div class="vgrid">${grid(cat.totems, 'totem')}</div>`;
+  const apply = async () => { try { await invoke('cos_set', {cfg: VIS.cosSel}); toast('Применено во всех профилях'); } catch (e) { modal('Не получилось', String(e)); } };
+  $$('.vcard[data-k]', body).forEach(c => c.onclick = () => { VIS.cosSel = Object.assign({swords: ['all']}, VIS.cosSel, {[c.dataset.k]: c.dataset.id}); if (c.dataset.k === 'sword') VIS.cosSel.knife = {}; apply(); visCosmetics(body); });
+  $$('[data-clr]', body).forEach(b => b.onclick = () => { VIS.cosSel = Object.assign({}, VIS.cosSel, b.dataset.clr === 'knife' ? {knife: {}} : {[b.dataset.clr]: ''}); apply(); visCosmetics(body); });
+  $$('[data-km]', body).forEach(c => c.onclick = e => { e.stopPropagation(); VIS.cosSel = Object.assign({swords: ['all']}, VIS.cosSel, {knife: {model: c.dataset.km, tex: c.dataset.kt}, sword: ''}); apply(); visCosmetics(body); });
+  try {
+    if (!VIS.packs) VIS.packs = await invoke('cos_packs');
+    const box = $('#cosPacks'); if (!box) return;
+    box.innerHTML = VIS.packs.map(p => `<div class="vcard" style="gap:8px"><div style="display:flex;gap:12px;align-items:center"><img src="${esc(p.icon || '')}" alt="" style="width:52px;height:52px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,.06)" onerror="this.style.visibility='hidden'"><div style="min-width:0"><b style="font-size:13.5px">${esc(p.title)}</b><div style="font-size:11px;color:var(--fg3)">${fmtNum(p.downloads)} скачиваний · ${esc(p.license || '')}</div></div></div><p style="min-height:0">${esc(p.desc)}</p>${COSHINT[p.slug] ? `<p style="min-height:0;color:var(--fg2)">${esc(COSHINT[p.slug])}</p>` : ''}<div style="display:flex;gap:8px"><button class="minibtn sm solid" data-ins="${esc(p.slug)}">Установить и включить</button><button class="minibtn sm" data-web="${esc(p.url)}">${I.ext}</button></div></div>`).join('');
+    $$('[data-web]', box).forEach(b => b.onclick = e => { e.stopPropagation(); invoke('open_url', {url: b.dataset.web}).catch(() => {}); });
+    $$('[data-ins]', box).forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      if (!prof || !prof.installed) { modal('Нужен профиль', 'Сначала выбери профиль на главной странице и один раз скачай игру: пак ставится в его папку.'); return; }
+      b.disabled = true; b.textContent = 'Ставлю…';
+      try { const n = await invoke('cos_pack_install', {projectId: b.dataset.ins, profileId: prof.id}); toast('Установлен и включён: ' + n); b.textContent = 'Установлен ✓'; } catch (x) { modal('Не получилось', String(x)); b.disabled = false; b.textContent = 'Установить и включить'; }
+    });
+  } catch (e) { const box = $('#cosPacks'); if (box) box.innerHTML = '<div class="vnote">Не удалось загрузить список с Modrinth. Проверь интернет.</div>'; }
+}
 /* ── главная ── */
 function renderProfiles(){
   const el = $('#plist');
@@ -2042,7 +2321,7 @@ function renderSettings(){
     <div class="glass panel" style="--i:1"><h3>Общий мир и голосовой чат<small>Как друзья играют вместе через сервер Noxel</small></h3>
       <div class="field"><label>UDP-порты для голосового чата</label><input class="inp" id="sRoomPorts" value="${esc(s.room_ports || '')}" placeholder="24454" spellcheck="false"></div>
       <div class="hint">Через запятую, до четырёх. Simple Voice Chat использует 24454, Plasmo Voice 60606. Друзья услышат тебя, когда ты откроешь мир, а у них в игре будет такой же мод.</div>
-      ${sw('sMod', 'Мод Noxel в игре', 'Кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}</div>
+      ${sw('sMod', 'Мод Noxel в игре', 'Визуалы (меню на правый Shift), кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}</div>
     <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
       ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}

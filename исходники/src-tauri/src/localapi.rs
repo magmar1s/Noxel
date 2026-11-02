@@ -99,6 +99,7 @@ fn route(method: &str, path: &str, body: &Value) -> R<Value> {
             let (_, t) = account()?;
             social::friend_action(&t, body["action"].as_str().unwrap_or("add"), body["name"].as_str().unwrap_or(""))
         }
+        ("GET", "/media") => Ok(crate::media::now_playing()),
         ("GET", "/accounts") => Ok(json!({"accounts": accounts::list()})),
         ("POST", "/account/select") => {
             // выбор аккаунта в игре: лаунчер запоминает его как активный и отдаёт данные для входа

@@ -1,0 +1,2378 @@
+{
+  "modules": [
+    {
+      "id": "island",
+      "name": "Остров",
+      "cat": "Информация",
+      "desc": "Верхняя «таблетка»: время, FPS, пинг и всплывающие уведомления",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "fps",
+          "name": "Показывать FPS",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "ping",
+          "name": "Показывать пинг",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "watermark",
+      "name": "Ватермарк",
+      "cat": "Информация",
+      "desc": "Название и ник в углу",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "perf",
+      "name": "Производительность",
+      "cat": "Информация",
+      "desc": "FPS, график кадров, память и пинг",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "avg",
+          "name": "Средний FPS",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "ping",
+          "name": "Пинг",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "mem",
+          "name": "Память",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "graph",
+          "name": "График кадров",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "coords",
+      "name": "Координаты",
+      "cat": "Информация",
+      "desc": "XYZ, направление, биом, пересчёт для Незера",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "dir",
+          "name": "Направление",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "biome",
+          "name": "Биом",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "nether",
+          "name": "Пересчёт Незера",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "compass",
+      "name": "Компас",
+      "cat": "Информация",
+      "desc": "Лента направлений как в шутерах",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "clock",
+      "name": "Часы",
+      "cat": "Информация",
+      "desc": "Реальное время, время суток в игре и время сессии",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "sec",
+          "name": "Секунды",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "session",
+          "name": "Время сессии",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "speed",
+      "name": "Скорость",
+      "cat": "Информация",
+      "desc": "Скорость движения в блоках в секунду",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "server",
+      "name": "Сервер",
+      "cat": "Информация",
+      "desc": "Адрес сервера, пинг и число игроков",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "potions",
+      "name": "Эффекты",
+      "cat": "Информация",
+      "desc": "Активные эффекты с таймерами",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "empty",
+          "name": "Показывать пустым",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "armor",
+      "name": "Броня",
+      "cat": "Информация",
+      "desc": "Предметы на тебе и их прочность",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "pct",
+          "name": "Проценты",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "items",
+      "name": "Запасы",
+      "cat": "Бой",
+      "desc": "Тотемы, жемчуг, яблоки, зелья и стрелы в инвентаре",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "totem",
+          "name": "Тотемы",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "pearl",
+          "name": "Жемчуг",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "gapple",
+          "name": "Золотые яблоки",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "egap",
+          "name": "Зачарованные яблоки",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "xp",
+          "name": "Пузырьки опыта",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "arrow",
+          "name": "Стрелы",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "tnt",
+          "name": "Динамит",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "web",
+          "name": "Паутина",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "zero",
+          "name": "Показывать нули",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "inventory",
+      "name": "Инвентарь",
+      "cat": "Информация",
+      "desc": "Весь инвентарь мини-сеткой на экране",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "keys",
+      "name": "Клавиши",
+      "cat": "Информация",
+      "desc": "WASD, прыжок и мышь с подсветкой нажатий",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "mouse",
+          "name": "Кнопки мыши",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "cps",
+          "name": "CPS на кнопках",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "cps",
+      "name": "CPS",
+      "cat": "Бой",
+      "desc": "Клики в секунду левой и правой кнопкой",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "near",
+      "name": "Игроки рядом",
+      "cat": "Бой",
+      "desc": "Кто рядом, на каком расстоянии и сколько у него здоровья",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "range",
+          "name": "Дальность",
+          "kind": "num",
+          "min": 8.0,
+          "max": 128.0,
+          "step": 4.0,
+          "def": 64.0
+        },
+        {
+          "key": "limit",
+          "name": "Сколько показывать",
+          "kind": "num",
+          "min": 1.0,
+          "max": 10.0,
+          "step": 1.0,
+          "def": 5.0
+        },
+        {
+          "key": "hp",
+          "name": "Здоровье",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "target",
+      "name": "Цель",
+      "cat": "Бой",
+      "desc": "Панель противника: здоровье, броня, расстояние",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "armor",
+          "name": "Показывать броню",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "combo",
+      "name": "Комбо",
+      "cat": "Бой",
+      "desc": "Серия ударов без получения урона",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "best",
+          "name": "Показывать лучшее",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "tnt",
+      "name": "Таймер TNT",
+      "cat": "Мир",
+      "desc": "Сколько осталось до взрыва ближайшего динамита",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "death",
+      "name": "Точка смерти",
+      "cat": "Мир",
+      "desc": "Где ты в последний раз умер",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "radar",
+      "name": "Радар",
+      "cat": "Мир",
+      "desc": "Круглая карта вокруг тебя: игроки, мобы, предметы и рельеф",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "size",
+          "name": "Диаметр",
+          "kind": "num",
+          "min": 60.0,
+          "max": 140.0,
+          "step": 10.0,
+          "def": 90.0
+        },
+        {
+          "key": "range",
+          "name": "Дальность (блоки)",
+          "kind": "num",
+          "min": 16.0,
+          "max": 96.0,
+          "step": 8.0,
+          "def": 40.0
+        },
+        {
+          "key": "terrain",
+          "name": "Рельеф",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "players",
+          "name": "Игроки",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "mobs",
+          "name": "Мобы",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "items",
+          "name": "Предметы",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "rotate",
+          "name": "Вращать по взгляду",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "waypoints",
+      "name": "Метки",
+      "cat": "Мир",
+      "desc": "Свои метки с расстоянием и стрелкой (клавиша B ставит метку)",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "limit",
+          "name": "Сколько показывать",
+          "kind": "num",
+          "min": 1.0,
+          "max": 8.0,
+          "step": 1.0,
+          "def": 4.0
+        }
+      ]
+    },
+    {
+      "id": "tntworld",
+      "name": "TNT в мире",
+      "cat": "Мир",
+      "desc": "Секунды до взрыва прямо над динамитом",
+      "on": true,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "wpworld",
+      "name": "Метки в мире",
+      "cat": "Мир",
+      "desc": "Твои метки видны сквозь мир с расстоянием",
+      "on": true,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "predict",
+      "name": "Предсказание бросков",
+      "cat": "Мир",
+      "desc": "Траектория и точка падения жемчуга, зелий, лука, трезубца и летящих снарядов",
+      "on": true,
+      "panel": false,
+      "opts": [
+        {
+          "key": "hand",
+          "name": "Предмет в руке",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "flying",
+          "name": "Летящие снаряды",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "time",
+          "name": "Время полёта",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "tags",
+      "name": "Здоровье над игроками",
+      "cat": "Бой",
+      "desc": "Полоска здоровья и брони над другими игроками",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "range",
+          "name": "Дальность",
+          "kind": "num",
+          "min": 8.0,
+          "max": 64.0,
+          "step": 4.0,
+          "def": 32.0
+        },
+        {
+          "key": "armor",
+          "name": "Броня",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "name": "Трекер хранилищ",
+      "cat": "Мир",
+      "desc": "Помнит содержимое каждого открытого сундука; поиск по предмету и подсветка в мире (меню → Хранилище)",
+      "on": true,
+      "panel": false,
+      "opts": [
+        {
+          "key": "world",
+          "name": "Подсвечивать в мире",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "zoom",
+      "name": "Приближение",
+      "cat": "Экран",
+      "desc": "Зажми клавишу C, чтобы приблизить картинку; колесо меняет силу",
+      "on": true,
+      "panel": false,
+      "opts": [
+        {
+          "key": "fov",
+          "name": "Угол при зуме",
+          "kind": "num",
+          "min": 10.0,
+          "max": 60.0,
+          "step": 5.0,
+          "def": 25.0
+        },
+        {
+          "key": "smooth",
+          "name": "Плавно",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "media",
+      "name": "Плеер",
+      "cat": "Информация",
+      "desc": "Что играет сейчас на компьютере: название, исполнитель, прогресс (читает лаунчер Noxel)",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "crosshair",
+      "name": "Прицел",
+      "cat": "Экран",
+      "desc": "Свой прицел: форма, цвет, размер, зазор, реакция на движение",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "shape",
+          "name": "Форма",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 3.0,
+          "step": 1.0,
+          "def": 1.0,
+          "choices": [
+            "Точка",
+            "Крест",
+            "Круг",
+            "Квадрат"
+          ]
+        },
+        {
+          "key": "size",
+          "name": "Размер",
+          "kind": "num",
+          "min": 2.0,
+          "max": 14.0,
+          "step": 1.0,
+          "def": 5.0
+        },
+        {
+          "key": "gap",
+          "name": "Зазор",
+          "kind": "num",
+          "min": 0.0,
+          "max": 8.0,
+          "step": 1.0,
+          "def": 2.0
+        },
+        {
+          "key": "thick",
+          "name": "Толщина",
+          "kind": "num",
+          "min": 1.0,
+          "max": 3.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "color",
+          "name": "Цвет",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 4.0,
+          "step": 1.0,
+          "def": 0.0,
+          "choices": [
+            "Акцент",
+            "Белый",
+            "Красный",
+            "Зелёный",
+            "Радуга"
+          ]
+        },
+        {
+          "key": "dyn",
+          "name": "Расходится при беге",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "outline",
+          "name": "Обводка",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "hotbar",
+      "name": "Стеклянный хотбар",
+      "cat": "Экран",
+      "desc": "Заменяет панель предметов на стеклянную",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "vignette",
+      "name": "Предупреждение о здоровье",
+      "cat": "Экран",
+      "desc": "Края экрана краснеют, когда мало здоровья",
+      "on": true,
+      "panel": false,
+      "opts": [
+        {
+          "key": "hp",
+          "name": "Порог (сердец)",
+          "kind": "num",
+          "min": 1.0,
+          "max": 10.0,
+          "step": 1.0,
+          "def": 4.0
+        }
+      ]
+    },
+    {
+      "id": "chattime",
+      "name": "Время в чате",
+      "cat": "Прочее",
+      "desc": "Добавляет время к каждому сообщению в чате",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "hp",
+      "name": "Здоровье и голод",
+      "cat": "Информация",
+      "desc": "Сердца, броня, голод и насыщение цифрами и полосками",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "food",
+          "name": "Показывать голод",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "sat",
+          "name": "Насыщение",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "xp",
+      "name": "Опыт",
+      "cat": "Информация",
+      "desc": "Уровень и прогресс до следующего",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "look",
+      "name": "Блок перед тобой",
+      "cat": "Мир",
+      "desc": "Название блока, на который смотришь, и его координаты",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "light",
+      "name": "Освещённость",
+      "cat": "Мир",
+      "desc": "Уровень света под ногами; красный, когда на этом месте появляются мобы",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "daycount",
+      "name": "День и погода",
+      "cat": "Мир",
+      "desc": "Номер дня, время до ночи и погода",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "chunk",
+      "name": "Чанк",
+      "cat": "Мир",
+      "desc": "Номер чанка и позиция внутри него",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "held",
+      "name": "Предмет в руке",
+      "cat": "Информация",
+      "desc": "Название, прочность и количество предмета в руке",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "pickups",
+      "name": "Подобранное",
+      "cat": "Информация",
+      "desc": "Что только что подобрал: название и количество",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "limit",
+          "name": "Строк",
+          "kind": "num",
+          "min": 2.0,
+          "max": 10.0,
+          "step": 1.0,
+          "def": 5.0
+        }
+      ]
+    },
+    {
+      "id": "dmglog",
+      "name": "Лог боя",
+      "cat": "Бой",
+      "desc": "Лента: сколько урона получил, нанёс и кого убил",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "limit",
+          "name": "Строк",
+          "kind": "num",
+          "min": 2.0,
+          "max": 10.0,
+          "step": 1.0,
+          "def": 5.0
+        }
+      ]
+    },
+    {
+      "id": "cooldowns",
+      "name": "Перезарядки",
+      "cat": "Бой",
+      "desc": "Жемчуг, хорус, щит и яблоки: сколько ждать до следующего использования",
+      "on": true,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "air",
+      "name": "Воздух",
+      "cat": "Мир",
+      "desc": "Сколько секунд осталось под водой",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "fall",
+      "name": "Падение",
+      "cat": "Мир",
+      "desc": "Сколько блоков до земли и какой урон получишь при падении",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "elytra",
+      "name": "Полёт на элитрах",
+      "cat": "Информация",
+      "desc": "Скорость, высота и прочность элитр в полёте",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "mobs",
+      "name": "Мобы рядом",
+      "cat": "Мир",
+      "desc": "Сколько враждебных и мирных мобов вокруг; предупреждает, если враг близко",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "range",
+          "name": "Дальность",
+          "kind": "num",
+          "min": 8.0,
+          "max": 64.0,
+          "step": 4.0,
+          "def": 32.0
+        }
+      ]
+    },
+    {
+      "id": "session",
+      "name": "Сессия",
+      "cat": "Информация",
+      "desc": "Убийства, смерти и пройденный путь за эту игру",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "afk",
+      "name": "AFK-таймер",
+      "cat": "Прочее",
+      "desc": "Показывает, сколько ты ничего не делаешь (после минуты)",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "after",
+          "name": "Показывать после (с)",
+          "kind": "num",
+          "min": 10.0,
+          "max": 300.0,
+          "step": 10.0,
+          "def": 60.0
+        }
+      ]
+    },
+    {
+      "id": "pinggraph",
+      "name": "График пинга",
+      "cat": "Информация",
+      "desc": "Как менялся пинг за последнюю минуту",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "keybinds",
+      "name": "Клавиши Noxel",
+      "cat": "Прочее",
+      "desc": "Список горячих клавиш визуалов: меню, метка, приближение",
+      "on": false,
+      "panel": true,
+      "opts": [
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.6,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "alpha",
+          "name": "Прозрачность",
+          "kind": "num",
+          "min": 0.2,
+          "max": 1.0,
+          "step": 0.05,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "warnings",
+      "name": "Предупреждения",
+      "cat": "Информация",
+      "desc": "Всплывающие подсказки в острове: мало здоровья, голод, воздух, сломается предмет, инвентарь полон",
+      "on": true,
+      "panel": false,
+      "opts": [
+        {
+          "key": "hp",
+          "name": "Мало здоровья",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "hpv",
+          "name": "Порог (сердец)",
+          "kind": "num",
+          "min": 1.0,
+          "max": 8.0,
+          "step": 1.0,
+          "def": 3.0
+        },
+        {
+          "key": "food",
+          "name": "Голод",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "air",
+          "name": "Воздух",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "dur",
+          "name": "Прочность предметов",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "inv",
+          "name": "Инвентарь полон",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "sharecoords",
+      "name": "Координаты в чат",
+      "cat": "Прочее",
+      "desc": "Клавиша V отправляет в чат твои координаты",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "dmgnums",
+      "name": "Цифры урона",
+      "cat": "Бой",
+      "desc": "Всплывающие числа урона над целью и над тобой",
+      "on": true,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "jumpring",
+      "name": "Круги от прыжка",
+      "cat": "Экран",
+      "desc": "Светящееся кольцо частиц цветом акцента при каждом прыжке",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "trail",
+      "name": "След",
+      "cat": "Экран",
+      "desc": "Красивый след из частиц за тобой при беге",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "type",
+          "name": "Вид",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 5.0,
+          "step": 1.0,
+          "def": 0.0,
+          "choices": [
+            "Цвет акцента",
+            "Пламя",
+            "Сердца",
+            "Ноты",
+            "Звёзды",
+            "Синий огонь"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hiteffect",
+      "name": "Эффект удара",
+      "cat": "Экран",
+      "desc": "Вспышка частиц на цели при ударе",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "type",
+          "name": "Вид",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 4.0,
+          "step": 1.0,
+          "def": 0.0,
+          "choices": [
+            "Крит",
+            "Зачарование",
+            "Сердца",
+            "Искры",
+            "Салют"
+          ]
+        },
+        {
+          "key": "count",
+          "name": "Сколько частиц",
+          "kind": "num",
+          "min": 4.0,
+          "max": 40.0,
+          "step": 2.0,
+          "def": 14.0
+        }
+      ]
+    },
+    {
+      "id": "killfx",
+      "name": "Эффект убийства",
+      "cat": "Экран",
+      "desc": "Салют из частиц, когда добиваешь цель",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "chathl",
+      "name": "Подсветка ника в чате",
+      "cat": "Прочее",
+      "desc": "Сообщения, где упомянули тебя, выделяются золотым жирным",
+      "on": false,
+      "panel": false,
+      "opts": []
+    },
+    {
+      "id": "chatdedupe",
+      "name": "Антиспам в чате",
+      "cat": "Прочее",
+      "desc": "Прячет одинаковые сообщения подряд",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "sec",
+          "name": "Окно (секунд)",
+          "kind": "num",
+          "min": 2.0,
+          "max": 30.0,
+          "step": 1.0,
+          "def": 6.0
+        }
+      ]
+    },
+    {
+      "id": "autotool",
+      "name": "Умный инструмент",
+      "cat": "Помощники",
+      "desc": "⚠ Может быть запрещено на серверах. Когда ломаешь блок, сам берёт нужный инструмент из хотбара: кирка для камня, топор для дерева, лопата для земли. После работы возвращает прежний предмет.",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "back",
+          "name": "Возвращать предмет после",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        }
+      ]
+    },
+    {
+      "id": "autototem",
+      "name": "Тотем в левой руке",
+      "cat": "Помощники",
+      "desc": "⚠ Может быть запрещено на серверах. Следит, чтобы в левой руке всегда был тотем бессмертия: после срабатывания сам берёт следующий из инвентаря.",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "delay",
+          "name": "Пауза между действиями (мс)",
+          "kind": "num",
+          "min": 100.0,
+          "max": 1000.0,
+          "step": 50.0,
+          "def": 300.0
+        },
+        {
+          "key": "lowonly",
+          "name": "Только когда мало здоровья",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        },
+        {
+          "key": "hpv",
+          "name": "Порог (сердец)",
+          "kind": "num",
+          "min": 2.0,
+          "max": 10.0,
+          "step": 1.0,
+          "def": 6.0
+        },
+        {
+          "key": "anyscreen",
+          "name": "Работать и в открытом инвентаре",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "viewmodel",
+      "name": "Положение рук",
+      "cat": "Экран",
+      "desc": "Сдвигает и уменьшает руку и предмет от первого лица: убери меч с глаз или подвинь куда удобно",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "x",
+          "name": "Влево / вправо",
+          "kind": "num",
+          "min": -0.6,
+          "max": 0.6,
+          "step": 0.05,
+          "def": 0.0
+        },
+        {
+          "key": "y",
+          "name": "Вниз / вверх",
+          "kind": "num",
+          "min": -0.6,
+          "max": 0.6,
+          "step": 0.05,
+          "def": 0.0
+        },
+        {
+          "key": "z",
+          "name": "Ближе / дальше",
+          "kind": "num",
+          "min": -0.8,
+          "max": 0.8,
+          "step": 0.05,
+          "def": 0.0
+        },
+        {
+          "key": "scale",
+          "name": "Размер",
+          "kind": "num",
+          "min": 0.4,
+          "max": 1.4,
+          "step": 0.05,
+          "def": 1.0
+        },
+        {
+          "key": "roll",
+          "name": "Наклон",
+          "kind": "num",
+          "min": -45.0,
+          "max": 45.0,
+          "step": 5.0,
+          "def": 0.0
+        }
+      ]
+    },
+    {
+      "id": "swinganim",
+      "name": "Анимация удара",
+      "cat": "Экран",
+      "desc": "Свой взмах оружием: рубящий, колющий, широкий, вращение, сверху вниз, дрожь",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "style",
+          "name": "Стиль",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 5.0,
+          "step": 1.0,
+          "def": 0.0,
+          "choices": [
+            "Рубящий",
+            "Колющий",
+            "Широкий взмах",
+            "Вращение",
+            "Сверху вниз",
+            "Дрожь"
+          ]
+        },
+        {
+          "key": "power",
+          "name": "Сила",
+          "kind": "num",
+          "min": 0.3,
+          "max": 2.0,
+          "step": 0.1,
+          "def": 1.0
+        },
+        {
+          "key": "sound",
+          "name": "Звук взмаха",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "vol",
+          "name": "Громкость",
+          "kind": "num",
+          "min": 0.1,
+          "max": 1.0,
+          "step": 0.1,
+          "def": 0.6
+        }
+      ]
+    },
+    {
+      "id": "drawanim",
+      "name": "Анимация доставания",
+      "cat": "Экран",
+      "desc": "Красивое появление предмета в руке при смене слота",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "style",
+          "name": "Стиль",
+          "kind": "choice",
+          "min": 0.0,
+          "max": 3.0,
+          "step": 1.0,
+          "def": 0.0,
+          "choices": [
+            "Откидывается",
+            "Крутится",
+            "Вылетает сбоку",
+            "Поднимается снизу"
+          ]
+        },
+        {
+          "key": "ms",
+          "name": "Длительность (мс)",
+          "kind": "num",
+          "min": 200.0,
+          "max": 1200.0,
+          "step": 50.0,
+          "def": 550.0
+        },
+        {
+          "key": "sound",
+          "name": "Звук доставания (шух)",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "vol",
+          "name": "Громкость",
+          "kind": "num",
+          "min": 0.1,
+          "max": 1.0,
+          "step": 0.1,
+          "def": 0.7
+        }
+      ]
+    },
+    {
+      "id": "inspect",
+      "name": "Осмотр предмета",
+      "cat": "Экран",
+      "desc": "Клавиша G: повертеть предмет в руке перед собой, как нож в играх",
+      "on": false,
+      "panel": false,
+      "opts": [
+        {
+          "key": "ms",
+          "name": "Длительность (мс)",
+          "kind": "num",
+          "min": 800.0,
+          "max": 4000.0,
+          "step": 100.0,
+          "def": 1800.0
+        },
+        {
+          "key": "sound",
+          "name": "Щелчки при осмотре",
+          "kind": "bool",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 1.0,
+          "def": 1.0
+        },
+        {
+          "key": "vol",
+          "name": "Громкость",
+          "kind": "num",
+          "min": 0.1,
+          "max": 1.0,
+          "step": 0.1,
+          "def": 0.7
+        }
+      ]
+    }
+  ],
+  "presets": {
+    "Минимум": {
+      "desc": "Только остров и FPS: ничего лишнего",
+      "ids": [
+        "island",
+        "perf"
+      ]
+    },
+    "Классика": {
+      "desc": "Базовый набор: информация, эффекты, броня, клавиши",
+      "ids": [
+        "island",
+        "perf",
+        "coords",
+        "potions",
+        "armor",
+        "keys",
+        "death",
+        "vignette"
+      ]
+    },
+    "PvP": {
+      "desc": "Всё для боя: цель, запасы, CPS, игроки рядом, предсказание бросков",
+      "ids": [
+        "island",
+        "perf",
+        "potions",
+        "armor",
+        "items",
+        "keys",
+        "cps",
+        "near",
+        "target",
+        "combo",
+        "predict",
+        "tags",
+        "radar",
+        "vignette",
+        "tntworld",
+        "crosshair",
+        "hotbar"
+      ]
+    },
+    "Выживание": {
+      "desc": "Метки, координаты, трекер сундуков, радар и точка смерти",
+      "ids": [
+        "island",
+        "coords",
+        "compass",
+        "clock",
+        "waypoints",
+        "wpworld",
+        "storage",
+        "death",
+        "radar",
+        "potions",
+        "armor",
+        "zoom"
+      ]
+    },
+    "Стример": {
+      "desc": "Красиво и без лишнего: остров, клавиши, CPS, плеер, стеклянный хотбар",
+      "ids": [
+        "island",
+        "keys",
+        "cps",
+        "media",
+        "hotbar",
+        "crosshair",
+        "zoom",
+        "chattime"
+      ]
+    },
+    "Всё сразу": {
+      "desc": "Все модули, кроме помощников (они только вручную)",
+      "ids": [
+        "island",
+        "watermark",
+        "perf",
+        "coords",
+        "compass",
+        "clock",
+        "speed",
+        "server",
+        "potions",
+        "armor",
+        "items",
+        "inventory",
+        "keys",
+        "cps",
+        "near",
+        "target",
+        "combo",
+        "tnt",
+        "death",
+        "radar",
+        "waypoints",
+        "tntworld",
+        "wpworld",
+        "predict",
+        "tags",
+        "storage",
+        "zoom",
+        "media",
+        "crosshair",
+        "hotbar",
+        "vignette",
+        "chattime",
+        "hp",
+        "xp",
+        "look",
+        "light",
+        "daycount",
+        "chunk",
+        "held",
+        "pickups",
+        "dmglog",
+        "cooldowns",
+        "air",
+        "fall",
+        "elytra",
+        "mobs",
+        "session",
+        "afk",
+        "pinggraph",
+        "keybinds",
+        "warnings",
+        "sharecoords",
+        "dmgnums",
+        "jumpring",
+        "trail",
+        "hiteffect",
+        "killfx",
+        "chathl",
+        "chatdedupe",
+        "viewmodel",
+        "swinganim",
+        "drawanim",
+        "inspect"
+      ]
+    }
+  },
+  "themes": {
+    "styles": [
+      "Жидкое стекло",
+      "Тёмное стекло",
+      "Светлое стекло",
+      "Неон",
+      "Моно",
+      "Прозрачное"
+    ],
+    "accents": [
+      "Фиолетовый",
+      "Лёд",
+      "Мята",
+      "Роза",
+      "Янтарь",
+      "Белый",
+      "Радуга"
+    ]
+  }
+}
