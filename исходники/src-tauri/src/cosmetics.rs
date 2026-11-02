@@ -49,22 +49,6 @@ fn build(dst: &Path, cfg: &Value) -> R<()> {
     let opt = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     z.start_file("pack.mcmeta", opt).map_err(e)?;
     z.write_all(r#"{"pack":{"description":"Noxel: скины мечей и тотемов","min_format":88,"max_format":999}}"#.as_bytes()).map_err(e)?;
-    // демо-ролик: разные ножи на разные мечи
-    if let Some(map) = cfg["knife_map"].as_object() {
-        for (item, v) in map {
-            let m = data["knives"]["models"].as_array().and_then(|a| a.iter().find(|x| x["id"] == v["model"]).cloned());
-            let t = m.as_ref().and_then(|m| m["textures"].as_array().and_then(|a| a.iter().find(|t| t["id"] == v["tex"]).cloned().or_else(|| a.first().cloned())));
-            if let (Some(m), Some(t)) = (m, t) {
-                let tag = format!("k_{}_{}", m["id"].as_str().unwrap_or(""), t["id"].as_str().unwrap_or(""));
-                z.start_file(format!("assets/noxel/models/item/{tag}.json"), opt).map_err(e)?;
-                z.write_all(m["model"].as_str().unwrap_or("{}").replace("noxel:item/knife", &format!("noxel:item/{tag}")).as_bytes()).map_err(e)?;
-                z.start_file(format!("assets/noxel/textures/item/{tag}.png"), opt).map_err(e)?;
-                z.write_all(&b64.decode(t["png"].as_str().unwrap_or("")).map_err(e)?).map_err(e)?;
-                z.start_file(format!("assets/minecraft/items/{item}.json"), opt).map_err(e)?;
-                z.write_all(format!(r#"{{"model":{{"type":"minecraft:model","model":"noxel:item/{tag}"}}}}"#).as_bytes()).map_err(e)?;
-            }
-        }
-    }
     let knife = &cfg["knife"];
     let kmodel = data["knives"]["models"].as_array().and_then(|a| a.iter().find(|x| x["id"] == knife["model"]).cloned());
     let ktex = kmodel.as_ref().and_then(|m| m["textures"].as_array().and_then(|a| a.iter().find(|t| t["id"] == knife["tex"]).cloned().or_else(|| a.first().cloned())));
@@ -131,7 +115,7 @@ pub fn options_pack(gamedir: &Path, file: &str, on: bool) {
 /// Применяет выбор к одной папке игры. Пустой выбор снимает пак.
 pub fn apply_to(gamedir: &Path) -> R<()> {
     let cfg = get();
-    let any = !cfg["sword"].as_str().unwrap_or("").is_empty() || !cfg["knife"]["model"].as_str().unwrap_or("").is_empty() || !cfg["totem"].as_str().unwrap_or("").is_empty() || cfg["knife_map"].is_object();
+    let any = !cfg["sword"].as_str().unwrap_or("").is_empty() || !cfg["knife"]["model"].as_str().unwrap_or("").is_empty() || !cfg["totem"].as_str().unwrap_or("").is_empty();
     let rp = gamedir.join("resourcepacks");
     let pack = rp.join(PACK);
     if !any {
