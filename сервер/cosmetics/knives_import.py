@@ -75,6 +75,8 @@ for e in geo["elements"]:
     for f in e["faces"].values(): f["texture"] = "#t"
 geo.pop("credit", None); geo.pop("parent", None)
 geo["textures"] = {"t": "noxel:item/knife", "particle": "noxel:item/knife"}
+geo["display"]["firstperson_righthand"] = {"rotation": [-180, -88.5, 168.25], "translation": [1.75, 1.5, 0.5], "scale": [0.5, 0.5, 0.5]}   # у автора крупнее руки
+geo["display"]["firstperson_lefthand"] = {"rotation": [-29.75, -88.5, 168.25], "translation": [3.75, -1.5, 0.5], "scale": [0.5, 0.5, 0.5]}
 data = z.read("assets/minecraft/textures/item/kamish_dagger/kamish_dagger.png")
 px = rend.read_png(data)
 out["models"].append({"id": "kamish", "name": "Кинжал Камиш", "desc": "Тёмный обоюдоострый кинжал", "author": "LIsPixel", "license": "MIT", "source": "https://modrinth.com/resourcepack/kamish-dagger",

@@ -913,14 +913,35 @@ fn visuals_flow() {
     std::fs::create_dir_all(&mods).unwrap();
     let api = std::fs::read_dir("/mnt/D/project/Noxel/данные/instances").unwrap().flatten().flat_map(|e| std::fs::read_dir(e.path().join("mods")).into_iter().flatten().flatten()).find(|f| f.file_name().to_string_lossy().starts_with("fabric-api")).expect("fabric-api").path();
     std::fs::copy(&api, mods.join(api.file_name().unwrap())).unwrap();
+    let demo = std::env::var("NX_DEMO").ok();
+    if demo.is_some() {
+        // демо-ролик: Iris, Sodium и шейдеры из папки разработки
+        let src = std::path::Path::new("/mnt/D/project/Noxel/данные/instances/26-2-fabric");
+        for f in std::fs::read_dir(src.join("mods")).unwrap().flatten() {
+            let n = f.file_name().to_string_lossy().to_string();
+            if n.starts_with("iris-") || n.starts_with("sodium-") { std::fs::copy(f.path(), mods.join(&n)).unwrap(); }
+        }
+        let sp = mc::inst_dir(&p.id).join("shaderpacks");
+        std::fs::create_dir_all(&sp).unwrap();
+        std::fs::copy(std::env::var("NX_SHADER").unwrap(), sp.join("Shader.zip")).unwrap();
+        let cfgd = mc::inst_dir(&p.id).join("config");
+        std::fs::create_dir_all(&cfgd).unwrap();
+        std::fs::write(cfgd.join("iris.properties"), "enableShaders=true\nshaderPack=Shader.zip\nallowUnknownShaders=true\n").unwrap();
+    }
     let st = load_settings();
     let acct = accounts::active_fresh().unwrap();
+    if demo.is_some() {
+        crate::cosmetics::set(&serde_json::json!({"sword": "", "totem": "gold", "swords": ["all"], "knife_map": {
+            "netherite_sword": {"model": "karambit", "tex": "karambit_blue"}, "diamond_sword": {"model": "karambit", "tex": "golden_karambit"},
+            "iron_sword": {"model": "karambit", "tex": "karambitred"}, "golden_sword": {"model": "karambit", "tex": "karambit_purple"}, "stone_sword": {"model": "kamish", "tex": "kamish"}}})).unwrap();
+    } else {
     crate::cosmetics::set(&serde_json::json!({"sword": "", "totem": "gold", "knife": {"model": "karambit", "tex": "karambit_blue"}, "swords": ["all"]})).unwrap();
+    }
     let mut pr = mc::prepare(&p, &st, &acct, &|_: &str, _: f64, _: &str| {}).expect("подготовка игры");
     assert!(pr.gamedir.join("resourcepacks/Noxel Cosmetics.zip").exists(), "лаунчер не собрал ресурспак косметики");
-    pr.args.insert(0, "-Dnoxel.visuals.selftest=1".to_string());
-    for a in ["--width", "1600", "--height", "900"] { pr.args.push(a.to_string()); }
-    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\nguiScale:3\nresourcePacks:[\"vanilla\",\"file/Noxel Cosmetics.zip\"]\n");
+    if demo.is_some() { pr.args.insert(0, "-Dnoxel.visuals.demo=1".to_string()); } else { pr.args.insert(0, "-Dnoxel.visuals.selftest=1".to_string()); }
+    for a in ["--width", if demo.is_some() { "1280" } else { "1600" }, "--height", if demo.is_some() { "720" } else { "900" }] { pr.args.push(a.to_string()); }
+    let _ = std::fs::write(pr.gamedir.join("options.txt"), "pauseOnLostFocus:false\nonboardAccessibility:false\nsoundCategory_master:0.0\nsoundCategory_music:0.0\nsoundCategory_record:0.0\nguiScale:2\ntutorialStep:none\nenableVsync:false\nmaxFps:260\nresourcePacks:[\"vanilla\",\"file/Noxel Cosmetics.zip\"]\n");
     let log = Arc::new(Mutex::new(Vec::<String>::new()));
     let l2 = log.clone();
     let game = mc::Game::default();
@@ -939,8 +960,8 @@ fn visuals_flow() {
         }
     });
     let t = Instant::now();
-    while t.elapsed() < Duration::from_secs(420) {
-        if log.lock().unwrap().iter().any(|l| l.contains("проверка закончена")) { break; }
+    while t.elapsed() < Duration::from_secs(if demo.is_some() { 900 } else { 420 }) {
+        if log.lock().unwrap().iter().any(|l| l.contains("проверка закончена") || l.contains("демо закончено")) { break; }
         if child.try_wait().ok().flatten().is_some() { break; }
         std::thread::sleep(Duration::from_millis(500));
     }
@@ -952,8 +973,8 @@ fn visuals_flow() {
         if let Ok(rd) = std::fs::read_dir(pr.gamedir.join("screenshots")) {
             let mut v: Vec<_> = rd.flatten().collect();
             v.sort_by_key(|e| e.file_name());
-            for (i, e) in v.iter().enumerate() { let _ = std::fs::copy(e.path(), format!("{out}/{:02}.png", i)); }
+            for (i, e) in v.iter().enumerate() { let _ = std::fs::copy(e.path(), format!("{out}/{:05}.png", i)); }
         }
     }
-    assert!(log.lock().unwrap().iter().any(|l| l.contains("проверка закончена")), "проверка визуалов не дошла до конца");
+    assert!(log.lock().unwrap().iter().any(|l| l.contains("проверка закончена") || l.contains("демо закончено")), "проверка визуалов не дошла до конца");
 }

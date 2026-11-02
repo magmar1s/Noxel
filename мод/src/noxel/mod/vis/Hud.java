@@ -62,6 +62,7 @@ public final class Hud {
         More.tick(mc);
         Assist.tick(mc);
         VisTest.tick(mc);
+        DemoRunner.tick(mc);
         zoomTick(mc);
         if (mc.player != null && mc.player.getHealth() <= 0) { /* точку смерти пишет Stats */ }
     }
@@ -182,6 +183,7 @@ public final class Hud {
         Minecraft mc = Minecraft.getInstance();
         if (!ready || mc.player == null) return;
         Cfg.poll();
+        DemoRunner.frame(mc);
         Stats.frame(mc);
         Ctx c = new Ctx(g, theme(), mc, false);
         for (Module m : Mods.ALL) m.frame(mc);
