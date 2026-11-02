@@ -232,6 +232,8 @@ pub struct Settings {
     pub dav_auto: bool,
     /// Ставить мод Noxel (кнопка «Друзья» в игре) в профили Fabric для 26.x
     pub noxel_mod: bool,
+    /// Аккаунт Noxel входит в игру через сервер Noxel (authlib-injector): скин виден всем в мирах друзей и на серверах с Noxel.
+    pub noxel_ygg: bool,
     /// Дополнительные UDP-порты для друзей (голосовой чат: Simple Voice Chat 24454, Plasmo Voice 60606), через запятую
     pub room_ports: String,
     pub auto_skip: Vec<String>,
@@ -266,6 +268,7 @@ impl Default for Settings {
             dav_pass: String::new(),
             dav_auto: false,
             noxel_mod: true,
+            noxel_ygg: false,
             room_ports: "24454".into(),
             auto_skip: vec![],
             on_launch: "keep".into(),

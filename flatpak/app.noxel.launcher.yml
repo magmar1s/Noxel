@@ -1,0 +1,39 @@
+# Flatpak для Noxel. Собирается в GitHub Actions (job flatpak) из готового файла лаунчера:
+#   flatpak-builder --user --install-deps-from=flathub --repo=repo build app.noxel.launcher.yml
+#   flatpak build-bundle repo Noxel.flatpak app.noxel.launcher
+app-id: app.noxel.launcher
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+command: noxel
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # чтение профилей других лаунчеров для переноса (Prism, Modrinth App, .minecraft и др.)
+  - --filesystem=home:ro
+  - --filesystem=xdg-download
+  - --filesystem=~/.var/app/org.prismlauncher.PrismLauncher:ro
+  # игре нужен доступ к джойстикам и звуку
+  - --device=input
+  - --env=WEBKIT_DISABLE_DMABUF_RENDERER=1
+modules:
+  - name: noxel
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 Noxel /app/bin/noxel
+      - install -Dm644 app.noxel.launcher.desktop /app/share/applications/app.noxel.launcher.desktop
+      - install -Dm644 app.noxel.launcher.metainfo.xml /app/share/metainfo/app.noxel.launcher.metainfo.xml
+      - install -Dm644 app.noxel.launcher.png /app/share/icons/hicolor/256x256/apps/app.noxel.launcher.png
+    sources:
+      - type: file
+        path: Noxel
+      - type: file
+        path: app.noxel.launcher.desktop
+      - type: file
+        path: app.noxel.launcher.metainfo.xml
+      - type: file
+        path: app.noxel.launcher.png

@@ -763,6 +763,7 @@ function renderHero(){
     <div class="tiles">
       <button class="tile" id="tWorlds"><span>Миры</span><b>Копии</b>${I.folder}</button>
       <button class="tile" id="tMods"><span>Моды</span><b><em data-n="${p.mods}" style="font-style:normal">0</em> ${plural(p.mods, 'мод','мода','модов')}</b>${I.mod}</button>
+      <button class="tile" id="tPack"><span>Сборка</span><b>Код, экспорт</b>${I.copy}</button>
       <button class="tile" id="tDir"><span>Папка</span><b>Открыть</b>${I.folder}</button>
       <button class="tile" id="tLog"><span>Консоль</span><b>${S.logOpen ? 'Скрыть' : 'Показать'}</b>${I.term}</button>
       <button class="tile" id="tAcc"><span>Аккаунт</span><b>${esc(a ? a.name : '—')}</b>${I.user}</button>
@@ -773,6 +774,7 @@ function renderHero(){
   $('#playBtn').onclick = () => playClick(p);
   $('#tMods').onclick = () => { S.m.profile = p.id; go('mods'); };
   $('#tWorlds').onclick = () => worldsModal(p);
+  $('#tPack').onclick = () => packTools(p);
   quickServers(p);
   $('#tDir').onclick = () => invoke('open_folder', {profileId: p.id, sub: null}).catch(toast);
   $('#tAcc').onclick = () => go('accounts');
@@ -792,6 +794,102 @@ async function quickServers(p){
     el.innerHTML = '<span class="lab">Зайти на</span>' + list.map(x => `<button class="minibtn sm" data-qj="${esc(x.host)}">${I.play} ${esc(x.host)}</button>`).join('');
     $$('[data-qj]', el).forEach(b => b.onclick = async () => { b.disabled = true; try { await invoke('launch_to', {id: p.id, host: b.dataset.qj}); } catch (e) { b.disabled = false; modal('Не удалось запустить', String(e)); } });
   } catch (e) {}
+}
+
+/* сборка профиля: код для друга, экспорт, точки восстановления, обновление сборки, голосовой чат */
+async function packTools(p){
+  const box = $('#xbox'); $('#xmodal').classList.add('on');
+  const T2 = {code: null, upd: null, snaps: null, busy: ''};
+  const hasLoader = !NOMODS.includes(p.loader);
+  const draw = () => {
+    const sn = T2.snaps || [];
+    box.innerHTML = `<h3>Сборка «${esc(p.name)}»</h3>
+      <div style="max-height:62vh;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:12px">
+      <div class="ncard"><b>Поделиться кодом</b><div class="nb">Друг вводит код в Noxel («Моды» → «Сборки» → «По коду, из файла…»), и у него ставится точно такая же сборка: та же версия игры и загрузчика, те же версии модов, ресурспаков и шейдеров, настройки модов. Аккаунт не нужен.</div>
+        ${T2.code ? `<div class="code" style="margin:6px 0;letter-spacing:.18em">${esc(T2.code.code)}</div><div class="hint">${T2.code.count} ${plural(T2.code.count, 'файл', 'файла', 'файлов')} по ссылкам${T2.code.missing && T2.code.missing.length ? ` · не передадутся (нет на Modrinth и CurseForge): ${esc(T2.code.missing.slice(0, 6).join(', '))}${T2.code.missing.length > 6 ? '…' : ''}` : ''}</div><div class="mrow"><button class="minibtn sm solid" id="ptCopy">${I.copy} Код</button><button class="minibtn sm" id="ptLink">${I.copy} Ссылка</button></div>`
+          : `<div class="mrow"><button class="minibtn solid sm" id="ptCode" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'code' ? 'Собираю…' : 'Получить код'}</button></div>`}</div>
+      <div class="ncard"><b>Экспорт в файл</b><div class="nb">Файл открывается в Modrinth App, Prism, CurseForge и других лаунчерах. Моды с Modrinth и CurseForge идут ссылками, остальное кладётся внутрь вместе с настройками модов.</div>
+        <div class="opt" style="margin:0"><div class="t"><b>Вместе с мирами</b><small>Добавить папку saves (файл станет больше)</small></div><button class="switch" id="ptSaves"></button></div>
+        <div class="mrow"><button class="minibtn sm" id="ptMr" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'mr' ? 'Упаковываю…' : '.mrpack · Modrinth, Prism'}</button><button class="minibtn sm" id="ptCf" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'cf' ? 'Упаковываю…' : '.zip · CurseForge'}</button></div></div>
+      ${T2.upd && T2.upd.pack ? `<div class="ncard"><b>Обновление сборки</b>${T2.upd.update ? `<div class="nb">Есть новая версия: <b style="color:#fff">${esc(T2.upd.new)}</b> (сейчас ${esc(T2.upd.current || '?')}).${T2.upd.added.length || T2.upd.removed.length ? `<br>Добавится: ${T2.upd.added.length ? esc(T2.upd.added.slice(0, 8).join(', ')) + (T2.upd.added.length > 8 ? '…' : '') : 'ничего'}<br>Уберётся: ${T2.upd.removed.length ? esc(T2.upd.removed.slice(0, 8).join(', ')) + (T2.upd.removed.length > 8 ? '…' : '') : 'ничего'}` : ''}<br>Перед обновлением сохранится точка восстановления: если что-то сломается, профиль можно вернуть.</div>${T2.upd.changelog ? `<pre style="max-height:120px;overflow:auto;white-space:pre-wrap;font-size:11.5px;color:var(--fg2);margin:0">${esc(T2.upd.changelog)}</pre>` : ''}<div class="mrow"><button class="minibtn solid sm" id="ptUpd" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'upd' ? esc(T2.prog || 'Обновляю…') : 'Обновить сборку'}</button></div>` : `<div class="nb">Стоит последняя версия ${esc(T2.upd.current || '')}.</div>`}</div>` : ''}
+      ${hasLoader ? `<div class="ncard"><b>Голосовой чат</b><div class="nb">Simple Voice Chat: говори с друзьями в своём мире голосом. Друзья, которые заходят к тебе через Noxel, получат мод автоматически.</div><div class="mrow"><button class="minibtn sm" id="ptVoice" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'voice' ? 'Ставлю…' : 'Поставить голосовой чат'}</button></div></div>` : ''}
+      <div class="ncard"><b>Точки восстановления</b><div class="nb">Снимок модов, ресурспаков, шейдеров и настроек модов. Сохраняется сам перед обновлением модов и сборки. Миры не трогаются.</div>
+        ${sn.length ? sn.map((x, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(fmtDate(x.created))}</span><small>${esc(x.reason)} · модов: ${x.mods}</small><button class="minibtn sm" data-sr="${i}">Вернуть</button><button class="ibtn sm" data-sd="${i}" title="Удалить точку">${I.trash}</button></div>`).join('') : `<div class="hint">${T2.snaps ? 'Точек пока нет.' : 'Загружаю…'}</div>`}
+        <div class="mrow"><button class="minibtn sm" id="ptSnap">Сохранить точку сейчас</button></div></div>
+      </div><div class="btns"><button class="minibtn solid" id="xc">Готово</button></div>`;
+    $('#xc').onclick = closeX;
+    let saves = false; $('#ptSaves').onclick = () => { saves = !saves; $('#ptSaves').classList.toggle('on', saves); };
+    if ($('#ptCode')) $('#ptCode').onclick = async () => { T2.busy = 'code'; draw(); try { T2.code = await invoke('pack_code_create', {profileId: p.id}); } catch (e) { modal('Не получилось', String(e)); } T2.busy = ''; draw(); };
+    if ($('#ptCopy')) $('#ptCopy').onclick = () => navigator.clipboard.writeText(T2.code.code).then(() => toast('Код скопирован')).catch(() => {});
+    if ($('#ptLink')) $('#ptLink').onclick = () => navigator.clipboard.writeText(T2.code.url).then(() => toast('Ссылка скопирована')).catch(() => {});
+    const exp = async (fmt, ext, label) => {
+      const path = await T.dialog.save({title: 'Куда сохранить сборку', defaultPath: (p.name || 'noxel').replace(/[\\/:*?"<>|]+/g, '_') + ext, filters: [{name: label, extensions: [ext.slice(1)]}]});
+      if (!path) return; T2.busy = fmt === 'curseforge' ? 'cf' : 'mr'; draw();
+      try { const r = await invoke('export_profile', {profileId: p.id, format: fmt, path, saves}); toast(`Сохранено: ${fmtSize(r.size)} · ссылками ${r.linked}, внутри ${r.embedded}`); } catch (e) { modal('Не получилось', String(e)); }
+      T2.busy = ''; draw();
+    };
+    $('#ptMr').onclick = () => exp('modrinth', '.mrpack', 'Сборка Modrinth');
+    $('#ptCf').onclick = () => exp('curseforge', '.zip', 'Сборка CurseForge');
+    if ($('#ptUpd')) $('#ptUpd').onclick = async () => { T2.busy = 'upd'; draw(); try { await invoke('pack_update_apply', {profileId: p.id}); toast('Сборка обновлена'); T2.upd = await invoke('pack_update_check', {profileId: p.id}); T2.snaps = await invoke('snapshots_list', {profileId: p.id}); await loadProfiles(); } catch (e) { modal('Не получилось обновить', String(e)); } T2.busy = ''; draw(); };
+    if ($('#ptVoice')) $('#ptVoice').onclick = async () => { T2.busy = 'voice'; draw(); try { const r = await invoke('voice_ensure', {profileId: p.id}); toast(r ? 'Голосовой чат установлен: клавиша V, настройки на клавишу G в игре' : 'Голосовой чат уже стоит'); await loadProfiles(); } catch (e) { modal('Не получилось', String(e)); } T2.busy = ''; draw(); };
+    $('#ptSnap').onclick = async () => { try { await invoke('snapshot_create', {profileId: p.id}); T2.snaps = await invoke('snapshots_list', {profileId: p.id}); toast('Точка сохранена'); } catch (e) { modal('Не получилось', String(e)); } draw(); };
+    $$('[data-sr]', box).forEach(b => b.onclick = async () => { const x = sn[+b.dataset.sr]; const ok = await modal('Вернуть профиль к точке?', `Моды, ресурспаки, шейдеры и настройки модов станут как ${fmtDate(x.created)}. Текущее состояние сохранится отдельной точкой, так что откат тоже можно отменить.`, [{label:'Отмена', val:false}, {label:'Вернуть', val:true, cls:'solid'}]); if (!ok) return; packTools(p); try { await invoke('snapshot_restore', {profileId: p.id, snap: x.id}); toast('Профиль возвращён'); await loadProfiles(); } catch (e) { modal('Не получилось', String(e)); } });
+    $$('[data-sd]', box).forEach(b => b.onclick = async () => { try { await invoke('snapshot_delete', {profileId: p.id, snap: sn[+b.dataset.sd].id}); T2.snaps = await invoke('snapshots_list', {profileId: p.id}); } catch (e) { toast(e); } draw(); });
+  };
+  draw();
+  invoke('snapshots_list', {profileId: p.id}).then(l => { T2.snaps = l; draw(); }).catch(() => { T2.snaps = []; draw(); });
+  invoke('pack_update_check', {profileId: p.id}).then(u => { T2.upd = u; draw(); }).catch(() => {});
+  const un = await T.event.listen('task', ({payload: t}) => { if (t && t.id === 'packupd:' + p.id && T2.busy === 'upd') { T2.prog = `${t.stage}${t.detail ? ' · ' + t.detail : ''}`; const b = $('#ptUpd'); if (b) b.textContent = T2.prog; } });
+  const obs = setInterval(() => { if (!$('#xmodal').classList.contains('on') || !$('#ptSnap')) { clearInterval(obs); un(); } }, 1000);
+}
+
+/* перенос: сборка по коду, из файла и из других лаунчеров */
+async function importTools(){
+  const box = $('#xbox'); $('#xmodal').classList.add('on');
+  const st = {found: null, busy: '', prog: ''};
+  const draw = () => {
+    const f = st.found;
+    box.innerHTML = `<h3>Добавить сборку</h3>
+      <div style="max-height:62vh;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:12px">
+      <div class="ncard"><b>По коду от друга</b><div class="nb">Код из окна «Сборка» в Noxel: поставится точно такая же сборка отдельным профилем.</div>
+        <div style="display:flex;gap:8px"><input class="inp" id="imCode" maxlength="40" placeholder="Например, K7Q2M9XD" style="flex:1;text-transform:uppercase;letter-spacing:.12em" spellcheck="false"><button class="minibtn solid" id="imCodeGo" ${st.busy ? 'disabled' : ''}>${st.busy === 'code' ? esc(st.prog || 'Ставлю…') : 'Установить'}</button></div></div>
+      <div class="ncard"><b>Из файла</b><div class="nb">.mrpack (Modrinth), .zip CurseForge, экспорт Prism, MultiMC и PolyMC.</div><div class="mrow"><button class="minibtn" id="imFile" ${st.busy ? 'disabled' : ''}>${st.busy === 'file' ? esc(st.prog || 'Ставлю…') : I.up + ' Выбрать файл'}</button></div></div>
+      <div class="ncard"><b>Из других лаунчеров</b><div class="nb">Prism, MultiMC, PolyMC, Modrinth App, CurseForge, ATLauncher, GDLauncher, официальный лаунчер, TLauncher, Legacy Launcher, HMCL. Профиль копируется в Noxel, исходный остаётся как был.</div>
+        <div class="opt" style="margin:0"><div class="t"><b>Переносить миры</b><small>Скопировать папку saves</small></div><button class="switch on" id="imSaves"></button></div>
+        ${f === null ? '<div class="hint">Ищу на диске…</div>' : f.length ? f.map((x, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(x.name)}</span><small>${esc(x.source)} · ${x.mc ? esc(x.mc) + ' ' + esc(LNAME[x.loader] || x.loader) : 'версия не определилась'} · модов ${x.mods}${x.saves ? ' · миров ' + x.saves : ''}</small><button class="minibtn sm" data-im="${i}" ${st.busy ? 'disabled' : ''}>${st.busy === 'i' + i ? esc(st.prog || 'Переношу…') : 'Перенести'}</button></div>`).join('') : '<div class="hint">Профилей других лаунчеров не нашлось.</div>'}</div>
+      </div><div class="btns"><button class="minibtn solid" id="xc">Готово</button></div>`;
+    $('#xc').onclick = closeX;
+    let saves = true; $('#imSaves').onclick = () => { saves = !saves; $('#imSaves').classList.toggle('on', saves); };
+    const done = async r => { await loadProfiles(); S.sel = r.profile; renderProfiles(); renderHero(); toast(`Профиль «${r.name}» готов${r.installed !== undefined ? ', модов: ' + r.installed : ''}`); if (r.skipped && r.skipped.length) await modal('Часть файлов не поставилась', r.skipped.join('\n')); if (r.failed && r.failed.length) await modal('Часть файлов не скачалась', 'Авторы этих модов запретили скачивание вне CurseForge:\n\n' + r.failed.join('\n')); };
+    $('#imCodeGo').onclick = async () => {
+      const code = $('#imCode').value.trim(); if (!code) return;
+      try {
+        const info = await invoke('pack_code_info', {code});
+        const ok = await modal(`Сборка «${info.name || 'без названия'}»`, `Minecraft ${info.mc} · ${LNAME[info.loader] || info.loader}${info.loader_ver ? ' ' + info.loader_ver : ''} · ${info.items.length} ${plural(info.items.length, 'файл', 'файла', 'файлов')}${info.config ? ' · с настройками модов' : ''}. Поставить отдельным профилем?`, [{label:'Отмена', val:false}, {label:'Поставить', val:true, cls:'solid'}]);
+        if (!ok) return importTools();
+        importTools.st = st; st.busy = 'code'; draw();
+        const r = await invoke('pack_code_install', {code}); st.busy = ''; draw(); await done(r);
+      } catch (e) { st.busy = ''; draw(); modal('Не получилось', String(e)); }
+    };
+    $('#imCode').onkeydown = e => { if (e.key === 'Enter') $('#imCodeGo').click(); };
+    $('#imFile').onclick = async () => {
+      const r0 = await T.dialog.open({multiple: false, title: 'Файл сборки', filters: [{name: 'Сборки', extensions: ['mrpack', 'zip']}]}); const path = Array.isArray(r0) ? r0[0] : r0; if (!path) return;
+      st.busy = 'file'; draw(); try { const r = await invoke('import_pack_file', {path}); st.busy = ''; draw(); await done(r); } catch (e) { st.busy = ''; draw(); modal('Не получилось', String(e)); }
+    };
+    $$('[data-im]', box).forEach(b => b.onclick = async () => {
+      const x = f[+b.dataset.im]; let mcv = x.mc, loader = x.loader, lv = x.loader_ver;
+      if (!mcv) {
+        const ok = await modalHtml('Какая версия игры?', `<div class="hint" style="margin-bottom:8px">Лаунчер «${esc(x.source)}» не записал версию этого профиля. Введи её и загрузчик.</div><div class="two"><input class="inp" id="askMc" placeholder="1.21.1"><select class="inp" id="askL">${['vanilla','fabric','quilt','forge','neoforge'].map(l => `<option value="${l}" ${l === loader ? 'selected' : ''}>${LNAME[l] || l}</option>`).join('')}</select></div>`, [{label:'Отмена', val:false}, {label:'Перенести', val:true, cls:'solid'}]);
+        const v = ($('#askMc') || {}).value, l = ($('#askL') || {}).value; if (!ok || !v || !v.trim()) return; mcv = v.trim(); loader = l || 'vanilla'; lv = null;
+      }
+      st.busy = 'i' + b.dataset.im; draw();
+      try { const r = await invoke('instance_import', {path: x.path, name: x.name, mc: mcv, loader: loader || 'vanilla', loaderVer: lv || null, saves}); st.busy = ''; f.splice(+b.dataset.im, 1); draw(); await done(r); } catch (e) { st.busy = ''; draw(); modal('Не получилось перенести', String(e)); }
+    });
+  };
+  draw();
+  invoke('instances_detect').then(l => { st.found = l; draw(); }).catch(() => { st.found = []; draw(); });
+  const un = await T.event.listen('task', ({payload: t}) => { if (t && (String(t.id).startsWith('import:') || t.id === 'code:install') && st.busy) { st.prog = `${t.stage}${t.frac > 0 ? ' ' + Math.round(t.frac * 100) + '%' : ''}`; const b = st.busy === 'code' ? $('#imCodeGo') : st.busy === 'file' ? $('#imFile') : $(`[data-im="${st.busy.slice(1)}"]`); if (b) b.textContent = st.prog; } });
+  const obs = setInterval(() => { if (!$('#xmodal').classList.contains('on') || !$('#imFile')) { clearInterval(obs); un(); } }, 1000);
 }
 
 /* миры профиля и резервные копии */
@@ -844,6 +942,9 @@ function openPalette(){
     ...PAGES.map(([id, t]) => ({t: 'Перейти: ' + t, hint: 'раздел', run: () => go(id)})),
     ...S.profiles.map(p => ({t: 'Играть: ' + p.name, hint: `${p.mc} · ${LNAME[p.loader] || p.loader}`, run: () => { S.sel = p.id; go('home'); setTimeout(() => playClick(p), 150); }})),
     {t: 'Проверить обновления лаунчера', hint: 'обновление', run: () => checkLauncher(false)},
+    {t: 'Перенести сборки из других лаунчеров', hint: 'импорт', run: importTools},
+    {t: 'Установить сборку по коду или из файла', hint: 'импорт', run: importTools},
+    {t: 'Поделиться сборкой выбранного профиля', hint: 'экспорт', run: () => { const p = cur(); if (p) packTools(p); }},
     {t: 'Открыть папку выбранного профиля', hint: 'профиль', run: () => invoke('open_folder', {profileId: S.sel, sub: null}).catch(toast)},
   ];
   box.innerHTML = `<div id="pal"><input class="inp" id="palQ" placeholder="Что сделать? Например: серверы, сборки, играть…" spellcheck="false"><div id="palL" style="margin-top:8px;max-height:340px;overflow:auto;scrollbar-width:none"></div></div>`;
@@ -989,7 +1090,7 @@ function renderVDetail(){
 }
 
 /* ── аккаунты ── */
-const KINDN = {local:'Локальный · без лицензии', microsoft:'Лицензия Microsoft', noxel:'Аккаунт Noxel'};
+const KINDN = {local:'Локальный · без лицензии', microsoft:'Лицензия Microsoft', noxel:'Аккаунт Noxel', ygg:'Ely.by и другие'};
 const DEFAULT_SKIN = 'assets/default_skin.png';
 const skinCache = {}, headCache = {}, imgCache = {};
 function loadImg(src){ return imgCache[src] || (imgCache[src] = new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; })); }
@@ -1116,7 +1217,7 @@ function renderAccounts(){
   const el = $('#alist');
   el.innerHTML = S.accts.map((a, i) => `<div class="row ${a.id === S.av ? 'sel' : ''}" data-id="${esc(a.id)}" style="--i:${i}">
     <div class="avatar skin"><img class="head" data-h="${a.skin ? a.skin.hash : ''}" alt=""></div>
-    <div class="meta"><b>${esc(a.name)}</b><small>${KINDN[a.kind] || a.kind}</small></div>
+    <div class="meta"><b>${esc(a.name)}</b><small>${a.kind === 'ygg' ? esc(a.server || 'Ely.by') : KINDN[a.kind] || a.kind}</small></div>
     ${a.selected ? '<span class="badge w">АКТИВЕН</span>' : ''}
     <div class="acts"><button class="ibtn sm" data-act="del" title="Удалить">${I.trash}</button></div></div>`).join('') + `<button class="addrow" id="addAcc">${I.plus} Добавить аккаунт</button>`;
   fillHeads(el);
@@ -1189,14 +1290,15 @@ async function renderDetails(){
   const row = (k, v) => `<div class="kvr"><b>${esc(k)}</b><span>${esc(v)}</span></div>`;
   const an = analytics(st.raw);
   const skip = (S.set && S.set.auto_skip) || [];
-  const note = d.kind === 'local' ? `Скин хранится в лаунчере. Чтобы его видели другие игроки через SkinsRestorer, подключи аккаунт Noxel: скин загрузится на сервер.` : d.kind === 'microsoft' ? 'Скин сохраняется прямо на серверах Mojang, его видят все игроки.' : 'Скины и плащи хранятся на сервере Noxel. Ссылка на скин подходит для команды SkinsRestorer.';
+  const ygg = d.kind === 'ygg';
+  const note = ygg ? `Скин и плащ этого аккаунта хранит ${esc(d.server || 'Ely.by')}: их видят все игроки на серверах с его поддержкой. Сменить скин можно на сайте, лаунчер подтянет его сам.` : d.kind === 'local' ? `Скин хранится в лаунчере. Чтобы его видели другие игроки через SkinsRestorer, подключи аккаунт Noxel: скин загрузится на сервер.` : d.kind === 'microsoft' ? 'Скин сохраняется прямо на серверах Mojang, его видят все игроки.' : 'Скины и плащи хранятся на сервере Noxel. Ссылка на скин подходит для команды SkinsRestorer.';
   el.innerHTML = ART + `<div class="adetail"><div class="ainfo">
     <div><div class="lbl">${KINDN[d.kind]}</div><h1 class="gh" style="font-size:42px;margin-top:8px">${esc(d.name)}</h1>
       <div class="chips" style="margin-top:12px"><span class="chip num" id="uuidChip" title="Скопировать UUID" style="cursor:pointer">${esc(d.uuid)}</span>${d.skin ? `<span class="chip">${slim ? 'Тонкие руки' : 'Классические руки'}</span>` : '<span class="chip">Скин по умолчанию</span>'}${d.cape ? '<span class="chip">Плащ</span>' : ''}${(S.game.state === 'running' && a.selected) ? '<span class="live"><i></i>В игре <span id="liveT" class="num">00:00:00</span></span>' : ''}</div></div>
     <div class="mrow"><button class="minibtn ${a.selected ? '' : 'solid'}" id="bAct" ${a.selected ? 'disabled' : ''}>${a.selected ? 'Активный аккаунт' : 'Играть этим аккаунтом'}</button>
-      <button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><button class="minibtn" id="bNick">Скин по нику</button><div class="seg" id="mseg"></div>
+      ${ygg ? `<button class="minibtn" id="bYgg">${I.ext} Сменить скин на ${esc(d.server && d.server.includes('ely.by') ? 'ely.by' : d.server || 'сайте')}</button>` : `<button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><button class="minibtn" id="bNick">Скин по нику</button><div class="seg" id="mseg"></div>`}
       ${noxel || d.kind === 'microsoft' ? `<button class="minibtn" id="bCape">Плащи</button>${d.cape && noxel ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}` : ''}${noxel && d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}
-      ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}</div>
+      ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}${noxel ? '<button class="minibtn" id="bNoxDel">Удалить аккаунт с сервера</button>' : ''}</div>
     <div class="hint" style="max-width:560px">${note}</div>
     <div class="pwbox" style="max-width:560px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--fill);border:1px solid var(--line)">
       <div style="font-weight:600;font-size:13px;margin-bottom:4px">Пароль на серверах (для автовхода)</div>
@@ -1212,11 +1314,17 @@ async function renderDetails(){
     <div class="sec"><div class="lbl"><span>Версии игры</span></div>${st.versions && st.versions.length ? `<div class="kv">${st.versions.map(x => row(x.mc, fmtDur(x.secs))).join('')}</div>` : '<div class="hint">Пока нет данных.</div>'}</div>
     <div class="sec"><div class="lbl"><span>Локальные миры</span></div>${d.worlds && d.worlds.length ? `<div class="kv">${d.worlds.map(x => row(x.name, `${x.mc} · ${ago(x.modified)}`)).join('')}</div>` : '<div class="hint">Миры из одиночной игры покажутся здесь.</div>'}</div>
   </div><div class="aview" id="aviewer"></div></div>`;
-  mkSeg($('#mseg'), [['auto','Авто'],['classic','Классика'],['slim','Тонкие']], S.skinModel, v => { S.skinModel = v; renderDetails(); });
+  if ($('#mseg')) mkSeg($('#mseg'), [['auto','Авто'],['classic','Классика'],['slim','Тонкие']], S.skinModel, v => { S.skinModel = v; renderDetails(); });
+  if ($('#bYgg')) $('#bYgg').onclick = () => invoke('open_url', {url: d.server && d.server.includes('ely.by') ? 'https://ely.by/skins' : 'https://' + d.server}).catch(toast);
   $('#uuidChip').onclick = () => navigator.clipboard.writeText(d.uuid).then(() => toast('UUID скопирован')).catch(() => {});
   $('#bAct').onclick = async () => { try { S.accts = await invoke('account_select', {id: d.id}); renderRailAcc(); renderAccounts(); toast(`Играешь как ${d.name}`); } catch (x) { toast(x); } };
-  $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
+  if ($('#bSkin')) $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
   if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
+  if ($('#bNoxDel')) $('#bNoxDel').onclick = async () => {
+    const ok = await modalHtml(`Удалить аккаунт ${esc(d.name)} навсегда?`, `<div class="hint" style="margin-bottom:10px">С сервера Noxel удалятся аккаунт, скины и плащ, друзья, облачный мир и коды сборок. Миры и моды на этом компьютере останутся. Отменить нельзя.</div><input class="inp" id="delPw" type="password" placeholder="Пароль аккаунта Noxel" style="width:100%">`, [{label:'Отмена', val:false}, {label:'Удалить навсегда', val:true, cls:'solid'}]);
+    const pw = ($('#delPw') || {}).value || ''; if (!ok) return; if (!pw) return toast('Нужен пароль');
+    try { S.accts = await invoke('noxel_delete', {id: d.id, password: pw}); S.av = null; S.det = null; await loadAccounts(); renderAccounts(); toast('Аккаунт удалён с сервера'); } catch (e) { modal('Не получилось', String(e)); }
+  };
   if ($('#bNick')) $('#bNick').onclick = () => {
     const box = $('#xbox'); box.innerHTML = `<h3>Скин по нику</h3><div class="hint" style="margin-bottom:10px">Введи ник любого лицензионного игрока Minecraft: его скин станет твоим.</div><div class="field"><label>Ник игрока</label><input class="inp" id="nkIn" maxlength="16" placeholder="Например, jeb_" spellcheck="false"></div><div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="nkGo">Взять скин</button></div>`;
     $('#xc').onclick = closeX; $('#xmodal').classList.add('on'); setTimeout(() => $('#nkIn').focus(), 30);
@@ -1243,7 +1351,7 @@ async function renderDetails(){
 function openAddAccount(tab){
   const box = $('#xbox'); S.xtab = tab;
   box.innerHTML = `<h3>Новый аккаунт</h3><div class="seg full" id="xseg" style="margin-bottom:18px"></div><div id="xbody"></div>`;
-  mkSeg($('#xseg'), [['local','Локальный'],['noxel','Noxel'],['ms','Microsoft']], tab, t => openAddAccount(t));
+  mkSeg($('#xseg'), [['local','Локальный'],['noxel','Noxel'],['ely','Ely.by'],['ms','Microsoft']], tab, t => openAddAccount(t));
   const b = $('#xbody'), err = m => { let e = $('#xerr'); if (!e) { e = document.createElement('div'); e.id = 'xerr'; e.className = 'err'; b.append(e); } e.textContent = m; };
   const done = async (msg) => { closeX(); S.det = null; S._dj = ''; await loadAccounts(); S.av = (active() || {}).id; renderAccounts(); toast(msg); };
   if (tab === 'local') {
@@ -1261,6 +1369,14 @@ function openAddAccount(tab){
     let samePw = true; $('#xsw').onclick = () => { samePw = !samePw; $('#xsw').classList.toggle('on', samePw); };
     const auth = async reg => { try { $('#xin').disabled = $('#xreg').disabled = true; S.accts = await invoke('noxel_auth', {name: $('#xn').value, password: $('#xp').value, register: reg}); if (samePw) { try { await invoke('server_pw_set', {id: 'noxel-' + $('#xn').value.trim().toLowerCase(), pw: $('#xp').value}); } catch (e2) { toast('Пароль для серверов не сохранён: ' + e2); } } await done(reg ? 'Аккаунт Noxel создан' : 'Вход выполнен'); } catch (e) { err(String(e)); $('#xin').disabled = $('#xreg').disabled = false; } };
     $('#xin').onclick = () => auth(false); $('#xreg').onclick = () => auth(true); $('#xp').onkeydown = e => { if (e.key === 'Enter') auth(false); }; setTimeout(() => $('#xn').focus(), 50);
+  } else if (tab === 'ely') {
+    b.innerHTML = `<div class="field"><label>Логин или почта Ely.by</label><input class="inp" id="xn" placeholder="Ник или e-mail" spellcheck="false"></div>
+      <div class="field"><label>Пароль</label><input class="inp" id="xp" type="password" placeholder="Если включена защита: пароль:код"></div>
+      <div class="field"><label>Сервер авторизации</label><input class="inp" id="xs" value="ely.by" spellcheck="false"><div class="hint">Ely.by или любой сервер authlib-injector (адрес сайта или API). Пароль уходит только на этот сервер и в лаунчере не хранится.</div></div>
+      <div class="hint">Ely.by — бесплатные аккаунты со скинами, которые видят все игроки на серверах с поддержкой Ely.by. Скин меняется на сайте ely.by, лаунчер подтягивает его сам. Нет аккаунта? Создай на ely.by.</div>
+      <div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn" id="xreg">Создать на ely.by</button><button class="minibtn solid" id="xin">Войти</button></div>`;
+    const go3 = async () => { try { $('#xin').disabled = true; S.accts = await invoke('ygg_login', {server: $('#xs').value, username: $('#xn').value, password: $('#xp').value}); await done('Вход выполнен'); } catch (e) { err(String(e)); $('#xin').disabled = false; } };
+    $('#xin').onclick = go3; $('#xp').onkeydown = e => { if (e.key === 'Enter') go3(); }; $('#xreg').onclick = () => invoke('open_url', {url: 'https://account.ely.by/register'}).catch(toast); setTimeout(() => $('#xn').focus(), 50);
   } else {
     b.innerHTML = S.ms ? `<div class="hint">Открой страницу входа и введи этот код:</div><div class="code" style="margin:12px 0">${esc(S.ms.user_code)}</div>
         <div class="wait"><i class="spinner"></i>Жду подтверждения входа…</div>
@@ -1729,8 +1845,9 @@ const PK = {q: '', sort: 'downloads', mc: '', hits: null, busy: new Set(), prog:
 const PK_VERS = ['26.2', '26.1', '1.21.4', '1.21.1', '1.20.4', '1.20.1', '1.19.4', '1.19.2', '1.18.2', '1.16.5', '1.12.2', '1.7.10'];
 async function renderPacks(force){
   const el = $('#mbody'); if (!el) return;
-  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Готовые сборки с Modrinth и CurseForge. Каждая ставится отдельным профилем: моды, настройки и нужная версия игры.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="pkQ" placeholder="Искать сборку" value="${esc(PK.q)}" style="width:190px"><select class="inp" id="pkV"><option value="">Любая версия</option>${PK_VERS.map(v => `<option value="${v}">${v}</option>`).join('')}</select><select class="inp" id="pkS"><option value="downloads">По скачиваниям</option><option value="relevance">По релевантности</option><option value="newest">Новые</option><option value="updated">Обновлённые</option></select></span></div><div id="pkList" class="srvgrid"></div>`;
+  el.innerHTML = `<div class="updbar" style="margin-bottom:12px"><span>Готовые сборки с Modrinth и CurseForge. Каждая ставится отдельным профилем: моды, настройки и нужная версия игры.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="minibtn solid sm" id="pkImport">${I.up} По коду, из файла, из других лаунчеров</button><input class="inp" id="pkQ" placeholder="Искать сборку" value="${esc(PK.q)}" style="width:190px"><select class="inp" id="pkV"><option value="">Любая версия</option>${PK_VERS.map(v => `<option value="${v}">${v}</option>`).join('')}</select><select class="inp" id="pkS"><option value="downloads">По скачиваниям</option><option value="relevance">По релевантности</option><option value="newest">Новые</option><option value="updated">Обновлённые</option></select></span></div><div id="pkList" class="srvgrid"></div>`;
   $('#pkS').value = PK.sort; $('#pkV').value = PK.mc;
+  $('#pkImport').onclick = importTools;
   let t = null;
   const load = async () => {
     $('#pkList').innerHTML = '<div class="sk" style="height:170px"></div>'.repeat(4);
@@ -1821,7 +1938,7 @@ async function loadFriends(first){
     <div class="ncard" style="margin-bottom:12px"><div style="display:flex;gap:10px;align-items:center"><span class="badge ${room.hosting ? 'w' : ''}">${room.hosting ? 'МИР ОТКРЫТ' : 'МОЙ МИР'}</span></div>
       ${room.hosting ? `<div class="nb">Друзья видят твой мир в списке и могут зайти. Мир остаётся открытым, пока идёт игра и лаунчер включён. Друзья могут заходить, даже если у них нет лицензии.</div><div class="mrow"><button class="minibtn sm" id="frClose">Закрыть мир для друзей</button></div>`
         : running ? `<div class="nb">Игра запущена${rp ? ' (' + esc(rp.name) + ')' : ''}. Зайди в одиночный мир и нажми кнопку: друзья увидят его в своём списке и зайдут к тебе, как по локальной сети.${room.lan_port ? `<br>Мир уже открыт в игре на порту ${room.lan_port}: лаунчер подключит его к друзьям.` : ''}</div><div class="mrow"><button class="minibtn solid sm" id="frOpen">Открыть мой мир для друзей</button></div>`
-        : '<div class="nb">Запусти игру и зайди в одиночный мир, чтобы открыть его для друзей. Версия игры у друга должна быть такой же.</div>'}</div>
+        : `<div class="nb">Запусти игру и зайди в одиночный мир, чтобы открыть его для друзей. Версия игры у друга должна быть такой же.</div>${(() => { const p = prof(S.sel); return p && !NOMODS.includes(p.loader) ? `<div class="mrow"><button class="minibtn sm" id="frVoice">Голосовой чат в «${esc(p.name)}»</button></div>` : ''; })()}`}</div>
     ${d.incoming.length ? `<div class="lbl" style="margin:6px 4px 8px"><span>Заявки в друзья</span></div>` + d.incoming.map(n => `<div class="ncard" style="margin-bottom:8px;flex-direction:row;align-items:center"><b style="flex:1">${esc(n)}</b><button class="minibtn solid sm" data-fa="${esc(n)}">Принять</button><button class="minibtn sm" data-fx="${esc(n)}">Отклонить</button></div>`).join('') : ''}
     <div class="lbl" style="margin:10px 4px 8px"><span>Друзья · ${d.friends.length}</span></div>
     ${d.friends.length ? d.friends.map(f => `<div class="ncard" style="margin-bottom:8px;flex-direction:row;align-items:center;gap:12px"><div class="avatar" style="flex:none">${esc(letter(f.name))}</div>
@@ -1835,6 +1952,7 @@ async function loadFriends(first){
   $$('[data-fa]', el).forEach(b => b.onclick = () => act('accept', b.dataset.fa));
   $$('[data-fx]', el).forEach(b => b.onclick = () => act('remove', b.dataset.fx, 'Удалено'));
   if ($('#frOpen')) $('#frOpen').onclick = async () => { const b = $('#frOpen'); b.disabled = true; b.textContent = 'Открываю…'; try { const r = await invoke('room_open', {id: a.id, profileId: S.game.id}); toast(r.how === 'auto' ? 'Мир открыт для друзей' : 'Мир подключён к друзьям'); } catch (e) { modal('Не получилось открыть мир', String(e)); } loadFriends(false); };
+  if ($('#frVoice')) $('#frVoice').onclick = async () => { const b = $('#frVoice'); b.disabled = true; b.textContent = 'Ставлю…'; try { toast(await invoke('voice_ensure', {profileId: S.sel}) ? 'Голосовой чат установлен: друзья получат его сами, когда зайдут' : 'Голосовой чат уже стоит'); } catch (e) { modal('Не получилось', String(e)); } loadFriends(false); };
   if ($('#frClose')) $('#frClose').onclick = async () => { try { await invoke('room_close'); toast('Мир закрыт для друзей'); } catch (e) { toast(e); } loadFriends(false); };
   $$('[data-fj]', el).forEach(b => b.onclick = async () => {
     const mcv = b.dataset.mc, same = S.profiles.find(p => p.mc === mcv && p.installed);
@@ -1856,6 +1974,9 @@ async function loadFriends(first){
     if (!pr) return modal('Нет профиля', 'Сначала добавь версию игры.');
     if (mcv && pr.mc !== mcv) { const ok = await modal('Другая версия игры', `У друга игра ${mcv}, а у профиля «${pr.name}» ${pr.mc}. Зайти может не получиться. Продолжить?`, [{label:'Отмена', val:false}, {label:'Всё равно зайти', val:true, cls:'solid'}]); if (!ok) return; }
     b.disabled = true;
+    // у друга голосовой чат: ставим такой же, чтобы слышать друг друга
+    const fr = (FR.data.friends || []).find(x => x.name === b.dataset.fj);
+    if (fr && (fr.ports || []).includes(24454) && !NOMODS.includes(pr.loader)) { try { if (await invoke('voice_ensure', {profileId: pr.id})) toast('Поставил голосовой чат, как у друга'); } catch (e) {} }
     try { await invoke('room_join', {id: a.id, hostName: b.dataset.fj, profileId: pr.id}); go('home'); } catch (e) { b.disabled = false; modal('Не удалось зайти', String(e)); }
   });
 }
@@ -2007,9 +2128,24 @@ function analyzeCrash(t){
   if (/GLFW error|Pixel format not accelerated|GLX|failed to create (?:the )?window/i.test(t)) add('gl', 'gl', {title: 'Проблема с графикой', text: 'Игра не смогла создать окно OpenGL. Проверь драйвер видеокарты и попробуй отключить шейдеры и OptiFine.'});
   return out;
 }
-async function crashHelp(auto, code){
+async function crashHelp(auto, code, crash, pidIn){
   let text = ''; try { text = (await invoke('get_logs')).join('\n'); } catch (e) {}
-  const sugs = analyzeCrash(text), pid = S.sel;
+  const sugs = analyzeCrash(text), pid = pidIn || S.sel;
+  if (crash && (crash.mods.length || crash.missing.length || crash.title !== 'Игра вылетела')) {
+    const html = `<div class="hint" style="margin-bottom:10px">${esc(crash.advice)}</div>
+      ${crash.missing.length ? `<div class="lbl" style="margin:8px 0 6px"><span>Не хватает</span></div>${crash.missing.map(m => `<div class="sug"><div><small>${esc(m)}</small></div></div>`).join('')}` : ''}
+      ${crash.mods.length ? `<div class="lbl" style="margin:8px 0 6px"><span>Похоже, виноват</span></div>${crash.mods.map((m, i) => `<div class="sug"><div><b>${esc(m)}</b></div><button class="minibtn solid sm" data-off="${i}">Выключить</button></div>`).join('')}` : ''}
+      ${crash.exception ? `<pre style="white-space:pre-wrap;font-size:11.5px;color:var(--fg3);max-height:90px;overflow:auto;margin-top:10px">${esc(crash.exception)}</pre>` : ''}
+      ${sugs.length ? sugs.map((x, i) => `<div class="sug"><div><b>${esc(x.title)}</b><small>${esc(x.text)}</small></div>${x.kind === 'ram' ? '<button class="minibtn solid sm" data-set>Настройки</button>' : x.q ? `<button class="minibtn solid sm" data-find="${i}">Найти мод</button>` : ''}</div>`).join('') : ''}`;
+    const ready = modalHtml(crash.title, html.replace(/>\s+</g, '><'), [{label:'Точки восстановления', val:'snap'}, {label:'Закрыть', val:true, cls:'solid'}]);
+    setTimeout(() => {
+      $$('#mx [data-off]').forEach(b => b.onclick = async () => { const f = crash.mods[+b.dataset.off]; try { await invoke('mods_toggle', {profileId: pid, kind: 'mod', file: f}); b.disabled = true; b.textContent = 'Выключен'; toast(`Мод ${f} выключен: попробуй запустить снова`); await loadProfiles(); } catch (e) { toast(e); } });
+      $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'all', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
+      $$('#mx [data-set]').forEach(b => b.onclick = () => { $('#modal').classList.remove('on'); go('settings'); });
+    }, 30);
+    if (await ready === 'snap') { const p = prof(pid); if (p) packTools(p); }
+    return;
+  }
   if (!sugs.length) { if (auto) modal('Игра закрылась с ошибкой', `Код выхода: ${code}. Подробности в консоли на главной странице.`); else toast('Явных причин в логе не нашлось'); return; }
   const html = sugs.map((x, i) => `<div class="sug"><div><b>${esc(x.title)}</b><small>${esc(x.text)}</small></div>${x.kind === 'ram' ? '<button class="minibtn solid sm" data-set>Настройки</button>' : x.q ? `<button class="minibtn solid sm" data-find="${i}">Найти мод</button>` : ''}</div>`).join('');
   const ready = modalHtml(auto ? 'Игра закрылась с ошибкой' : 'Что нашлось в логе', `<div class="hint" style="margin-bottom:6px">Вот что похоже на причину:</div>${html}`, [{label:'Закрыть', val:true}]);
@@ -2042,7 +2178,11 @@ function renderSettings(){
     <div class="glass panel" style="--i:1"><h3>Общий мир и голосовой чат<small>Как друзья играют вместе через сервер Noxel</small></h3>
       <div class="field"><label>UDP-порты для голосового чата</label><input class="inp" id="sRoomPorts" value="${esc(s.room_ports || '')}" placeholder="24454" spellcheck="false"></div>
       <div class="hint">Через запятую, до четырёх. Simple Voice Chat использует 24454, Plasmo Voice 60606. Друзья услышат тебя, когда ты откроешь мир, а у них в игре будет такой же мод.</div>
-      ${sw('sMod', 'Мод Noxel в игре', 'Кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}</div>
+      ${sw('sMod', 'Мод Noxel в игре', 'Кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}
+      ${sw('sYgg', 'Скин Noxel виден всем', 'Аккаунт Noxel входит в игру через сервер Noxel (authlib-injector): друзья видят твой скин в твоём мире. Чтобы зайти в мир, где это включено, другу нужен аккаунт Noxel с этой же настройкой', s.noxel_ygg)}</div>
+    <div class="glass panel" style="--i:9"><h3>Место на диске<small>Одинаковые моды, ресурспаки и шейдеры в разных профилях хранятся один раз</small></h3>
+      <div class="hint" id="stInfo">Новые моды сразу ложатся в общее хранилище. Кнопка сведёт к одной копии то, что уже скачано.</div>
+      <div class="mrow" style="margin-top:8px"><button class="minibtn sm" id="stDedupe">Освободить место</button></div></div>
     <div class="glass panel" style="--i:1"><h3>Запуск игры<small>Как лаунчер ведёт себя, когда игра стартует</small></h3>
       ${sw('sFull', 'Полный экран', 'Игра сразу открывается на весь экран', s.fullscreen)}
       ${sw('sCon', 'Показывать консоль', 'Лог игры откроется на главной странице', s.show_console)}
@@ -2079,7 +2219,8 @@ function renderSettings(){
     const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
   }, 450); };
   const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
-  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); $('#sLite').onclick = e => { const b = e.currentTarget; b.classList.toggle('on'); try { localStorage.setItem('nx_lite', b.classList.contains('on') ? '1' : '0'); } catch (x) {} applyLite(); };
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); flag('sYgg', 'noxel_ygg');
+  $('#stDedupe').onclick = async () => { const b = $('#stDedupe'); b.disabled = true; b.textContent = 'Ищу одинаковые файлы…'; try { const r = await invoke('store_dedupe'); $('#stInfo').textContent = `Освобождено ${fmtSize(r.saved + r.freed)}. В общем хранилище ${fmtSize(r.store)}.`; } catch (e) { toast(e); } b.disabled = false; b.textContent = 'Освободить место'; }; $('#sLite').onclick = e => { const b = e.currentTarget; b.classList.toggle('on'); try { localStorage.setItem('nx_lite', b.classList.contains('on') ? '1' : '0'); } catch (x) {} applyLite(); };
   flag('sAnim', 'animations', applyAnim);
   mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
   mkDd($('#sGc'), [...GC.map(g => [g[0], g[1]]), ['custom','Свои аргументы']], gcNow, v => { const g = GC.find(x => x[0] === v); if (g) { $('#sJvm').value = g[2]; save(); S.set.jvm_args = g[2]; renderSettings(); } }, {});
@@ -2111,7 +2252,7 @@ T.event.listen('task', ({payload: t}) => {
 T.event.listen('game', ({payload: g}) => {
   if (g.state === 'installing') S.game = {id: g.id, state: 'installing'};
   else if (g.state === 'running') { S.game = {id: g.id, state: 'running'}; S.runStart = Date.now(); }
-  else if (g.state === 'exited') { S.game = {id: null, state: 'idle'}; if (g.code && g.code !== 0) { S.logOpen = true; crashHelp(true, g.code); } else toast('Игра закрыта'); }
+  else if (g.state === 'exited') { const pid = S.game.id || S.sel; S.game = {id: null, state: 'idle'}; if (g.code && g.code !== 0) { S.logOpen = true; crashHelp(true, g.code, g.crash, pid); } else toast('Игра закрыта'); }
   else if (g.state === 'installed') { S.game = {id: null, state: 'idle'}; toast('Версия скачана и готова к запуску'); }
   else if (g.state === 'error') { S.game = {id: null, state: 'idle'}; modal('Что-то пошло не так', g.message); }
   setDot(); renderProfiles(); renderHero();

@@ -74,6 +74,8 @@ def init():
       id INTEGER PRIMARY KEY, account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       name TEXT NOT NULL, mc TEXT NOT NULL DEFAULT '', size INTEGER NOT NULL, created INTEGER NOT NULL, file TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS worlds_acc ON worlds(account, created);
+    CREATE TABLE IF NOT EXISTS packcodes(
+      code TEXT PRIMARY KEY, account INTEGER, created INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS shares(
       token TEXT PRIMARY KEY, world INTEGER NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
       account INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, created INTEGER NOT NULL, downloads INTEGER NOT NULL DEFAULT 0);
@@ -503,6 +505,88 @@ def start_relay():
     print("noxel relay on 0.0.0.0:%d (tcp+udp)" % RELAY_PORT, flush=True)
 
 
+PACK_ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+
+def clean_pack(j):
+    """Описание сборки для кода: только ожидаемые поля и разумные размеры."""
+    items = []
+    for m in (j.get("items") or [])[:800]:
+        if not isinstance(m, dict):
+            continue
+        prov, mid, kind = str(m.get("provider", "")), str(m.get("id", "")), str(m.get("kind", "mod"))
+        if prov not in ("modrinth", "curseforge") or kind not in ("mod", "resourcepack", "shader") or not re.match(r"^[A-Za-z0-9]{1,40}$", mid):
+            continue
+        it = {"provider": prov, "id": mid, "kind": kind, "name": str(m.get("name", ""))[:80]}
+        v = m.get("version")
+        if isinstance(v, str) and re.match(r"^[A-Za-z0-9]{1,40}$", v):
+            it["version"] = v
+        items.append(it)
+    cfg = j.get("config")
+    if not (isinstance(cfg, str) and len(cfg) <= 420_000 and re.match(r"^[A-Za-z0-9+/=]*$", cfg)):
+        cfg = None
+    loader = str(j.get("loader", "vanilla"))
+    if loader not in ("vanilla", "fabric", "quilt", "forge", "neoforge", "optifine"):
+        raise Err(400, "неизвестный загрузчик")
+    mc = str(j.get("mc", ""))[:24]
+    if not re.match(r"^[A-Za-z0-9.\- _]+$", mc):
+        raise Err(400, "неверная версия игры")
+    lv = j.get("loader_ver")
+    return {"name": str(j.get("name", ""))[:60], "mc": mc, "loader": loader, "loader_ver": str(lv)[:40] if lv else None, "items": items, "config": cfg}
+
+
+# ── Yggdrasil (authlib-injector): вход аккаунтом Noxel в игре, скины видны всем ──
+YGG_KEY = os.path.join(DATA, "ygg.key")
+_joins = {}
+_sig_cache = {}
+
+
+def ygg_key():
+    if not os.path.exists(YGG_KEY):
+        import subprocess
+        subprocess.run(["openssl", "genrsa", "-out", YGG_KEY, "4096"], check=True, capture_output=True)
+        os.chmod(YGG_KEY, 0o600)
+    return YGG_KEY
+
+
+def ygg_pub():
+    import subprocess
+    return subprocess.run(["openssl", "rsa", "-in", ygg_key(), "-pubout"], check=True, capture_output=True).stdout.decode()
+
+
+def ygg_sign(value):
+    import base64, subprocess
+    if value in _sig_cache:
+        return _sig_cache[value]
+    sig = subprocess.run(["openssl", "dgst", "-sha1", "-sign", ygg_key()], input=value.encode(), check=True, capture_output=True).stdout
+    if len(_sig_cache) > 5000:
+        _sig_cache.clear()
+    _sig_cache[value] = base64.b64encode(sig).decode()
+    return _sig_cache[value]
+
+
+def ygg_profile(a, signed):
+    import base64
+    tex = {}
+    if a["skin_id"]:
+        f = db().execute("SELECT * FROM files WHERE id=?", (a["skin_id"],)).fetchone()
+        if f:
+            tex["SKIN"] = {"url": "%s/f/%s.png" % (BASE, f["hash"])}
+            if f["model"] == "slim":
+                tex["SKIN"]["metadata"] = {"model": "slim"}
+    if a["cape_id"]:
+        f = db().execute("SELECT * FROM files WHERE id=?", (a["cape_id"],)).fetchone()
+        if f:
+            tex["CAPE"] = {"url": "%s/f/%s.png" % (BASE, f["hash"])}
+    # время с точностью до часа: значение и подпись повторяются и кэшируются
+    ts = int(time.time() // 3600 * 3600 * 1000)
+    val = base64.b64encode(json.dumps({"timestamp": ts, "profileId": a["uuid"], "profileName": a["name"], "textures": tex}, separators=(",", ":")).encode()).decode()
+    prop = {"name": "textures", "value": val}
+    if signed:
+        prop["signature"] = ygg_sign(val)
+    return {"id": a["uuid"], "name": a["name"], "properties": [prop]}
+
+
 class H(BaseHTTPRequestHandler):
     server_version = "Noxel"
     protocol_version = "HTTP/1.1"
@@ -516,7 +600,7 @@ class H(BaseHTTPRequestHandler):
 
     def body(self):
         n = int(self.headers.get("Content-Length") or 0)
-        if n > MAX_BODY and not self.path.startswith(("/noxel/v1/data", "/noxel/v1/servers", "/noxel/v1/recommended")):
+        if n > MAX_BODY and not self.path.startswith(("/noxel/v1/data", "/noxel/v1/servers", "/noxel/v1/recommended", "/noxel/v1/packs")):
             raise Err(413, "слишком большой запрос")
         if n > MAX_DATA:
             raise Err(413, "слишком большой запрос")
@@ -662,6 +746,117 @@ class H(BaseHTTPRequestHandler):
         if code in (200, 400, 404):
             return self.send(code, raw=body)
         raise Err(502, "CurseForge временно недоступен, попробуй чуть позже")
+
+    def cf_fingerprints(self):
+        """Поиск файлов CurseForge по отпечаткам (для экспорта сборки в формат CurseForge)."""
+        key = read_secret(CF_KEY_FILE)
+        if not key:
+            raise Err(503, "CurseForge на сервере не настроен")
+        fps = self.jbody().get("fingerprints")
+        if not isinstance(fps, list) or not fps or len(fps) > 400 or not all(isinstance(i, int) and 0 <= i < 2**32 for i in fps):
+            raise Err(400, "ожидается {\"fingerprints\": [до 400 чисел]}")
+        if not throttle(("cff", self.ip()), 10):
+            raise Err(429, "слишком много запросов, подожди минуту")
+        req = urllib.request.Request("https://api.curseforge.com/v1/fingerprints/432", data=json.dumps({"fingerprints": fps}).encode(), method="POST",
+                                     headers={"x-api-key": key, "Accept": "application/json", "Content-Type": "application/json", "User-Agent": "Noxel/0.6"})
+        try:
+            with urllib.request.urlopen(req, timeout=25) as r:
+                return self.send(200, raw=r.read(8_000_000))
+        except urllib.error.HTTPError as e:
+            raise Err(502, "CurseForge ответил %d" % e.code)
+        except Exception:
+            raise Err(502, "CurseForge временно недоступен")
+
+    def ygg_fail(self, code, msg):
+        self.send(code, {"error": "ForbiddenOperationException" if code == 403 else "IllegalArgumentException", "errorMessage": msg})
+
+    def ygg(self, method, p, q):
+        """API для authlib-injector: https://github.com/yushijinhun/authlib-injector/wiki"""
+        if method == "GET" and p == "/":
+            site = BASE.rsplit("/noxel", 1)[0]
+            host = urlparse(site).hostname or "mr1s.site"
+            return self.send(200, {"meta": {"serverName": "Noxel", "implementationName": "noxel-server", "implementationVersion": "1",
+                                            "links": {"homepage": site, "register": site}, "feature.non_email_login": True},
+                                   "skinDomains": [host, "." + host], "signaturePublickey": ygg_pub()})
+        if method == "POST" and p in ("/authserver/authenticate", "/authserver/signout"):
+            if not throttle(("yauth", self.ip()), 10):
+                return self.ygg_fail(403, "Too many attempts")
+            j = self.jbody()
+            a = db().execute("SELECT * FROM accounts WHERE name=?", (str(j.get("username", "")),)).fetchone()
+            if not a or not hmac.compare_digest(hash_pw(str(j.get("password", "")), a["salt"]), a["pw"]):
+                return self.ygg_fail(403, "Invalid credentials. Invalid username or password.")
+            if p.endswith("signout"):
+                db().execute("DELETE FROM tokens WHERE account=?", (a["id"],))
+                db().commit()
+                return self.send(204, raw=b"")
+            prof = {"id": a["uuid"], "name": a["name"]}
+            ct = str(j.get("clientToken") or secrets.token_hex(16))[:64]
+            out = {"accessToken": self.new_token(a["id"]), "clientToken": ct, "availableProfiles": [prof], "selectedProfile": prof}
+            if j.get("requestUser"):
+                out["user"] = {"id": a["uuid"], "properties": []}
+            return self.send(200, out)
+        if method == "POST" and p in ("/authserver/refresh", "/authserver/validate", "/authserver/invalidate"):
+            j = self.jbody()
+            h = hashlib.sha256(str(j.get("accessToken", "")).encode()).hexdigest()
+            r = db().execute("SELECT a.* FROM tokens t JOIN accounts a ON a.id=t.account WHERE t.hash=?", (h,)).fetchone()
+            if p.endswith("invalidate"):
+                db().execute("DELETE FROM tokens WHERE hash=?", (h,))
+                db().commit()
+                return self.send(204, raw=b"")
+            if not r:
+                return self.ygg_fail(403, "Invalid token.")
+            if p.endswith("validate"):
+                return self.send(204, raw=b"")
+            db().execute("DELETE FROM tokens WHERE hash=?", (h,))
+            db().commit()
+            prof = {"id": r["uuid"], "name": r["name"]}
+            out = {"accessToken": self.new_token(r["id"]), "clientToken": str(j.get("clientToken") or "")[:64], "selectedProfile": prof}
+            if j.get("requestUser"):
+                out["user"] = {"id": r["uuid"], "properties": []}
+            return self.send(200, out)
+        if method == "POST" and p == "/sessionserver/session/minecraft/join":
+            j = self.jbody()
+            h = hashlib.sha256(str(j.get("accessToken", "")).encode()).hexdigest()
+            r = db().execute("SELECT a.* FROM tokens t JOIN accounts a ON a.id=t.account WHERE t.hash=?", (h,)).fetchone()
+            if not r or str(j.get("selectedProfile", "")).replace("-", "") != r["uuid"]:
+                return self.ygg_fail(403, "Invalid token.")
+            sid = str(j.get("serverId", ""))[:64]
+            now = time.time()
+            for k in [k for k, v in _joins.items() if now - v[2] > 30]:
+                _joins.pop(k, None)
+            _joins[sid] = (r["id"], self.ip(), now)
+            return self.send(204, raw=b"")
+        if method == "GET" and p == "/sessionserver/session/minecraft/hasJoined":
+            sid, name = (q.get("serverId") or [""])[0], (q.get("username") or [""])[0]
+            j = _joins.get(sid)
+            if not j or time.time() - j[2] > 30:
+                return self.send(204, raw=b"")
+            a = db().execute("SELECT * FROM accounts WHERE id=?", (j[0],)).fetchone()
+            if not a or a["name"].lower() != name.lower():
+                return self.send(204, raw=b"")
+            return self.send(200, ygg_profile(a, True))
+        m = re.match(r"^/sessionserver/session/minecraft/profile/([0-9a-fA-F-]{32,36})$", p)
+        if method == "GET" and m:
+            a = db().execute("SELECT * FROM accounts WHERE uuid=?", (m.group(1).replace("-", "").lower(),)).fetchone()
+            if not a:
+                return self.send(204, raw=b"")
+            return self.send(200, ygg_profile(a, (q.get("unsigned") or ["true"])[0] == "false"))
+        if method == "POST" and p in ("/api/profiles/minecraft", "/api/profiles/minecraft/"):
+            try:
+                names = json.loads(self.body() or b"[]")
+            except ValueError:
+                names = []
+            out = []
+            for n in (names if isinstance(names, list) else [])[:10]:
+                a = db().execute("SELECT uuid, name FROM accounts WHERE name=?", (str(n),)).fetchone()
+                if a:
+                    out.append({"id": a["uuid"], "name": a["name"]})
+            return self.send(200, raw=json.dumps(out).encode())
+        m = re.match(r"^/api/users/profiles/minecraft/([A-Za-z0-9_]{1,16})$", p)
+        if method == "GET" and m:
+            a = db().execute("SELECT uuid, name FROM accounts WHERE name=?", (m.group(1),)).fetchone()
+            return self.send(200, {"id": a["uuid"], "name": a["name"]}) if a else self.send(204, raw=b"")
+        return self.ygg_fail(404, "Not found")
 
     def social(self, method, p, a):
         """Друзья, присутствие, билеты ретранслятора и облачные миры. True, если запрос обработан."""
@@ -842,6 +1037,8 @@ class H(BaseHTTPRequestHandler):
     def route(self, method):
         u = urlparse(self.path)
         p, q = u.path.rstrip("/"), parse_qs(u.query)
+        if p == "/noxel/ygg" or p.startswith("/noxel/ygg/"):
+            return self.ygg(method, p[len("/noxel/ygg"):] or "/", q)
         if not p.startswith("/noxel/v1"):
             raise Err(404, "не найдено")
         p = p[len("/noxel/v1"):] or "/"
@@ -883,6 +1080,41 @@ class H(BaseHTTPRequestHandler):
             return self.share_public(m.group(1), bool(m.group(2)))
         if method == "POST" and p == "/cf/mods/files":
             return self.cf_batch()
+        if method == "POST" and p == "/cf/fingerprints":
+            return self.cf_fingerprints()
+        if method == "POST" and p == "/packs":
+            if not throttle(("pk", self.ip()), 12):
+                raise Err(429, "слишком часто, подожди минуту")
+            acc = None
+            if (self.headers.get("Authorization") or "").startswith("Bearer "):
+                try:
+                    acc = self.auth()["id"]
+                except Err:
+                    acc = None
+            data = clean_pack(self.jbody())
+            c = db()
+            c.execute("DELETE FROM packcodes WHERE created < ? AND used < ?", (int(time.time()) - 180 * 86400, int(time.time()) - 60 * 86400))
+            for _ in range(20):
+                code = "".join(secrets.choice(PACK_ALPHA) for _ in range(8))
+                try:
+                    c.execute("INSERT INTO packcodes(code,account,created,used,data) VALUES(?,?,?,?,?)", (code, acc, int(time.time()), int(time.time()), json.dumps(data, ensure_ascii=False)))
+                    break
+                except sqlite3.IntegrityError:
+                    continue
+            c.commit()
+            return self.send(200, {"code": code, "url": "%s/p/%s" % (BASE.rsplit("/noxel", 1)[0], code)})
+        m = re.match(r"^/packs/([A-Za-z0-9]{6,12})$", p)
+        if method == "GET" and m:
+            if not throttle(("pkg", self.ip()), 40):
+                raise Err(429, "слишком часто, подожди минуту")
+            r = db().execute("SELECT data, created FROM packcodes WHERE code=?", (m.group(1).upper(),)).fetchone()
+            if not r:
+                raise Err(404, "сборка с таким кодом не найдена")
+            db().execute("UPDATE packcodes SET used=? WHERE code=?", (int(time.time()), m.group(1).upper()))
+            db().commit()
+            d = json.loads(r["data"])
+            d["created"] = r["created"]
+            return self.send(200, d)
         m = re.match(r"^/cf/(.+)$", p)
         if method == "GET" and m:
             return self.cf_proxy(m.group(1), u.query)
@@ -940,6 +1172,9 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"ok": True})
         if method == "GET" and p == "/me":
             return self.send(200, self.view(a))
+        if method == "POST" and p == "/ygg/token":
+            # отдельный токен для игры: в процесс игры не уходит основной токен лаунчера
+            return self.send(200, {"accessToken": self.new_token(a["id"]), "uuid": a["uuid"], "name": a["name"]})
         if self.social(method, p, a):
             return
         if p == "/data":
@@ -970,8 +1205,13 @@ class H(BaseHTTPRequestHandler):
             j = self.jbody()
             if not hmac.compare_digest(hash_pw(str(j.get("password", "")), a["salt"]), a["pw"]):
                 raise Err(403, "пароль неверный")
+            db().execute("DELETE FROM packcodes WHERE account=?", (a["id"],))
             db().execute("DELETE FROM accounts WHERE id=?", (a["id"],))
             db().commit()
+            _presence.pop(a["id"], None)
+            _packs.pop(a["id"], None)
+            import shutil
+            shutil.rmtree(os.path.join(WORLDS, str(a["id"])), ignore_errors=True)
             return self.send(200, {"ok": True})
 
         m = re.match(r"^/(skin|cape)(?:/(select|\d+))?$", p)

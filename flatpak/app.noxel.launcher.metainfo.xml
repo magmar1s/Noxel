@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>app.noxel.launcher</id>
+  <name>Noxel</name>
+  <summary>Minecraft launcher where every version has its own mods</summary>
+  <summary xml:lang="ru">Лаунчер Minecraft: у каждой версии свои моды</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="site.mr1s"><name>Noxel</name></developer>
+  <url type="homepage">https://mr1s.site/</url>
+  <description>
+    <p>Noxel keeps a separate folder for every Minecraft version and modpack, searches Modrinth and CurseForge at once, moves your instances over from Prism, Modrinth App, CurseForge and other launchers, and lets friends join your world without port forwarding.</p>
+    <p xml:lang="ru">Noxel держит отдельную папку для каждой версии и сборки, ищет моды сразу на Modrinth и CurseForge, переносит профили из Prism, Modrinth App, CurseForge и других лаунчеров и пускает друзей в твой мир без настройки сети.</p>
+  </description>
+  <launchable type="desktop-id">app.noxel.launcher.desktop</launchable>
+  <content_rating type="oars-1.1"><content_attribute id="social-chat">mild</content_attribute></content_rating>
+  <releases><release version="0.14.0" date="2026-11-02"/></releases>
+</component>

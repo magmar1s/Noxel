@@ -865,8 +865,58 @@ pub struct Prepared {
     pub gamedir: PathBuf,
 }
 
+/// authlib-injector (AGPL-3.0, отдельная программа, скачивается с сайта автора и запускается как есть):
+/// подменяет серверы входа Mojang на Ely.by или сервер Noxel. Кэшируется в tools/.
+fn ensure_authlib_injector() -> R<PathBuf> {
+    let dir = data_dir().join("tools");
+    let _ = fs::create_dir_all(&dir);
+    let cached = || fs::read_dir(&dir).ok().and_then(|r| r.flatten().map(|f| f.path()).filter(|p| p.file_name().map(|n| n.to_string_lossy().starts_with("authlib-injector-")).unwrap_or(false)).max());
+    let stamp = dir.join("authlib-injector.checked");
+    let fresh = fs::metadata(&stamp).and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).map(|d| d.as_secs() < 86400).unwrap_or(false);
+    if let (true, Some(p)) = (fresh, cached()) {
+        return Ok(p);
+    }
+    match get_json("https://authlib-injector.yushi.moe/artifact/latest.json") {
+        Ok(v) => {
+            let ver = v["version"].as_str().unwrap_or("latest");
+            let url = v["download_url"].as_str().ok_or("нет ссылки на authlib-injector")?;
+            let path = dir.join(format!("authlib-injector-{ver}.jar"));
+            if !path.exists() {
+                download(url, &path, None)?;
+                if let Some(want) = v["checksums"]["sha256"].as_str() {
+                    use sha2::Digest;
+                    let got = format!("{:x}", sha2::Sha256::digest(fs::read(&path).map_err(e)?));
+                    if !got.eq_ignore_ascii_case(want) {
+                        let _ = fs::remove_file(&path);
+                        return Err("authlib-injector скачался повреждённым".into());
+                    }
+                }
+            }
+            let _ = fs::write(&stamp, ver);
+            Ok(path)
+        }
+        Err(x) => cached().ok_or_else(|| format!("не удалось скачать authlib-injector: {x}")),
+    }
+}
+
 pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared> {
     let threads = st.threads.clamp(2, 24) as usize;
+    // вход через authlib-injector: Ely.by и другие серверы, а по желанию и аккаунт Noxel
+    let mut acct = acct.clone();
+    let mut injector: Option<String> = None;
+    if acct.kind == "ygg" {
+        injector = Some(acct.api.clone());
+    } else if acct.kind == "noxel" && st.noxel_ygg && !acct.token.is_empty() {
+        match crate::accounts::noxel_game_token(&acct) {
+            Ok((tok, uuid)) => {
+                acct.access_token = tok;
+                acct.uuid = uuid;
+                injector = Some(crate::accounts::NOXEL_YGG.into());
+            }
+            Err(x) => eprintln!("[ygg] вход Noxel без authlib-injector: {x}"),
+        }
+    }
+    let acct = &acct;
     cb("Метаданные", -1.0, &p.mc);
     ensure_vanilla_json(&p.mc)?;
     let vid = ensure_loader(p, cb)?;
@@ -986,7 +1036,7 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
         ("auth_session", "0".into()),
         ("clientid", "noxel".into()),
         ("auth_xuid", if acct.xuid.is_empty() { "0".into() } else { acct.xuid.clone() }),
-        ("user_type", if acct.kind == "microsoft" { "msa".into() } else { "legacy".into() }),
+        ("user_type", if acct.kind == "microsoft" { "msa".into() } else if injector.is_some() { "mojang".into() } else { "legacy".into() }),
         ("version_type", v["type"].as_str().unwrap_or("release").to_string()),
         ("user_properties", "{}".into()),
         ("natives_directory", natives_dir.to_string_lossy().to_string()),
@@ -1045,6 +1095,17 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
         format!("-Xms{}M", st.ram_mb.clamp(256, 1024)),
     ];
     args.extend(st.jvm_args.split_whitespace().map(String::from));
+    if let Some(api) = &injector {
+        cb("Запуск", -1.0, "authlib-injector");
+        let jar = ensure_authlib_injector()?;
+        args.push(format!("-javaagent:{}={}", jar.display(), api));
+        if let Ok(meta) = agent().get(api).call().and_then(|r| Ok(r.into_string().unwrap_or_default())) {
+            use base64::Engine;
+            if meta.contains("signaturePublickey") {
+                args.push(format!("-Dauthlibinjector.yggdrasil.prefetched={}", base64::engine::general_purpose::STANDARD.encode(meta.as_bytes())));
+            }
+        }
+    }
     let _ = fs::create_dir_all(gamedir.join(".noxel"));
     let _ = fs::write(gamedir.join(".noxel/flags.txt"), format!("icon={}\n", st.game_icon as u8));
     if st.game_icon {

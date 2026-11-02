@@ -62,7 +62,8 @@ pub fn check() -> R<Value> {
     let file = m["files"][PLATFORM].clone();
     // у каждой системы своя версия (выпуск только для Linux не трогает Windows); старый манифест хранит одну общую
     let latest = file["version"].as_str().or(m["version"].as_str()).unwrap_or("").to_string();
-    let newer = !latest.is_empty() && !file.is_null() && ver_tuple(&latest) > ver_tuple(VERSION);
+    // во Flatpak лаунчер обновляет сам Flatpak (файл программы там только для чтения)
+    let newer = std::env::var_os("FLATPAK_ID").is_none() && !latest.is_empty() && !file.is_null() && ver_tuple(&latest) > ver_tuple(VERSION);
     Ok(json!({"current": VERSION, "latest": latest, "newer": newer, "notes": m["notes"], "news": m["news"], "size": file["size"]}))
 }
 
@@ -93,6 +94,9 @@ pub fn fetch_verified(dest: &std::path::Path) -> R<String> {
 
 /// Скачивает новую сборку, проверяет её и подменяет файл лаунчера.
 pub fn update() -> R<String> {
+    if std::env::var_os("FLATPAK_ID").is_some() {
+        return Err("Noxel установлен через Flatpak: обнови его командой flatpak update".into());
+    }
     let exe = exe_path()?;
     if exe.components().any(|c| c.as_os_str() == "target") {
         return Err("Это сборка для разработки: самообновление отключено".into());

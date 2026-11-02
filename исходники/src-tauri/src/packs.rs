@@ -112,7 +112,7 @@ fn search_mr(query: &str, sort: &str, offset: u32, mc: &str) -> R<Vec<Value>> {
         .collect())
 }
 
-fn safe_rel(p: &str) -> Option<std::path::PathBuf> {
+pub fn safe_rel(p: &str) -> Option<std::path::PathBuf> {
     let path = Path::new(p);
     if path.is_absolute() || p.contains("..") || p.contains('\0') || p.starts_with('/') || p.starts_with('\\') {
         return None;
@@ -151,7 +151,8 @@ fn fetch_many(jobs: Vec<Job>, threads: usize, cb: &(dyn Fn(u64, u64) + Sync)) ->
     failed.into_inner().unwrap()
 }
 
-fn extract_overrides(z: &mut zip::ZipArchive<fs::File>, prefixes: &[String], dir: &Path) -> R<()> {
+fn extract_overrides(z: &mut zip::ZipArchive<fs::File>, prefixes: &[String], dir: &Path) -> R<Vec<String>> {
+    let mut out_files = vec![];
     for i in 0..z.len() {
         let mut ent = z.by_index(i).map_err(e)?;
         if ent.is_dir() {
@@ -161,14 +162,15 @@ fn extract_overrides(z: &mut zip::ZipArchive<fs::File>, prefixes: &[String], dir
         let s = enc.to_string_lossy().replace('\\', "/");
         let Some(rel) = prefixes.iter().find_map(|p| s.strip_prefix(p.as_str())).filter(|r| !r.is_empty()) else { continue };
         let Some(rel) = safe_rel(rel) else { continue };
-        let out = dir.join(rel);
+        let out = dir.join(&rel);
         if let Some(p) = out.parent() {
             fs::create_dir_all(p).map_err(e)?;
         }
         let mut f = fs::File::create(&out).map_err(e)?;
         std::io::copy(&mut ent, &mut f).map_err(e)?;
+        out_files.push(rel.to_string_lossy().replace('\\', "/"));
     }
-    Ok(())
+    Ok(out_files)
 }
 
 fn install_cf(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Value> {
@@ -182,7 +184,15 @@ fn install_cf(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
     let tmp = data_dir().join("cache").join(format!("pack-cf-{project_id}.zip"));
     cb("Скачиваю сборку", 0.05, "");
     download(&url, &tmp, None)?;
-    let mut z = zip::ZipArchive::new(fs::File::open(&tmp).map_err(e)?).map_err(e)?;
+    let origin = json!({"provider": "curseforge", "project_id": project_id, "version": fid.to_string(), "version_name": f["displayName"].as_str().unwrap_or(fname)});
+    let r = install_cf_file(&tmp, None, Some(origin), cb);
+    let _ = fs::remove_file(&tmp);
+    r
+}
+
+/// Ставит сборку CurseForge из zip-файла на диске (скачанного или выбранного пользователем).
+pub fn install_cf_file(tmp: &Path, into: Option<&str>, origin: Option<Value>, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Value> {
+    let mut z = zip::ZipArchive::new(fs::File::open(tmp).map_err(e)?).map_err(e)?;
     let man: Value = {
         let mut ent = z.by_name("manifest.json").map_err(|_| "это не сборка CurseForge: нет manifest.json")?;
         let mut s = String::new();
@@ -194,12 +204,16 @@ fn install_cf(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
     let pick = ml.iter().find(|x| x["primary"] == true).or(ml.first()).and_then(|x| x["id"].as_str()).ok_or("в сборке не указан загрузчик модов")?;
     let (loader, lver) = ["neoforge", "fabric", "quilt", "forge"].iter().find_map(|l| pick.strip_prefix(&format!("{l}-")).map(|v| (l.to_string(), v.to_string()))).ok_or("сборка для неподдерживаемого загрузчика")?;
     let name = man["name"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("Сборка CurseForge");
-    let profile = mc::create_profile(mcv, &loader, Some(lver), name, None)?;
+    let profile = match into {
+        Some(id) => mc::find_profile(id)?,
+        None => mc::create_profile(mcv, &loader, Some(lver), name, None)?,
+    };
     let dir = mc::inst_dir(&profile.id);
 
     // описания файлов (имя, ссылка, хеш) запрашиваем пачками через сервер Noxel
     let ids: Vec<u64> = man["files"].as_array().cloned().unwrap_or_default().iter().filter(|x| x["required"] != false).filter_map(|x| x["fileID"].as_u64()).collect();
     let mut jobs = vec![];
+    let mut files: Vec<String> = vec![];
     for (n, chunk) in ids.chunks(200).enumerate() {
         cb("Получаю список модов", 0.08 + 0.04 * n as f64, "");
         let r: Value = agent().post(&format!("{CF}/mods/files")).send_json(json!({"fileIds": chunk})).map_err(|x| format!("CurseForge: {x}"))?.into_json().map_err(e)?;
@@ -211,6 +225,7 @@ fn install_cf(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
             let u = d["downloadUrl"].as_str().map(String::from).unwrap_or_else(|| format!("https://edge.forgecdn.net/files/{}/{}/{}", id / 1000, id % 1000, fname));
             let sha1 = d["hashes"].as_array().and_then(|h| h.iter().find(|x| x["algo"] == 1)).and_then(|x| x["value"].as_str()).map(String::from);
             let sub = if fname.to_lowercase().ends_with(".zip") { "resourcepacks" } else { "mods" };
+            files.push(format!("{sub}/{fname}"));
             jobs.push(Job { url: u, path: dir.join(sub).join(fname), sha1 });
         }
     }
@@ -219,10 +234,23 @@ fn install_cf(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
     let failed = fetch_many(jobs, 8, &|d, _| cb("Скачиваю файлы сборки", 0.15 + 0.8 * d as f64 / total, &format!("{d} из {}", total as u64)));
     cb("Распаковываю настройки", 0.97, "");
     let ov = man["overrides"].as_str().unwrap_or("overrides").trim_matches('/').to_string();
-    extract_overrides(&mut z, &[format!("{ov}/")], &dir)?;
-    let _ = fs::remove_file(&tmp);
+    let ovf = extract_overrides(&mut z, &[format!("{ov}/")], &dir)?;
+    files.extend(ovf);
+    finish(&profile.id, origin, files);
     cb("Готово", 1.0, "");
     Ok(json!({"profile": profile.id, "name": profile.name, "mc": profile.mc, "loader": profile.loader, "failed": failed}))
+}
+
+/// Запоминает, откуда пришла сборка и какие файлы она положила: по этому списку работают обновление и откат.
+fn finish(profile_id: &str, origin: Option<Value>, files: Vec<String>) {
+    let dir = mc::inst_dir(profile_id);
+    crate::store::dedupe_profile(profile_id);
+    crate::store::index_unknown(profile_id);
+    if let Some(mut o) = origin {
+        o["files"] = json!(files);
+        o["installed"] = json!(now());
+        write_json(&dir.join(".noxel/pack.json"), &o);
+    }
 }
 
 fn install_mr(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Value> {
@@ -235,8 +263,15 @@ fn install_mr(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
     let tmp = data_dir().join("cache").join(format!("pack-{project_id}.mrpack"));
     cb("Скачиваю сборку", 0.05, "");
     download(url, &tmp, file["hashes"]["sha1"].as_str())?;
+    let origin = json!({"provider": "modrinth", "project_id": project_id, "version": v["id"], "version_name": v["version_number"]});
+    let r = install_mrpack(&tmp, None, Some(origin), cb);
+    let _ = fs::remove_file(&tmp);
+    r
+}
 
-    let mut z = zip::ZipArchive::new(fs::File::open(&tmp).map_err(e)?).map_err(e)?;
+/// Ставит сборку .mrpack из файла на диске. `into` — поставить поверх существующего профиля (обновление сборки).
+pub fn install_mrpack(tmp: &Path, into: Option<&str>, origin: Option<Value>, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Value> {
+    let mut z = zip::ZipArchive::new(fs::File::open(tmp).map_err(e)?).map_err(e)?;
     let idx: Value = {
         let mut ent = z.by_name("modrinth.index.json").map_err(|_| "это не сборка Modrinth (.mrpack)")?;
         let mut s = String::new();
@@ -250,16 +285,21 @@ fn install_mr(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
         .find_map(|(k, l)| deps[*k].as_str().map(|v| (l.to_string(), v.to_string())))
         .ok_or("сборка для неподдерживаемого загрузчика")?;
     let name = idx["name"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("Сборка Modrinth");
-    let profile = mc::create_profile(mcv, &loader, Some(lver), name, None)?;
+    let profile = match into {
+        Some(id) => mc::find_profile(id)?,
+        None => mc::create_profile(mcv, &loader, Some(lver), name, None)?,
+    };
     let dir = mc::inst_dir(&profile.id);
 
     let mut jobs = vec![];
+    let mut files: Vec<String> = vec![];
     for f in idx["files"].as_array().cloned().unwrap_or_default() {
         if f["env"]["client"] == "unsupported" {
             continue;
         }
         let Some(rel) = f["path"].as_str().and_then(safe_rel) else { continue };
         let Some(u) = f["downloads"][0].as_str() else { continue };
+        files.push(rel.to_string_lossy().replace('\\', "/"));
         jobs.push(Job { url: u.to_string(), path: dir.join(rel), sha1: f["hashes"]["sha1"].as_str().map(String::from) });
     }
     let total = jobs.len().max(1) as f64;
@@ -279,14 +319,120 @@ fn install_mr(project_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Valu
             _ => continue,
         };
         let Some(rel) = safe_rel(&rel) else { continue };
-        let out = dir.join(rel);
+        let out = dir.join(&rel);
         if let Some(p) = out.parent() {
             fs::create_dir_all(p).map_err(e)?;
         }
         let mut f = fs::File::create(&out).map_err(e)?;
         std::io::copy(&mut ent, &mut f).map_err(e)?;
+        files.push(rel.to_string_lossy().replace('\\', "/"));
     }
-    let _ = fs::remove_file(&tmp);
+    finish(&profile.id, origin, files);
     cb("Готово", 1.0, "");
     Ok(json!({"profile": profile.id, "name": profile.name, "mc": profile.mc, "loader": profile.loader}))
+}
+
+// ── обновление установленной сборки с показом изменений и откатом ──
+
+fn pack_origin(profile_id: &str) -> Option<Value> {
+    read_json(&mc::inst_dir(profile_id).join(".noxel/pack.json"))
+}
+
+/// Свежая версия сборки под ту же версию игры: (id версии, название, ссылка, sha1, описание изменений).
+fn latest_for(o: &Value, p: &mc::Profile) -> R<Option<(String, String, String, Option<String>, String)>> {
+    let pid = o["project_id"].as_str().ok_or("нет id сборки")?;
+    if o["provider"] == "curseforge" {
+        let r: Value = agent().get(&format!("{CF}/mods/{pid}/files")).query("gameVersion", &p.mc).query("pageSize", "20").call().map_err(|x| format!("CurseForge: {x}"))?.into_json().map_err(e)?;
+        let list = r["data"].as_array().cloned().unwrap_or_default();
+        let Some(f) = list.iter().filter(|x| x["isAvailable"] != false).max_by_key(|x| (x["releaseType"] == 1, x["id"].as_u64().unwrap_or(0))) else { return Ok(None) };
+        let fid = f["id"].as_u64().unwrap_or(0);
+        let fname = f["fileName"].as_str().unwrap_or("pack.zip");
+        let url = f["downloadUrl"].as_str().map(String::from).unwrap_or_else(|| format!("https://edge.forgecdn.net/files/{}/{}/{}", fid / 1000, fid % 1000, fname));
+        return Ok(Some((fid.to_string(), f["displayName"].as_str().unwrap_or(fname).to_string(), url, None, String::new())));
+    }
+    let vs: Value = agent().get(&format!("{MR}/project/{pid}/version")).query("game_versions", &serde_json::to_string(&[&p.mc]).map_err(e)?).call().map_err(e)?.into_json().map_err(e)?;
+    let list = vs.as_array().cloned().unwrap_or_default();
+    let Some(v) = list.iter().find(|x| x["version_type"] == "release").or(list.first()) else { return Ok(None) };
+    let file = v["files"].as_array().and_then(|f| f.iter().find(|x| x["primary"] == true).or(f.first())).ok_or("в версии сборки нет файла")?;
+    Ok(Some((
+        v["id"].as_str().unwrap_or("").to_string(),
+        v["version_number"].as_str().unwrap_or("").to_string(),
+        file["url"].as_str().unwrap_or("").to_string(),
+        file["hashes"]["sha1"].as_str().map(String::from),
+        v["changelog"].as_str().unwrap_or("").chars().take(1500).collect(),
+    )))
+}
+
+fn pack_files_of(path: &Path, cf: bool) -> Vec<String> {
+    let Ok(f) = fs::File::open(path) else { return vec![] };
+    let Ok(mut z) = zip::ZipArchive::new(f) else { return vec![] };
+    let mut s = String::new();
+    if cf {
+        if let Ok(mut ent) = z.by_name("manifest.json") {
+            let _ = ent.read_to_string(&mut s);
+        }
+        let v: Value = serde_json::from_str(s.trim_start_matches('\u{feff}')).unwrap_or(json!({}));
+        return v["files"].as_array().map(|a| a.iter().map(|x| format!("cf:{}", x["projectID"])).collect()).unwrap_or_default();
+    }
+    if let Ok(mut ent) = z.by_name("modrinth.index.json") {
+        let _ = ent.read_to_string(&mut s);
+    }
+    let v: Value = serde_json::from_str(&s).unwrap_or(json!({}));
+    v["files"].as_array().map(|a| a.iter().filter_map(|x| x["path"].as_str().map(String::from)).collect()).unwrap_or_default()
+}
+
+/// Есть ли у сборки профиля новая версия и что в ней поменяется.
+pub fn update_check(profile_id: &str) -> R<Value> {
+    let p = mc::find_profile(profile_id)?;
+    let Some(o) = pack_origin(profile_id) else { return Ok(json!({"pack": false})) };
+    let cur = o["version"].as_str().map(String::from).unwrap_or_else(|| o["version"].to_string());
+    let Some((vid, vname, url, sha1, changelog)) = latest_for(&o, &p)? else {
+        return Ok(json!({"pack": true, "update": false, "current": o["version_name"]}));
+    };
+    if vid == cur {
+        return Ok(json!({"pack": true, "update": false, "current": o["version_name"]}));
+    }
+    let cf = o["provider"] == "curseforge";
+    let tmp = data_dir().join("cache").join(format!("pack-upd-{}.zip", mc::slug(profile_id)));
+    download(&url, &tmp, sha1.as_deref())?;
+    let new: Vec<String> = pack_files_of(&tmp, cf);
+    let old: Vec<String> = o["files"].as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).filter(|f| f.starts_with("mods/") || f.starts_with("resourcepacks/") || f.starts_with("shaderpacks/")).collect()).unwrap_or_default();
+    let name = |f: &str| f.rsplit('/').next().unwrap_or(f).to_string();
+    let (added, removed): (Vec<String>, Vec<String>) = if cf {
+        (vec![], vec![])
+    } else {
+        (new.iter().filter(|f| !old.contains(f)).map(|f| name(f)).collect(), old.iter().filter(|f| !new.contains(f)).map(|f| name(f)).collect())
+    };
+    Ok(json!({"pack": true, "update": true, "current": o["version_name"], "new": vname, "changelog": changelog, "added": added, "removed": removed, "count": new.len()}))
+}
+
+/// Ставит новую версию сборки поверх профиля. Сначала сохраняет точку восстановления.
+pub fn update_apply(profile_id: &str, cb: &(dyn Fn(&str, f64, &str) + Sync)) -> R<Value> {
+    let p = mc::find_profile(profile_id)?;
+    let o = pack_origin(profile_id).ok_or("этот профиль не из сборки")?;
+    let (vid, vname, url, sha1, _) = latest_for(&o, &p)?.ok_or("новой версии нет")?;
+    cb("Сохраняю точку восстановления", 0.02, "");
+    crate::store::snapshot(profile_id, &format!("перед обновлением сборки до {vname}"))?;
+    let cf = o["provider"] == "curseforge";
+    let tmp = data_dir().join("cache").join(format!("pack-upd-{}.zip", mc::slug(profile_id)));
+    if !tmp.exists() {
+        download(&url, &tmp, sha1.as_deref())?;
+    }
+    // убираем файлы старой версии сборки (свои моды игрока не трогаем)
+    let dir = mc::inst_dir(profile_id);
+    let new: Vec<String> = pack_files_of(&tmp, cf);
+    for f in o["files"].as_array().cloned().unwrap_or_default() {
+        let Some(f) = f.as_str() else { continue };
+        if (f.starts_with("mods/") || f.starts_with("resourcepacks/") || f.starts_with("shaderpacks/")) && !new.iter().any(|n| n == f) {
+            if let Some(rel) = safe_rel(f) {
+                let _ = fs::remove_file(dir.join(&rel));
+            }
+        }
+    }
+    let mut origin = o.clone();
+    origin["version"] = json!(vid);
+    origin["version_name"] = json!(vname);
+    let r = if cf { install_cf_file(&tmp, Some(profile_id), Some(origin), cb) } else { install_mrpack(&tmp, Some(profile_id), Some(origin), cb) };
+    let _ = fs::remove_file(&tmp);
+    r
 }

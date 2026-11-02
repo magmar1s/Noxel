@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Noxel
+GenericName=Minecraft Launcher
+GenericName[ru]=Лаунчер Minecraft
+Comment=Minecraft launcher where every version has its own mods
+Comment[ru]=Лаунчер Minecraft: у каждой версии свои моды
+Exec=noxel
+Icon=app.noxel.launcher
+Terminal=false
+Categories=Game;
+Keywords=minecraft;launcher;mods;modrinth;curseforge;
+StartupWMClass=noxel

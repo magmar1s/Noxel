@@ -149,8 +149,17 @@ pub enum Body {
     Bytes(Vec<u8>),
 }
 
+#[cfg(test)]
+fn api_base() -> String {
+    std::env::var("T_API").unwrap_or_else(|_| API.into())
+}
+#[cfg(not(test))]
+fn api_base() -> String {
+    API.into()
+}
+
 pub fn call(method: &str, path: &str, token: Option<&str>, body: Body) -> R<Value> {
-    let mut req = agent().request(method, &format!("{API}{path}"));
+    let mut req = agent().request(method, &format!("{}{path}", api_base()));
     if let Some(t) = token {
         req = req.set("Authorization", &format!("Bearer {t}"));
     }

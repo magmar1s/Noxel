@@ -894,3 +894,219 @@ fn horizon_flow() {
     println!("код {:?}\n{}\n{}", out.status.code(), String::from_utf8_lossy(&out.stdout).lines().take(8).collect::<Vec<_>>().join("\n"), String::from_utf8_lossy(&out.stderr).lines().take(5).collect::<Vec<_>>().join("\n"));
     assert!(out.status.success(), "лаунчер Horizon не запустился");
 }
+
+/// Переезд и обмен сборками: экспорт, импорт, общее хранилище, точки, код сборки, поиск чужих лаунчеров, разбор краша.
+/// T_API=http://127.0.0.1:18730/noxel/v1 — локальный сервер Noxel для кода сборки.
+#[test]
+#[ignore]
+fn transfer_flow() {
+    use std::io::Write;
+    let cb = |s: &str, f: f64, d: &str| if f < 0.0 || f >= 1.0 { println!("  [{s}] {d}") };
+    let lv = mc::loader_versions("1.21.1", "fabric");
+    let a = mc::create_profile("1.21.1", "fabric", lv.first().cloned(), "xfer A", None).unwrap();
+    for slug in ["AANobbMI", "gvQqBUqZ"] {
+        crate::mods::install("modrinth", "mod", slug, &a.id, None, &cb).unwrap();
+    }
+    let dir = mc::inst_dir(&a.id);
+    // свой мод, которого нет на Modrinth, и настройки
+    {
+        let f = std::fs::File::create(dir.join("mods/fake-mod.jar")).unwrap();
+        let mut z = zip::ZipWriter::new(f);
+        z.start_file("fabric.mod.json", zip::write::SimpleFileOptions::default()).unwrap();
+        z.write_all(br#"{"id":"fakemod","version":"1"}"#).unwrap();
+        z.start_file("com/example/fakemod/Boom.class", zip::write::SimpleFileOptions::default()).unwrap();
+        z.write_all(&[0xCA, 0xFE, 0xBA, 0xBE]).unwrap();
+        z.finish().unwrap();
+    }
+    std::fs::create_dir_all(dir.join("config")).unwrap();
+    std::fs::write(dir.join("config/test.json"), "{\"a\":1}").unwrap();
+    let mods_a: Vec<String> = std::fs::read_dir(dir.join("mods")).unwrap().flatten().map(|f| f.file_name().to_string_lossy().to_string()).collect();
+    println!("профиль A: {mods_a:?}");
+
+    // экспорт .mrpack
+    let out = data_dir().join("xfer-test.mrpack");
+    let r = crate::transfer::export_mrpack(&a.id, &out, false, &cb).unwrap();
+    println!("экспорт mrpack: {r}");
+    assert_eq!(r["linked"], 2, "Sodium и Lithium должны уйти ссылками");
+    assert!(r["embedded"].as_u64().unwrap() >= 1, "свой мод кладётся внутрь");
+
+    // импорт обратно
+    let r = crate::transfer::import_file(&out, &cb).unwrap();
+    let b = r["profile"].as_str().unwrap().to_string();
+    let bdir = mc::inst_dir(&b);
+    let mods_b: Vec<String> = std::fs::read_dir(bdir.join("mods")).unwrap().flatten().map(|f| f.file_name().to_string_lossy().to_string()).collect();
+    println!("импорт: {r} моды {mods_b:?}");
+    assert_eq!(mods_b.len(), mods_a.len());
+    assert!(bdir.join("config/test.json").is_file());
+    let idx_b = crate::mods::indexed_files(&b);
+    println!("известны источники: {idx_b:?}");
+    assert!(idx_b.len() >= 2);
+
+    // общее хранилище: Sodium в обоих профилях — один файл на диске
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let sa = mods_a.iter().find(|n| n.starts_with("sodium")).unwrap();
+        let ia = std::fs::metadata(dir.join("mods").join(sa)).unwrap().ino();
+        let ib = std::fs::metadata(bdir.join("mods").join(sa)).unwrap().ino();
+        println!("inode A={ia} B={ib}");
+        assert_eq!(ia, ib, "одинаковые моды должны быть одной жёсткой ссылкой");
+    }
+    println!("освобождение места: {}", crate::store::dedupe_all());
+
+    // точка восстановления
+    let snap = crate::store::snapshot(&a.id, "тест").unwrap();
+    let lith = mods_a.iter().find(|n| n.starts_with("lithium")).unwrap().clone();
+    std::fs::remove_file(dir.join("mods").join(&lith)).unwrap();
+    crate::store::restore(&a.id, snap["id"].as_str().unwrap()).unwrap();
+    assert!(dir.join("mods").join(&lith).is_file(), "после отката мод вернулся");
+    println!("точки: {}", crate::store::snapshots(&a.id).unwrap().as_array().unwrap().len());
+
+    // экспорт CurseForge (нужен сервер с ключом CurseForge; без него файлы просто лягут внутрь)
+    let out2 = data_dir().join("xfer-test-cf.zip");
+    match crate::transfer::export_cf(&a.id, &out2, false, &cb) {
+        Ok(r) => println!("экспорт CurseForge: {r}"),
+        Err(x) => println!("экспорт CurseForge: {x}"),
+    }
+
+    // код сборки через сервер
+    if std::env::var("T_API").is_ok() {
+        let r = crate::social::code_create(None, &a.id).unwrap();
+        println!("код: {r}");
+        let code = r["code"].as_str().unwrap().to_string();
+        let r = crate::social::code_install(&code, &cb).unwrap();
+        println!("по коду: {r}");
+        let c = r["profile"].as_str().unwrap();
+        assert!(r["installed"].as_u64().unwrap() >= 2);
+        assert!(mc::inst_dir(c).join("config/test.json").is_file(), "настройки модов приехали");
+        let _ = mc::delete_profile(c, true);
+    }
+
+    // разбор краша: мод в стеке и нехватка зависимости
+    let lines: Vec<String> = [
+        "[main/ERROR]: Incompatible mods found!",
+        " - Mod 'Sodium Extra' (sodium-extra) 0.5.4 requires any version of reeses-sodium-options, which is missing!",
+        "java.lang.NullPointerException: boom",
+        "\tat com.example.fakemod.Boom.tick(Boom.java:10)",
+        "\tat net.minecraft.client.Minecraft.run(Minecraft.java:1)",
+    ].iter().map(|s| s.to_string()).collect();
+    let cr = crate::crash::analyze(&a.id, &lines, 1, now());
+    println!("краш: {cr}");
+    assert!(cr["mods"].as_array().unwrap().iter().any(|m| m == "fake-mod.jar"));
+    assert!(!cr["missing"].as_array().unwrap().is_empty());
+
+    // поиск профилей других лаунчеров: поддельный Prism в отдельном HOME
+    let fake_home = data_dir().join("fake-home");
+    let inst = fake_home.join(".local/share/PrismLauncher/instances/My Pack");
+    std::fs::create_dir_all(inst.join(".minecraft/mods")).unwrap();
+    std::fs::create_dir_all(inst.join(".minecraft/saves/World1")).unwrap();
+    std::fs::write(inst.join("instance.cfg"), "[General]\nname=Моя сборка Prism\n").unwrap();
+    std::fs::write(inst.join("mmc-pack.json"), r#"{"components":[{"uid":"net.minecraft","version":"1.21.1"},{"uid":"net.fabricmc.fabric-loader","version":"0.16.5"}]}"#).unwrap();
+    std::fs::copy(dir.join("mods").join(&lith), inst.join(".minecraft/mods").join(&lith)).unwrap();
+    let old_home = std::env::var_os("HOME");
+    std::env::set_var("HOME", &fake_home);
+    std::env::remove_var("XDG_DATA_HOME");
+    let found = crate::transfer::detect();
+    if let Some(h) = old_home {
+        std::env::set_var("HOME", h);
+    }
+    println!("найдено: {found}");
+    let x = found.as_array().unwrap().iter().find(|v| v["source"] == "Prism Launcher").expect("Prism не найден").clone();
+    assert_eq!(x["mc"], "1.21.1");
+    assert_eq!(x["loader"], "fabric");
+    let r = crate::transfer::import_instance(x["path"].as_str().unwrap(), x["name"].as_str().unwrap(), "1.21.1", "fabric", Some("0.16.5".into()), true, &cb).unwrap();
+    println!("перенос: {r}");
+    let c = r["profile"].as_str().unwrap();
+    assert!(mc::inst_dir(c).join("saves/World1").is_dir());
+    assert!(mc::inst_dir(c).join("mods").join(&lith).is_file());
+    for id in [a.id.as_str(), b.as_str(), c] {
+        let _ = mc::delete_profile(id, true);
+    }
+    let _ = std::fs::remove_dir_all(fake_home);
+    println!("ОК");
+}
+
+/// Обновление сборки Modrinth с показом изменений: ставим прошлую версию Fabulously Optimized и обновляем.
+#[test]
+#[ignore]
+fn pack_update_flow() {
+    let cb = |s: &str, f: f64, d: &str| if f < 0.0 || f >= 1.0 { println!("  [{s}] {d}") };
+    let vs: serde_json::Value = get_json("https://api.modrinth.com/v2/project/fabulously-optimized/version?game_versions=%5B%221.21.1%22%5D").unwrap();
+    let list = vs.as_array().unwrap();
+    let old = &list[list.len().min(3) - 1];
+    let f = &old["files"][0];
+    let tmp = data_dir().join("cache/fo-old.mrpack");
+    download(f["url"].as_str().unwrap(), &tmp, f["hashes"]["sha1"].as_str()).unwrap();
+    let origin = serde_json::json!({"provider": "modrinth", "project_id": old["project_id"], "version": old["id"], "version_name": old["version_number"]});
+    let r = crate::packs::install_mrpack(&tmp, None, Some(origin), &cb).unwrap();
+    let id = r["profile"].as_str().unwrap().to_string();
+    println!("поставил {} {}", r["name"], old["version_number"]);
+    let u = crate::packs::update_check(&id).unwrap();
+    println!("проверка: {u}");
+    assert_eq!(u["update"], true);
+    let r = crate::packs::update_apply(&id, &cb).unwrap();
+    println!("обновил: {r}");
+    let u = crate::packs::update_check(&id).unwrap();
+    assert_eq!(u["update"], false, "после обновления новой версии нет");
+    let snaps = crate::store::snapshots(&id).unwrap();
+    println!("точки: {snaps}");
+    assert!(!snaps.as_array().unwrap().is_empty());
+    let _ = mc::delete_profile(&id, true);
+}
+
+/// Вход через authlib-injector (Ely.by-совместимый сервер) и запуск игры с ним.
+/// T_YGG=http://127.0.0.1:18730/noxel/ygg T_YGG_USER=tester1 T_YGG_PASS=secret12
+#[test]
+#[ignore]
+fn ygg_launch() {
+    let server = std::env::var("T_YGG").unwrap_or_else(|_| "ely.by".into());
+    crate::accounts::ygg_auth(&server, &std::env::var("T_YGG_USER").unwrap(), &std::env::var("T_YGG_PASS").unwrap()).unwrap();
+    let acct = crate::accounts::active_fresh().unwrap();
+    println!("аккаунт {} {} {}", acct.kind, acct.name, acct.api);
+    assert_eq!(acct.kind, "ygg");
+    let p = mc::create_profile("1.21.1", "vanilla", None, "ygg test", None).unwrap();
+    let cb = |s: &str, f: f64, d: &str| if f < 0.0 || f >= 1.0 { println!("  [{s}] {d}") };
+    let pr = mc::prepare(&p, &load_settings(), &acct, &cb).unwrap();
+    let agent = pr.args.iter().find(|a| a.contains("authlib-injector")).cloned().unwrap_or_default();
+    println!("агент: {agent}");
+    assert!(!agent.is_empty());
+    let game = mc::Game::default();
+    let logs = Arc::new(Mutex::new(Vec::<String>::new()));
+    let l2 = logs.clone();
+    let mut child = mc::spawn_game(&game, &pr, Arc::new(move |v| l2.lock().unwrap().extend(v)), Arc::new(|_| {})).unwrap();
+    std::thread::sleep(Duration::from_secs(45));
+    let alive = child.try_wait().unwrap().is_none();
+    let _ = child.kill();
+    let l = logs.lock().unwrap();
+    for x in l.iter().filter(|x| x.contains("authlib-injector") || x.contains("Setting user") || x.contains("ERROR")).take(20) {
+        println!("  {x}");
+    }
+    let _ = mc::delete_profile(&p.id, true);
+    assert!(alive, "игра завершилась раньше времени");
+    assert!(l.iter().any(|x| x.contains("authlib-injector")), "агент не загрузился");
+}
+
+/// Готовые сборки «PvP» и «Красиво», голосовой чат и поиск профилей на этом компьютере (только чтение).
+#[test]
+#[ignore]
+fn presets_flow() {
+    let cb = |_: &str, _: f64, _: &str| {};
+    let ver = std::env::var("T_MC").unwrap_or_else(|_| "1.21.1".into());
+    let lv = mc::loader_versions(&ver, "fabric");
+    for pr in ["pvp", "pretty", "fps"] {
+        let p = mc::create_profile(&ver, "fabric", lv.first().cloned(), &format!("preset {pr}"), None).unwrap();
+        let (ok, skipped) = crate::mods::apply_preset(&p.id, pr, &cb).unwrap();
+        println!("{pr} {ver}: поставлено {} {:?}\n   пропущено {:?}", ok.len(), ok, skipped);
+        if pr == "pvp" {
+            crate::mods::install("modrinth", "mod", "9eGKb6K1", &p.id, None, &cb).unwrap();
+            assert!(crate::mods::already(&p.id, "mod", "9eGKb6K1"));
+            println!("   голосовой чат поставлен");
+        }
+        if pr == "pretty" {
+            let sh = crate::mods::list(&p.id, "shader").unwrap();
+            println!("   шейдеры: {sh}");
+        }
+        let _ = mc::delete_profile(&p.id, true);
+    }
+    println!("профили на этом компьютере: {}", crate::transfer::detect());
+}

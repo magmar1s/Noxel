@@ -1,6 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod accounts;
+mod crash;
+mod store;
+mod transfer;
 mod dav;
 mod emotes;
 mod horizon;
@@ -182,6 +185,7 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
             });
             let acc_id = acct.id.clone();
             let started = Instant::now();
+            let started_unix = now();
             let auth_line = auth.clone();
             let on_line: Arc<dyn Fn(&str) + Send + Sync> = Arc::new(move |l| {
                 if let Some(a) = &auth_line {
@@ -244,7 +248,13 @@ fn start(app: AppHandle, id: String, play: bool) -> R<()> {
                                 });
                             }
                         }
-                        ev("exited", json!({"code": code}));
+                        let crash = if code != 0 && started.elapsed().as_secs() < 6 * 3600 {
+                            let tail: Vec<String> = { let l = game.logs.lock().unwrap(); l.iter().rev().take(1500).rev().cloned().collect() };
+                            Some(crash::analyze(&id, &tail, code, started_unix))
+                        } else {
+                            None
+                        };
+                        ev("exited", json!({"code": code, "crash": crash}));
                         break;
                     }
                     Some(Err(_)) | None => {
@@ -732,6 +742,131 @@ fn packs_search(query: String, sort: String, offset: u32, mc: Option<String>) ->
     packs::search(&query, &sort, offset, mc.as_deref().unwrap_or(""))
 }
 
+// ── переезд, обмен сборками, хранилище, точки восстановления, обновление сборок ──
+
+#[tauri::command(async)]
+fn export_profile(app: AppHandle, profile_id: String, format: String, path: String, saves: bool) -> R<Value> {
+    let cb = progress_cb(&app, format!("export:{profile_id}"));
+    let out = std::path::PathBuf::from(&path);
+    if format == "curseforge" { transfer::export_cf(&profile_id, &out, saves, &cb) } else { transfer::export_mrpack(&profile_id, &out, saves, &cb) }
+}
+
+#[tauri::command(async)]
+fn import_pack_file(app: AppHandle, path: String) -> R<Value> {
+    let cb = progress_cb(&app, "import:file".into());
+    let r = transfer::import_file(std::path::Path::new(&path), &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+#[tauri::command(async)]
+fn instances_detect() -> Value {
+    transfer::detect()
+}
+
+#[tauri::command(async)]
+fn instance_import(app: AppHandle, path: String, name: String, mc: String, loader: String, loader_ver: Option<String>, saves: bool) -> R<Value> {
+    let cb = progress_cb(&app, format!("import:{path}"));
+    let r = transfer::import_instance(&path, &name, &mc, &loader, loader_ver, saves, &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+#[tauri::command(async)]
+fn pack_code_create(profile_id: String) -> R<Value> {
+    // аккаунт Noxel необязателен: с ним код привязывается к нику
+    let st = accounts::load();
+    let tok = st.list.iter().find(|a| a.id == st.selected && a.kind == "noxel" && !a.token.is_empty()).map(|a| a.token.clone());
+    social::code_create(tok.as_deref(), &profile_id)
+}
+
+#[tauri::command(async)]
+fn pack_code_info(code: String) -> R<Value> {
+    social::code_info(&code)
+}
+
+#[tauri::command(async)]
+fn pack_code_install(app: AppHandle, code: String) -> R<Value> {
+    let cb = progress_cb(&app, "code:install".into());
+    let r = social::code_install(&code, &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+/// Ставит Simple Voice Chat в профиль, если его там нет. Возвращает true, если поставил.
+#[tauri::command(async)]
+fn voice_ensure(app: AppHandle, profile_id: String) -> R<bool> {
+    let p = mc::find_profile(&profile_id)?;
+    if matches!(p.loader.as_str(), "vanilla" | "optifine") {
+        return Err("Голосовой чат работает только с загрузчиком модов (Fabric, Quilt, Forge, NeoForge)".into());
+    }
+    const SVC: &str = "9eGKb6K1"; // Simple Voice Chat на Modrinth
+    if mods::already(&profile_id, "mod", SVC) || mods::already(&profile_id, "mod", "plasmo-voice") {
+        return Ok(false);
+    }
+    // если мод уже лежит файлом (например, из сборки), не ставим второй
+    let has_file = fs::read_dir(mc::inst_dir(&profile_id).join("mods")).map(|r| r.flatten().any(|f| { let n = f.file_name().to_string_lossy().to_lowercase(); n.starts_with("voicechat") || n.contains("plasmovoice") })).unwrap_or(false);
+    if has_file {
+        return Ok(false);
+    }
+    let cb = progress_cb(&app, format!("mod:voice-{profile_id}"));
+    mods::install("modrinth", "mod", SVC, &profile_id, None, &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(true)
+}
+
+#[tauri::command(async)]
+fn store_dedupe() -> Value {
+    store::dedupe_all()
+}
+
+#[tauri::command(async)]
+fn snapshots_list(profile_id: String) -> R<Value> {
+    store::snapshots(&profile_id)
+}
+
+#[tauri::command(async)]
+fn snapshot_create(profile_id: String) -> R<Value> {
+    store::snapshot(&profile_id, "вручную")
+}
+
+#[tauri::command(async)]
+fn snapshot_restore(app: AppHandle, profile_id: String, snap: String) -> R<Value> {
+    let r = store::restore(&profile_id, &snap)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+#[tauri::command(async)]
+fn snapshot_delete(profile_id: String, snap: String) -> R<()> {
+    store::delete_snapshot(&profile_id, &snap)
+}
+
+#[tauri::command(async)]
+fn pack_update_check(profile_id: String) -> R<Value> {
+    packs::update_check(&profile_id)
+}
+
+#[tauri::command(async)]
+fn pack_update_apply(app: AppHandle, profile_id: String) -> R<Value> {
+    let cb = progress_cb(&app, format!("packupd:{profile_id}"));
+    let r = packs::update_apply(&profile_id, &cb)?;
+    let _ = app.emit("profiles-changed", ());
+    Ok(r)
+}
+
+#[tauri::command(async)]
+fn noxel_delete(id: String, password: String) -> R<Value> {
+    accounts::noxel_delete(&id, &password)?;
+    Ok(accounts::list())
+}
+
+#[tauri::command(async)]
+fn ygg_login(server: String, username: String, password: String) -> R<Value> {
+    accounts::ygg_auth(&server, &username, &password)?;
+    Ok(accounts::list())
+}
+
 #[tauri::command(async)]
 fn packs_install(app: AppHandle, provider: String, project_id: String) -> R<Value> {
     let cb = progress_cb(&app, format!("pack:{project_id}"));
@@ -964,11 +1099,35 @@ fn main() {
             // версия лаунчера в заголовке окна
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_title(&format!("Noxel {}", remote::VERSION));
+                // проверка интерфейса разработчиком: NOXEL_UI_TEST=файл.js выполняется в окне после загрузки
+                if let Some(js) = std::env::var_os("NOXEL_UI_TEST").and_then(|p| fs::read_to_string(p).ok()) {
+                    std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_secs(5));
+                        let _ = w.eval(&js);
+                    });
+                }
             }
             Ok(())
         })
         .manage(Game::default())
         .invoke_handler(tauri::generate_handler![
+            export_profile,
+            import_pack_file,
+            instances_detect,
+            instance_import,
+            pack_code_create,
+            pack_code_info,
+            pack_code_install,
+            voice_ensure,
+            store_dedupe,
+            snapshots_list,
+            snapshot_create,
+            snapshot_restore,
+            snapshot_delete,
+            pack_update_check,
+            pack_update_apply,
+            ygg_login,
+            noxel_delete,
             versions,
             loader_versions,
             profiles,

@@ -289,6 +289,23 @@ fn remember(profile_id: &str, file: &str, m: Meta) {
     save_index(profile_id, &idx);
 }
 
+/// Файлы профиля, про которые известно, откуда они.
+pub fn indexed_files(profile_id: &str) -> Vec<String> {
+    load_index(profile_id).into_keys().collect()
+}
+
+/// Записывает источники сразу для нескольких файлов: (файл, id проекта Modrinth, название, иконка, версия, тип).
+pub fn remember_many(profile_id: &str, items: Vec<(String, String, String, Option<String>, String, String)>) {
+    if items.is_empty() {
+        return;
+    }
+    let mut idx = load_index(profile_id);
+    for (file, pid, title, icon, version, kind) in items {
+        idx.insert(file, Meta { project_id: pid, title, icon, provider: "modrinth".into(), kind, version });
+    }
+    save_index(profile_id, &idx);
+}
+
 pub fn already(profile_id: &str, kind: &str, project_id: &str) -> bool {
     let Ok(dir) = kind_dir(profile_id, kind) else { return false };
     load_index(profile_id).iter().any(|(f, m)| {
@@ -350,6 +367,7 @@ fn install_mr(kind: &str, project_id: &str, p: &Profile, first: Option<String>, 
         let title = proj["title"].as_str().unwrap_or(&fname).to_string();
         cb("Установка", -1.0, &title);
         download(f["url"].as_str().unwrap_or(""), &dir.join(&fname), f["hashes"]["sha1"].as_str())?;
+        crate::store::dedupe_file(&dir.join(&fname));
         remember(
             &p.id,
             &fname,
@@ -429,6 +447,7 @@ fn install_cf(kind: &str, project_id: &str, p: &Profile, first_file: Option<u64>
             .and_then(|x| x["value"].as_str())
             .map(String::from);
         download(&url, &dir.join(&fname), sha1.as_deref())?;
+        crate::store::dedupe_file(&dir.join(&fname));
         remember(
             &p.id,
             &fname,
@@ -455,11 +474,14 @@ fn install_cf(kind: &str, project_id: &str, p: &Profile, first_file: Option<u64>
 
 // ── сборки Noxel ──
 
-/// (id, название, описание, слаги Modrinth)
+/// (id, название, описание, слаги Modrinth). Префикс `shader:` или `rp:` ставит шейдер или ресурспак.
+/// Только клиентские моды, которые не дают игрового преимущества и разрешены на обычных серверах.
 const PRESETS: &[(&str, &str, &str, &[&str])] = &[
     ("base", "Noxel Base", "Fabric API, Mod Menu, Sodium, Iris Shaders: готово к шейдерам", &["fabric-api", "modmenu", "sodium", "iris"]),
-    ("fps", "Noxel FPS", "Fabric API, Sodium, Lithium, FerriteCore, Entity Culling: максимум кадров", &["fabric-api", "sodium", "lithium", "ferrite-core", "entityculling"]),
+    ("fps", "Оптимизация", "Максимум кадров на слабом ПК: Sodium, Lithium, FerriteCore, Entity Culling, ImmediatelyFast, ModernFix", &["fabric-api", "sodium", "lithium", "ferrite-core", "entityculling", "immediatelyfast", "modernfix", "modmenu"]),
     ("full", "Noxel Full", "Base + Lithium, FerriteCore, Entity Culling, Mod Menu", &["fabric-api", "modmenu", "sodium", "iris", "lithium", "ferrite-core", "entityculling"]),
+    ("pvp", "PvP", "Оптимизация + зум, сытость и броня в интерфейсе, удобный F3, понятные подсказки: всё разрешено на серверах", &["fabric-api", "sodium", "lithium", "ferrite-core", "entityculling", "immediatelyfast", "modmenu", "zoomify", "appleskin", "betterf3", "shulkerboxtooltip", "no-chat-reports"]),
+    ("pretty", "Красиво", "Шейдеры Complementary, динамический свет, 3D-слои скина, анимации, падающие листья, соединённое стекло", &["fabric-api", "sodium", "iris", "modmenu", "lambdynamiclights", "3dskinlayers", "wavey-capes", "not-enough-animations", "falling-leaves", "continuity", "entity-model-features", "entitytexturefeatures", "particle-rain", "shader:complementary-reimagined"]),
 ];
 
 pub fn presets() -> Value {
@@ -471,7 +493,15 @@ pub fn apply_preset(profile_id: &str, preset: &str, cb: Cb) -> R<(Vec<String>, V
     let (_, _, _, slugs) = PRESETS.iter().find(|p| p.0 == preset).ok_or("неизвестная сборка")?;
     let p = find_profile(profile_id)?;
     let (mut ok, mut skipped) = (vec![], vec![]);
-    for slug in slugs.iter() {
+    for entry in slugs.iter() {
+        let (kind, slug) = match entry.split_once(':') {
+            Some(("shader", s)) => ("shader", s),
+            Some(("rp", s)) => ("resourcepack", s),
+            _ => ("mod", *entry),
+        };
+        if kind == "mod" && matches!(p.loader.as_str(), "vanilla" | "optifine") {
+            continue;
+        }
         let id = match get_json(&format!("{MR}/project/{slug}")) {
             Ok(v) => v["id"].as_str().unwrap_or(slug).to_string(),
             Err(x) => {
@@ -479,10 +509,10 @@ pub fn apply_preset(profile_id: &str, preset: &str, cb: Cb) -> R<(Vec<String>, V
                 continue;
             }
         };
-        if already(&p.id, "mod", &id) {
+        if already(&p.id, kind, &id) {
             continue;
         }
-        match install_mr("mod", &id, &p, None, cb) {
+        match install_mr(kind, &id, &p, None, cb) {
             Ok(v) => ok.extend(v),
             Err(x) => skipped.push(format!("{slug}: {x}")),
         }
@@ -663,6 +693,7 @@ pub fn check_updates(profile_id: &str) -> R<Value> {
 
 /// Обновляет моды до последних версий (старый файл заменяется, зависимости доставляются).
 pub fn update_mods(profile_id: &str, project_ids: &[String], cb: Cb) -> R<Vec<String>> {
+    let _ = crate::store::snapshot(profile_id, "перед обновлением модов");
     let p = find_profile(profile_id)?;
     let mut done = vec![];
     for pid in project_ids {

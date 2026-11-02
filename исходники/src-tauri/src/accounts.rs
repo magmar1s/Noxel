@@ -26,7 +26,7 @@ pub struct SkinEntry {
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct Account {
     pub id: String,
-    pub kind: String, // "local" | "microsoft" | "noxel"
+    pub kind: String, // "local" | "microsoft" | "noxel" | "ygg" (Ely.by и другие серверы authlib-injector)
     pub name: String,
     pub uuid: String,
     #[serde(default)]
@@ -54,6 +54,9 @@ pub struct Account {
     /// Свой пароль для серверов (необязательно, хранится только на этом компьютере и в облако не уходит).
     #[serde(default)]
     pub server_pw: String,
+    /// Адрес API authlib-injector (для аккаунтов Ely.by и других серверов авторизации).
+    #[serde(default)]
+    pub api: String,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -125,7 +128,7 @@ pub fn list() -> Value {
         .list
         .iter()
         .map(|a| json!({
-            "id": a.id, "kind": a.kind, "name": a.name, "uuid": a.uuid, "selected": a.id == s.selected,
+            "id": a.id, "kind": a.kind, "name": a.name, "uuid": a.uuid, "selected": a.id == s.selected, "server": if a.kind == "ygg" { host_of(&a.api) } else { String::new() },
             "skin": cur_skin(a).map(|k| json!({"hash": k.hash, "model": k.model})),
         }))
         .collect::<Vec<_>>())
@@ -180,6 +183,20 @@ pub fn active_fresh() -> R<Account> {
 }
 
 fn refresh_if_needed(mut a: Account) -> R<Account> {
+    if a.kind == "ygg" {
+        let ok = matches!(agent().post(&format!("{}/authserver/validate", a.api)).send_json(json!({"accessToken": a.access_token, "clientToken": a.refresh_token})), Ok(r) if r.status() == 204 || r.status() == 200);
+        if !ok {
+            let r: Value = agent()
+                .post(&format!("{}/authserver/refresh", a.api))
+                .send_json(json!({"accessToken": a.access_token, "clientToken": a.refresh_token, "requestUser": false}))
+                .map_err(|_| format!("Вход в {} истёк. Удали аккаунт и войди заново на странице «Аккаунты».", host_of(&a.api)))?
+                .into_json()
+                .map_err(e)?;
+            a.access_token = r["accessToken"].as_str().ok_or("сервер авторизации не выдал токен")?.to_string();
+            put(a.clone());
+        }
+        return Ok(a);
+    }
     if a.kind == "microsoft" && a.expires < now() + 300 {
         let cid = client_id()?;
         let tok = post_form(
@@ -196,6 +213,101 @@ fn refresh_if_needed(mut a: Account) -> R<Account> {
         put(a.clone());
     }
     Ok(a)
+}
+
+// ── Ely.by и другие серверы authlib-injector ──
+
+pub const ELY_API: &str = "https://authserver.ely.by/api/authlib-injector";
+pub const NOXEL_YGG: &str = "https://mr1s.site/noxel/ygg";
+
+fn host_of(u: &str) -> String {
+    u.split("://").nth(1).unwrap_or(u).split('/').next().unwrap_or(u).to_string()
+}
+
+/// Находит корень API authlib-injector: по заголовку X-Authlib-Injector-API-Location или по самому адресу.
+pub fn resolve_api(input: &str) -> R<String> {
+    let s = input.trim().trim_end_matches('/');
+    if s.eq_ignore_ascii_case("ely.by") || s.contains("ely.by") && !s.contains("authlib-injector") {
+        return Ok(ELY_API.into());
+    }
+    let url = if s.starts_with("http://") || s.starts_with("https://") { s.to_string() } else { format!("https://{s}") };
+    let r = agent().get(&url).call().map_err(|x| format!("сервер авторизации не отвечает: {x}"))?;
+    let base = match r.header("X-Authlib-Injector-API-Location") {
+        Some(loc) if loc.starts_with("http") => loc.trim_end_matches('/').to_string(),
+        Some(loc) if loc.starts_with('/') => format!("{}{}", url.split('/').take(3).collect::<Vec<_>>().join("/"), loc.trim_end_matches('/')),
+        Some(loc) => format!("{}/{}", url, loc.trim_end_matches('/')),
+        None => url.clone(),
+    };
+    let meta: Value = if base == url { r.into_json().map_err(|_| "по этому адресу нет сервера authlib-injector")? } else { get_json(&base)? };
+    if meta["signaturePublickey"].as_str().is_none() && meta["meta"].is_null() {
+        return Err("по этому адресу нет сервера authlib-injector".into());
+    }
+    Ok(base)
+}
+
+/// Вход в Ely.by или любой сервер authlib-injector по логину (или почте) и паролю.
+pub fn ygg_auth(server: &str, username: &str, password: &str) -> R<()> {
+    use ring::rand::SecureRandom;
+    let api = resolve_api(if server.trim().is_empty() { "ely.by" } else { server })?;
+    let mut b = [0u8; 16];
+    ring::rand::SystemRandom::new().fill(&mut b).map_err(|_| "нет источника случайности")?;
+    let ct: String = b.iter().map(|x| format!("{x:02x}")).collect();
+    let res = agent().post(&format!("{api}/authserver/authenticate")).send_json(json!({
+        "agent": {"name": "Minecraft", "version": 1}, "username": username.trim(), "password": password, "clientToken": ct, "requestUser": true}));
+    let r: Value = match res {
+        Ok(r) => r.into_json().map_err(e)?,
+        Err(ureq::Error::Status(_, r)) => {
+            let v: Value = r.into_json().unwrap_or(json!({}));
+            let msg = v["errorMessage"].as_str().unwrap_or("неверный логин или пароль");
+            return Err(if msg.contains("two factor") || msg.contains("totp") { "У аккаунта включена двухфакторная защита: введи пароль в виде «пароль:код из приложения»".into() } else { format!("{}: {msg}", host_of(&api)) });
+        }
+        Err(x) => return Err(format!("нет связи с {}: {x}", host_of(&api))),
+    };
+    let prof = r["selectedProfile"].clone();
+    let (Some(uuid), Some(name)) = (prof["id"].as_str(), prof["name"].as_str()) else {
+        return Err("на этом аккаунте нет игрового профиля".into());
+    };
+    let id = format!("ygg-{}-{}", host_of(&api).replace('.', "_"), name.to_lowercase());
+    let mut a = get(&id).unwrap_or(Account { id: id.clone(), kind: "ygg".into(), created: now(), ..Default::default() });
+    a.name = name.into();
+    a.uuid = uuid.replace('-', "");
+    a.access_token = r["accessToken"].as_str().ok_or("сервер не выдал токен")?.to_string();
+    a.refresh_token = r["clientToken"].as_str().unwrap_or(&ct).to_string();
+    a.api = api;
+    let _ = pull_ygg(&mut a);
+    let id = a.id.clone();
+    put(a);
+    select(&id)
+}
+
+/// Текущий скин и плащ с сервера авторизации (у Ely.by скин меняется на сайте ely.by).
+fn pull_ygg(a: &mut Account) -> R<()> {
+    let p: Value = get_json(&format!("{}/sessionserver/session/minecraft/profile/{}", a.api, a.uuid))?;
+    let val = p["properties"].as_array().and_then(|l| l.iter().find(|x| x["name"] == "textures")).and_then(|x| x["value"].as_str()).ok_or("нет текстур")?;
+    use base64::Engine;
+    let t: Value = serde_json::from_slice(&base64::engine::general_purpose::STANDARD.decode(val).map_err(e)?).map_err(e)?;
+    if let Some(u) = t["textures"]["SKIN"]["url"].as_str() {
+        let (png, detected) = skins::normalize_skin(&skins::fetch_png(u)?)?;
+        let model = if t["textures"]["SKIN"]["metadata"]["model"] == "slim" { "slim".to_string() } else { detected };
+        let hash = skins::store(&png)?;
+        let eid = match a.skins.iter().find(|e| e.hash == hash && e.model == model) {
+            Some(e) => e.id,
+            None => {
+                let n = a.skins.iter().map(|e| e.id).max().unwrap_or(0) + 1;
+                a.skins.push(SkinEntry { id: n, hash, model, created: now(), remote_id: None });
+                n
+            }
+        };
+        a.skin_cur = Some(eid);
+    }
+    a.cape = t["textures"]["CAPE"]["url"].as_str().and_then(|u| skins::fetch_png(u).ok()).and_then(|b| skins::store(&b).ok());
+    Ok(())
+}
+
+/// Отдельный токен для игры у аккаунта Noxel (вход через сервер Noxel по authlib-injector).
+pub fn noxel_game_token(a: &Account) -> R<(String, String)> {
+    let r = skins::call("POST", "/ygg/token", Some(&a.token), Body::None)?;
+    Ok((r["accessToken"].as_str().ok_or("сервер не выдал токен")?.to_string(), r["uuid"].as_str().unwrap_or(&a.uuid).to_string()))
 }
 
 // ── Noxel: аккаунт с паролем на сервере ──
@@ -218,11 +330,9 @@ pub fn noxel_auth(name: &str, password: &str, register: bool) -> R<()> {
     a.uuid = acc["uuid"].as_str().unwrap_or(&offline_uuid(name)).to_string();
     a.token = token;
     pull_noxel(&mut a)?;
-    let mut s = load();
-    s.selected = a.id.clone();
-    save(&s);
+    let id = a.id.clone();
     put(a);
-    Ok(())
+    select(&id)
 }
 
 fn ensure_local(url: &str, hash: &str) -> R<()> {
@@ -295,6 +405,25 @@ pub fn sync_up(id: &str) {
         body["server_secret"] = json!(a.server_secret);
     }
     let _ = skins::call("PUT", "/data", Some(&a.token), Body::Json(body));
+}
+
+/// Удаляет аккаунт Noxel с сервера вместе со скинами, друзьями, облачным миром и кодами сборок.
+pub fn noxel_delete(id: &str, password: &str) -> R<()> {
+    let a = get(id)?;
+    if a.kind != "noxel" || a.token.is_empty() {
+        return Err("это не аккаунт Noxel".into());
+    }
+    skins::call("DELETE", "/account", Some(&a.token), Body::Json(json!({"password": password})))?;
+    let mut s = load();
+    s.list.retain(|x| x.id != id);
+    if s.list.is_empty() {
+        s.list.push(local("Player"));
+    }
+    if !s.list.iter().any(|x| x.id == s.selected) {
+        s.selected = s.list[0].id.clone();
+    }
+    save(&s);
+    Ok(())
 }
 
 // ── скины и плащи ──
@@ -544,6 +673,12 @@ pub fn details(id: &str, refresh: bool) -> R<Value> {
                     a = f;
                 }
             }
+        } else if a.kind == "ygg" {
+            let mut f = a.clone();
+            if pull_ygg(&mut f).is_ok() {
+                put(f.clone());
+                a = f;
+            }
         } else if a.kind == "noxel" && !a.token.is_empty() {
             let mut f = a.clone();
             if pull_noxel(&mut f).is_ok() {
@@ -561,7 +696,7 @@ pub fn details(id: &str, refresh: bool) -> R<Value> {
         .map(|e| json!({"id": e.id, "hash": e.hash, "model": e.model, "created": e.created, "current": Some(e.id) == a.skin_cur}))
         .collect();
     Ok(json!({
-        "id": a.id, "kind": a.kind, "name": a.name, "uuid": a.uuid, "created": a.created,
+        "id": a.id, "kind": a.kind, "name": a.name, "uuid": a.uuid, "created": a.created, "server": if a.kind == "ygg" { host_of(&a.api) } else { String::new() },
         "skin": cur.as_ref().map(|k| json!({"hash": k.hash, "model": k.model, "url": if a.kind == "noxel" { Some(format!("{FILES_URL}/{}.png", k.hash)) } else { None }})),
         "cape": a.cape,
         "history": history,
