@@ -1,0 +1,16 @@
+{
+  "version": "0.15.0",
+  "notes": [
+    "Java, Minecraft и Horizon в установщике. Выпуски через GitHub."
+  ],
+  "news": [],
+  "files": {
+    "linux-x86_64": {
+      "version": "0.15.0",
+      "url": "https://github.com/magmar1s/Noxel/releases/download/v0.15.0/noxel-linux-x86_64-0.15.0",
+      "sha256": "f87c7d3d26fbaa0496903e811cdcf227e7ae0e23cffa0187185b2d7ec4129da9",
+      "sig": "7cb74efa518ef88578a062673d487307bbcc8cbe3db93b48867874fe1e5ecfc6de0319f48f9af1dbefa76ba90f923bc37c601dfd2043882bce85f6a18c8d270c",
+      "size": 8136072
+    }
+  }
+}
