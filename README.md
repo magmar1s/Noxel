@@ -56,7 +56,7 @@ cargo build --release --features custom-protocol --manifest-path установ�
 
 ## Выпуск
 
-`tools/publish-github.py VERSION` публикует проверенные локальные сборки и подписанный
+`python3 tools/publish-github.py VERSION` публикует проверенные локальные сборки и подписанный
 манифест. Закрытый ключ .keys/release.pem хранится локально. Перед выпуском собери
 лаунчер и установщик. Конфигурация каталогов находится в distribution/.
 Старые скрипты publish.sh и сервер/ относятся к прежней архитектуре и для новых
