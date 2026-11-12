@@ -24,11 +24,16 @@ jobs:
       - name: Сборка лаунчера
         run: cargo build --release --features custom-protocol
         working-directory: исходники/src-tauri
+      - name: Linux-пакет
+        run: |
+          bash исходники/linux/package.sh --no-build
+          mkdir -p out
+          cp "готовый продукт/"*.tar.gz* out/
       - name: Сборка установщика
         run: cargo build --release --features custom-protocol
         working-directory: установщик/src-tauri
       - run: |
-          mkdir out
+          mkdir -p out
           cp исходники/src-tauri/target/release/noxel out/Noxel
           cp установщик/src-tauri/target/release/noxel-setup out/noxel-setup-linux-x86_64
       - uses: actions/upload-artifact@v4
@@ -72,7 +77,7 @@ jobs:
         working-directory: установщик/src-tauri
       - shell: bash
         run: |
-          mkdir out
+          mkdir -p out
           cp исходники/src-tauri/target/release/noxel.exe out/Noxel.exe
           cp установщик/src-tauri/target/release/noxel-setup.exe out/noxel-setup-windows-x86_64.exe
       - uses: actions/upload-artifact@v4

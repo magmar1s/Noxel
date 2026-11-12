@@ -13,3 +13,10 @@ Noxel.desktop
 установщик/src-tauri/target/
 установщик/src-tauri/gen/
 агент/build/
+
+# Temporary/private output
+**/__pycache__/
+сервер/dl-nocturne/
+.env
+.env.*
+backups/

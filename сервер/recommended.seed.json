@@ -1,6 +1,33 @@
 {
  "categories": [
   {
+   "id": "visuals",
+   "title": "Визуалы",
+   "desc": "Свои визуалы Noxel. Ставятся одной кнопкой вместе с Fabric API.",
+   "items": [
+    {
+     "type": "jar",
+     "id": "nocturne",
+     "title": "Nocturne",
+     "author": "Noxel",
+     "tag": "новое",
+     "desc": "Готические визуалы: слова песни прямо в мире, красивое небо и инвентарь, HUD, эффекты боя, почти прозрачное меню на правый Shift. Всё на русском.",
+     "url": "https://mr1s.site/noxel/dl/nocturne-1.0.0.jar",
+     "sha1": "0da373d4c7b4b8425667348c7c18e74188ec1d57",
+     "mc": [
+      "26.2"
+     ],
+     "deps": [
+      [
+       "modrinth",
+       "fabric-api"
+      ]
+     ],
+     "icon": "https://mr1s.site/noxel/dl/nocturne.png"
+    }
+   ]
+  },
+  {
    "id": "perf",
    "title": "Производительность",
    "desc": "Больше кадров и плавнее игра без потери картинки.",

@@ -1123,6 +1123,8 @@ pub fn prepare(p: &Profile, st: &Settings, acct: &Account, cb: Cb) -> R<Prepared
     }
     if st.noxel_mod {
         crate::autoauth::install_mod(p, &gamedir);
+    } else {
+        let _ = fs::remove_file(gamedir.join("mods/noxel-client.jar"));
     }
     if let Some(a) = log_arg {
         args.push(a);

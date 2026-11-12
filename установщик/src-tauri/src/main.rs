@@ -13,7 +13,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter};
 
-const API: &str = "https://mr1s.site/noxel/v1";
+const MANIFEST: &str = "https://raw.githubusercontent.com/magmar1s/Noxel/main/distribution/launcher.json";
 /// Публичный ключ подписи релизов. Закрытый ключ хранится только у автора.
 const RELEASE_KEY_HEX: &str = "9a2d7e4ef870ac1d75a8aed98e76c8c6588c7051ca10a13d71f62f0b0bb127b8";
 const PLATFORM: &str = if cfg!(windows) { "windows-x86_64" } else { "linux-x86_64" };
@@ -49,7 +49,7 @@ fn default_dir() -> PathBuf {
 }
 
 fn manifest() -> R<Value> {
-    let m: Value = ureq::get(&format!("{API}/launcher")).call().map_err(|x| format!("нет связи с сервером Noxel: {x}"))?.into_json().map_err(e)?;
+    let m: Value = ureq::get(MANIFEST).call().map_err(|x| format!("не удалось получить выпуск с GitHub: {x}"))?.into_json().map_err(e)?;
     if m["files"][PLATFORM].is_null() {
         return Err("Для твоей системы сборка Noxel пока не опубликована.".into());
     }
@@ -71,6 +71,8 @@ struct Opts {
     desktop: bool,
     java: bool,
     game: bool,
+    #[serde(default)]
+    horizon: bool,
     run: bool,
 }
 
@@ -239,6 +241,11 @@ fn run(app: &AppHandle, o: &Opts) -> R<String> {
             say(app, "Предзагрузка пропущена", 0.97, &x);
         }
     }
+    if o.horizon {
+        say(app, "Скачиваю Horizon", 0.97, "Подготовка Rust-клиента");
+        let status = hide(&mut Command::new(&exe)).arg("--prefetch-horizon").stdin(Stdio::null()).status().map_err(e)?;
+        if !status.success() { return Err("Noxel установлен, но Horizon скачать не удалось. Повтори установку или скачай его во вкладке Версии → Rust.".into()); }
+    }
     say(app, "Готово", 1.0, "");
     Ok(exe.to_string_lossy().to_string())
 }
@@ -298,6 +305,8 @@ fn ensure_webview2() {
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     #[cfg(windows)]
     ensure_webview2();
     tauri::Builder::default()

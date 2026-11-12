@@ -178,8 +178,17 @@ def clean_reco(v):
                     raise Err(400, "раздел %d, запись %d: url должен начинаться с https://, folder: emotes, player_models, resourcepacks или shaderpacks" % (ci, ii))
                 items.append({"type": "file", "title": s(it.get("title"), 80), "desc": s(it.get("desc"), 300), "url": url, "folder": it["folder"], "extract": bool(it.get("extract")),
                               "prefix": s(it.get("prefix"), 120), "license": s(it.get("license"), 40), "author": s(it.get("author"), 60)})
+            elif t == "jar":
+                url, sha = s(it.get("url"), 400), s(it.get("sha1"), 40).lower()
+                mcs = [s(x, 20) for x in (it.get("mc") or [])[:12] if s(x, 20)]
+                if not url.startswith("https://mr1s.site/noxel/") or not url.lower().endswith(".jar") or not re.fullmatch(r"[0-9a-f]{40}", sha) or not mcs or not s(it.get("id"), 40):
+                    raise Err(400, "раздел %d, запись %d: jar — нужны id, url с https://mr1s.site/noxel/…jar, sha1 и mc" % (ci, ii))
+                deps = [[d[0], s(d[1], 60)] for d in (it.get("deps") or [])[:10] if isinstance(d, list) and len(d) == 2 and d[0] in ("modrinth", "curseforge") and s(d[1], 60)]
+                icon = s(it.get("icon"), 400)
+                items.append({"type": "jar", "id": re.sub(r"[^a-z0-9_-]", "", s(it["id"], 40).lower()), "title": s(it.get("title"), 80), "desc": s(it.get("desc"), 300), "url": url, "sha1": sha, "mc": mcs,
+                              "deps": deps, "icon": icon if icon.startswith("https://") else "", "author": s(it.get("author"), 60), "tag": s(it.get("tag"), 30)})
             else:
-                raise Err(400, "раздел %d, запись %d: type должен быть mod, search или file" % (ci, ii))
+                raise Err(400, "раздел %d, запись %d: type должен быть mod, search, file или jar" % (ci, ii))
         cats.append({"id": re.sub(r"[^a-z0-9_-]", "", s(c.get("id"), 30).lower()) or "c%d" % ci, "title": s(c.get("title"), 60), "desc": s(c.get("desc"), 300), "items": items})
     return {"version": int(time.time()), "categories": cats}
 
@@ -1297,8 +1306,9 @@ class H(BaseHTTPRequestHandler):
 
 
 def horizon_refresh():
-    """Релизы проекта Horizon (Minecraft на Rust) с GitHub: лаунчер Horizon по платформам и список сборок игры. Игроки берут список у нас, поэтому новые версии появляются у всех сами."""
-    req = urllib.request.Request("https://api.github.com/repos/horizon-rust/horizon/releases?per_page=40", headers={"User-Agent": "Noxel-feed", "Accept": "application/vnd.github+json"})
+    """Релизы Horizon Offline Launcher и игровые сборки из выбранного форка."""
+    repo = "gerdaroot/Horizon-Offline-Launcher"
+    req = urllib.request.Request(f"https://api.github.com/repos/{repo}/releases?per_page=40", headers={"User-Agent": "Noxel-feed", "Accept": "application/vnd.github+json"})
     rel = json.load(urllib.request.urlopen(req, timeout=30))
     launcher, builds = None, []
     for r in rel:
@@ -1312,17 +1322,30 @@ def horizon_refresh():
                     n, dg = a.get("name", ""), (a.get("digest") or "")
                     if not dg.startswith("sha256:"):
                         continue
-                    key = "linux-x86_64" if n == "horizon-launcher-linux-x86_64.AppImage" else "windows-x64" if n == "horizon-launcher-windows-x64.zip" else None
+                    key = "linux-x86_64" if n == "horizon-launcher-linux-x86_64.tar.gz" else "windows-x64" if n == "horizon-launcher-windows-x64.zip" else None
                     if key:
                         assets[key] = {"name": n, "url": a["browser_download_url"], "sha256": dg[7:], "size": a.get("size", 0)}
                 if assets:
                     launcher = {"version": tag.split("@", 1)[1], "date": (r.get("published_at") or "")[:10], "assets": assets}
-        elif len(builds) < 8:
-            builds.append({"tag": tag, "name": r.get("name") or tag, "nightly": bool(r.get("prerelease")), "date": (r.get("published_at") or "")[:10]})
+        elif tag == "nightly" or tag.startswith(("nightly-", "v")):
+            has_game = any(a.get("name") in ("horizon-linux-x86_64.tar.gz", "horizon-windows-x64.zip") for a in r.get("assets", []))
+            if has_game and len(builds) < 12:
+                name = r.get("name") or tag
+                nightly = tag.startswith("nightly")
+                signed = any(a.get("name") == "SHA256SUMS.v2.sig" for a in r.get("assets", []))
+                if nightly and not signed:
+                    continue
+                build_tag = tag
+                if nightly:
+                    words = name.removeprefix("Nightly ").split(" · ")
+                    date = words[0] if len(words[0]) == 10 else (r.get("published_at") or "")[:10]
+                    commit = words[1] if len(words) > 1 and words[1] and all(c in "0123456789abcdefABCDEF" for c in words[1]) else ""
+                    build_tag = "nightly-" + date + ("-" + commit if commit else "")
+                builds.append({"tag": build_tag, "name": name, "nightly": nightly, "signed": True, "date": (r.get("published_at") or "")[:10], "url": r.get("html_url")})
     if launcher:
         tmp = HORIZON + ".tmp"
         with open(tmp, "w") as f:
-            json.dump({"version": int(time.time()), "launcher": launcher, "builds": builds, "site": "https://playhorizon.dev", "repo": "https://github.com/horizon-rust/horizon"}, f, ensure_ascii=False)
+            json.dump({"version": int(time.time()), "launcher": launcher, "builds": builds, "site": "https://playhorizon.dev", "repo": f"https://github.com/{repo}"}, f, ensure_ascii=False)
         os.replace(tmp, HORIZON)
         os.chmod(HORIZON, 0o644)
 

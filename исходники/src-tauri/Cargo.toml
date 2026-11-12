@@ -1,6 +1,9 @@
 [package]
+authors = ["magmar1s"]
+license = "MIT"
+repository = "https://github.com/magmar1s/Noxel"
 name = "noxel"
-version = "0.14.0"
+version = "0.15.0"
 description = "Noxel — лаунчер Minecraft"
 edition = "2021"
 

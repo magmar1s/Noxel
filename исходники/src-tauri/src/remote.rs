@@ -29,11 +29,123 @@ pub fn news_save(list: Value) -> R<Value> {
 }
 
 pub fn horizon_feed() -> R<Value> {
-    call("GET", "/horizon", None, Body::None)
+    const REPO: &str = "https://github.com/gerdaroot/Horizon-Offline-Launcher";
+    // A new Noxel build can be tested before its server feed is deployed. Keep a short local
+    // cache so GitHub's unauthenticated API is not queried on every visit to the Rust page.
+    let cache_path = data_dir().join("cache/horizon-offline-feed-v2.json");
+    if let Some(cached) = read_json::<Value>(&cache_path) {
+        let age = now().saturating_sub(cached["fetched_at"].as_u64().unwrap_or(0));
+        if age < 15 * 60 && cached["schema"].as_u64() == Some(2) && cached["feed"]["repo"].as_str() == Some(REPO) {
+            return Ok(normalize_horizon_feed(cached["feed"].clone()));
+        }
+    }
+    let releases = get_json("https://api.github.com/repos/gerdaroot/Horizon-Offline-Launcher/releases?per_page=40")?;
+    let releases = releases.as_array().ok_or("GitHub вернул неверный список релизов Horizon Offline")?;
+    let mut launcher: Option<Value> = None;
+    let mut builds = Vec::new();
+    for release in releases {
+        if release["draft"].as_bool().unwrap_or(false) { continue; }
+        let tag = release["tag_name"].as_str().unwrap_or("");
+        if tag.starts_with("launcher@") && !release["prerelease"].as_bool().unwrap_or(false) && launcher.is_none() {
+            let mut assets = serde_json::Map::new();
+            if let Some(list) = release["assets"].as_array() {
+                for asset in list {
+                    let name = asset["name"].as_str().unwrap_or("");
+                    let platform = match name {
+                        "horizon-launcher-linux-x86_64.tar.gz" => Some("linux-x86_64"),
+                        "horizon-launcher-windows-x64.zip" => Some("windows-x64"),
+                        _ => None,
+                    };
+                    let digest = asset["digest"].as_str().unwrap_or("");
+                    let Some(platform) = platform else { continue };
+                    let Some(sha256) = digest.strip_prefix("sha256:") else { continue };
+                    if sha256.len() != 64 || !sha256.bytes().all(|b| b.is_ascii_hexdigit()) { continue; }
+                    assets.insert(platform.to_owned(), json!({
+                        "name": name, "url": asset["browser_download_url"], "sha256": sha256,
+                        "size": asset["size"]
+                    }));
+                }
+            }
+            if !assets.is_empty() {
+                launcher = Some(json!({
+                    "version": tag.split_once('@').map(|(_, v)| v).unwrap_or(tag),
+                    "date": release["published_at"].as_str().unwrap_or("").get(..10).unwrap_or(""),
+                    "assets": assets
+                }));
+            }
+        }
+        let game_tag = tag == "nightly" || tag.starts_with("nightly-") || tag.starts_with('v');
+        if game_tag && builds.len() < 12 {
+            let has_game = release["assets"].as_array().is_some_and(|assets| assets.iter().any(|asset| {
+                matches!(asset["name"].as_str().unwrap_or(""), "horizon-linux-x86_64.tar.gz" | "horizon-windows-x64.zip")
+            }));
+            let is_nightly = tag.starts_with("nightly");
+            let signed_for_build = release["assets"].as_array().is_some_and(|assets| assets.iter().any(|asset| {
+                asset["name"].as_str() == Some("SHA256SUMS.v2.sig")
+            }));
+            if has_game && (!is_nightly || signed_for_build) {
+                builds.push(json!({
+                    "tag": tag, "name": release["name"].as_str().filter(|s| !s.is_empty()).unwrap_or(tag),
+                    "nightly": is_nightly, "signed": true,
+                    "date": release["published_at"].as_str().unwrap_or("").get(..10).unwrap_or(""),
+                    "url": release["html_url"]
+                }));
+            }
+        }
+    }
+    let launcher = launcher.ok_or("У Horizon Offline пока нет поддерживаемой сборки лаунчера")?;
+    let feed = normalize_horizon_feed(json!({
+        "version": now(), "launcher": launcher, "builds": builds,
+        "site": "https://playhorizon.dev", "repo": REPO
+    }));
+    write_json(&cache_path, &json!({"schema": 2, "fetched_at": now(), "feed": feed}));
+    Ok(feed)
 }
 
+/// Horizon Offline Launcher installs a Nightly under a version derived from its release title,
+/// while the GitHub API calls that release `nightly`. Pass the installable version tag to its CLI.
+fn normalize_horizon_feed(mut feed: Value) -> Value {
+    if let Some(builds) = feed["builds"].as_array_mut() {
+        for build in builds {
+            let tag = build["tag"].as_str().unwrap_or("");
+            if !tag.starts_with("nightly") { continue; }
+            let name = build["name"].as_str().unwrap_or("");
+            let mut words = name.strip_prefix("Nightly ").unwrap_or("").split(" · ");
+            let date = words.next().filter(|d| {
+                d.len() == 10 && d.as_bytes().iter().enumerate().all(|(i, b)| {
+                    if i == 4 || i == 7 { *b == b'-' } else { b.is_ascii_digit() }
+                })
+            }).or_else(|| build["date"].as_str().filter(|d| d.len() == 10));
+            if let Some(date) = date {
+                let commit = words.next().filter(|c| !c.is_empty() && c.bytes().all(|b| b.is_ascii_hexdigit()));
+                let version = commit.map_or_else(|| format!("nightly-{date}"), |c| format!("nightly-{date}-{c}"));
+                build["tag"] = json!(version);
+            }
+        }
+    }
+    feed
+}
+
+/// Список с сервера плюс встроенный раздел «Визуалы» (свои моды, которые лежат прямо в лаунчере).
 pub fn reco() -> R<Value> {
-    call("GET", "/recommended", None, Body::None)
+    let mut v = call("GET", "/recommended", None, Body::None).unwrap_or_else(|_| serde_json::json!({"version": 0, "categories": []}));
+    let vis = crate::reco::builtin_category();
+    if let Some(cats) = v["categories"].as_array_mut() {
+        if let Some(c) = cats.iter_mut().find(|c| c["id"] == "visuals") {
+            // на сервере уже есть раздел: добавляем встроенные записи, которых там нет
+            let ids: Vec<Value> = c["items"].as_array().map(|a| a.iter().map(|i| i["id"].clone()).collect()).unwrap_or_default();
+            if let (Some(items), Some(add)) = (c["items"].as_array_mut(), vis["items"].as_array()) {
+                for (n, it) in add.iter().enumerate() {
+                    if !ids.contains(&it["id"]) {
+                        items.insert(n, it.clone());
+                    }
+                }
+            }
+        } else {
+            cats.insert(0, vis);
+        }
+    }
+    Ok(v)
 }
 
 pub fn reco_save(list: Value) -> R<Value> {

@@ -79,6 +79,11 @@ pub fn load() -> Store {
         s.selected = s.list[0].id.clone();
         save(&s);
     }
+    if s.list.iter().any(|a| a.id == s.selected && a.kind == "noxel") {
+        if let Some(account) = s.list.iter().find(|a| a.kind != "noxel") { s.selected = account.id.clone(); }
+        else { let name = s.list.iter().find(|a| a.id == s.selected).map(|a| a.name.clone()).unwrap_or_else(|| "Player".into()); let a = local(&name); s.selected = a.id.clone(); s.list.push(a); }
+        save(&s);
+    }
     if !s.list.iter().any(|a| a.id == s.selected) {
         s.selected = s.list[0].id.clone();
     }
@@ -891,4 +896,19 @@ pub fn skin_from_nick(id: &str, nick: &str) -> R<String> {
     let model = if sk["metadata"]["model"] == "slim" { "slim".to_string() } else if sk["metadata"].is_null() { "classic".to_string() } else { detected };
     upload_skin(id, &png, &model, None)?;
     Ok(p["name"].as_str().unwrap_or(nick).to_string())
+}
+
+/// Import a public GitHub-hosted skin, retaining normal local/Mojang account behavior.
+pub fn skin_from_github(id: &str, url: &str, model: Option<String>) -> R<()> {
+    let url = url.trim();
+    if !url.starts_with("https://raw.githubusercontent.com/") || !url.ends_with(".png") {
+        return Err("Нужна прямая ссылка PNG на raw.githubusercontent.com".into());
+    }
+    let response = agent().get(url).call().map_err(e)?;
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::Read::take(response.into_reader(), 2_000_001), &mut bytes).map_err(e)?;
+    if bytes.len() > 2_000_000 { return Err("Скин больше 2 МБ".into()); }
+    let (png, detected) = skins::normalize_skin(&bytes)?;
+    let model = model.filter(|m| m == "slim" || m == "classic").unwrap_or(detected);
+    upload_skin(id, &png, &model, None)
 }

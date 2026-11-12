@@ -666,6 +666,11 @@ fn backup_delete(profile_id: String, file: String) -> R<()> {
 }
 
 #[tauri::command(async)]
+fn skin_from_github(id: String, url: String, model: Option<String>) -> R<()> {
+    accounts::skin_from_github(&id, &url, model)
+}
+
+#[tauri::command(async)]
 fn skin_from_nick(id: String, nick: String) -> R<String> {
     accounts::skin_from_nick(&id, &nick)
 }
@@ -681,13 +686,68 @@ fn horizon_install() -> R<Value> {
 }
 
 #[tauri::command(async)]
-fn horizon_open() -> R<()> {
-    horizon::open()
+fn horizon_select_build(tag: String) -> R<Value> {
+    horizon::select_build(&tag)
+}
+
+#[tauri::command(async)]
+fn horizon_install_build(tag: String) -> R<Value> {
+    horizon::install_build(&tag)
+}
+
+#[tauri::command(async)]
+fn horizon_prepare_build(tag: String, minecraft: Option<String>, download_mojang: bool) -> R<Value> {
+    horizon::prepare_build(&tag, minecraft.as_deref(), download_mojang)
+}
+
+#[tauri::command(async)]
+fn horizon_offline_name(name: Option<String>) -> R<Value> {
+    horizon::offline_name(name.as_deref())
+}
+
+#[tauri::command(async)]
+fn horizon_select_account(name: String) -> R<Value> {
+    horizon::select_account(&name)
+}
+
+#[tauri::command(async)]
+fn horizon_sign_out(name: String) -> R<Value> {
+    horizon::sign_out(&name)
+}
+
+#[tauri::command(async)]
+fn horizon_sign_in(app: AppHandle) -> R<Value> {
+    horizon::sign_in(app)
 }
 
 #[tauri::command(async)]
 fn horizon_play() -> R<()> {
     horizon::play()
+}
+
+#[tauri::command(async)]
+fn horizon_mods_search(query: String) -> R<Value> {
+    horizon::mods_search(&query)
+}
+
+#[tauri::command(async)]
+fn horizon_mods_list() -> R<Value> {
+    horizon::mods_list()
+}
+
+#[tauri::command(async)]
+fn horizon_mods_install(project_id: String) -> R<Value> {
+    horizon::mods_install(&project_id)
+}
+
+#[tauri::command(async)]
+fn horizon_mods_toggle(project_id: String, enabled: bool) -> R<()> {
+    horizon::mods_toggle(&project_id, enabled)
+}
+
+#[tauri::command(async)]
+fn horizon_mods_remove(project_id: String) -> R<()> {
+    horizon::mods_remove(&project_id)
 }
 
 #[tauri::command(async)]
@@ -735,6 +795,16 @@ fn mods_install_many(app: AppHandle, profile_id: String, items: Vec<(String, Str
 #[tauri::command(async)]
 fn reco_file(profile_id: String, url: String, folder: String, extract: bool, prefix: String, name: String) -> R<Value> {
     reco::install_file(&profile_id, &url, &folder, extract, &prefix, &name)
+}
+
+#[tauri::command(async)]
+fn reco_jar(profile_id: String, url: String, sha1: String, mc: Vec<String>, id: String, title: String) -> R<Value> {
+    reco::install_jar(&profile_id, &url, &sha1, &mc, &id, &title)
+}
+
+#[tauri::command(async)]
+fn reco_jar_state(profile_id: String, id: String, url: String) -> Value {
+    reco::jar_state(&profile_id, &id, &url)
 }
 
 #[tauri::command(async)]
@@ -1079,7 +1149,23 @@ fn start_memory_trim() {
 }
 
 fn main() {
+    #[cfg(unix)]
+    unsafe { libc::umask(0o077); }
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(|a| a == "--prefetch-horizon").unwrap_or(false) {
+        let result = (|| -> R<()> {
+            horizon::install()?;
+            let feed = horizon::feed()?;
+            let tag = feed["builds"].as_array().and_then(|b| b.first()).and_then(|b| b["tag"].as_str()).ok_or("Нет доступных сборок Horizon")?;
+            horizon::install_build(tag)?;
+            Ok(())
+        })();
+        match result { Ok(()) => std::process::exit(0), Err(error) => { eprintln!("{error}"); std::process::exit(1); } }
+    }
     if args.get(1).map(|a| a == "--prefetch").unwrap_or(false) {
         let _ = fs::create_dir_all(data_dir());
         std::process::exit(prefetch_cli(args.get(2).filter(|a| !a.starts_with("--")).cloned(), args.iter().any(|a| a == "--only-java")));
@@ -1141,8 +1227,19 @@ fn main() {
             reco_list,
             horizon_status,
             horizon_install,
-            horizon_open,
+            horizon_select_build,
+            horizon_install_build,
+            horizon_prepare_build,
+            horizon_offline_name,
+            horizon_select_account,
+            horizon_sign_out,
+            horizon_sign_in,
             horizon_play,
+            horizon_mods_search,
+            horizon_mods_list,
+            horizon_mods_install,
+            horizon_mods_toggle,
+            horizon_mods_remove,
             lib_list,
             lib_read,
             lib_delete,
@@ -1151,6 +1248,8 @@ fn main() {
             reco_info,
             mods_install_many,
             reco_file,
+            reco_jar,
+            reco_jar_state,
             worlds_list,
             friends_list,
             friend_action,
@@ -1178,6 +1277,7 @@ fn main() {
             backup_restore,
             backup_delete,
             skin_from_nick,
+            skin_from_github,
             packs_install,
             news_list,
             news_save,

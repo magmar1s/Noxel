@@ -1,7 +1,9 @@
 //! Скины и плащи: разбор PNG, приведение к формату 64x64, клиент Noxel API.
 use crate::util::*;
 use base64::Engine;
-use serde_json::{json, Value};
+use serde_json::Value;
+#[cfg(test)]
+use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::{fs, path::PathBuf};
 
@@ -154,11 +156,18 @@ fn api_base() -> String {
     std::env::var("T_API").unwrap_or_else(|_| API.into())
 }
 #[cfg(not(test))]
-fn api_base() -> String {
-    API.into()
-}
-
 pub fn call(method: &str, path: &str, token: Option<&str>, body: Body) -> R<Value> {
+    let _ = token;
+    match body { Body::None => {}, Body::Json(value) => { drop(value); }, Body::Bytes(bytes) => { drop(bytes); } }
+    if method == "GET" {
+        let name = match path { "/launcher" => Some("launcher"), "/news" => Some("news"), "/servers" => Some("servers"), "/recommended" => Some("recommended"), _ => None };
+        if let Some(name) = name { return get_json(&format!("https://raw.githubusercontent.com/magmar1s/Noxel/main/distribution/{name}.json")); }
+    }
+    Err("Серверные функции Noxel отключены в GitHub-версии. Используй локальный или Microsoft-аккаунт.".into())
+}
+#[cfg(test)]
+pub fn call(method: &str, path: &str, token: Option<&str>, body: Body) -> R<Value> {
+
     let mut req = agent().request(method, &format!("{}{path}", api_base()));
     if let Some(t) = token {
         req = req.set("Authorization", &format!("Bearer {t}"));

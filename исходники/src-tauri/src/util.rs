@@ -309,6 +309,10 @@ pub fn total_ram_mb() -> u32 {
 
 pub fn load_settings() -> Settings {
     let mut s: Settings = read_json(&data_dir().join("settings.json")).unwrap_or_default();
+    s.noxel_mod = false;
+    s.noxel_ygg = false;
+    s.dav_auto = false;
+    s.admin_token.clear();
     if !s.opt_in_v2 {
         s.auto_auth = false;
         s.auto_skin = false;

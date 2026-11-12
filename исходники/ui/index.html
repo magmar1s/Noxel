@@ -112,7 +112,7 @@ html.idle :is(.nbtn.upd,.racc i.busy,.spinner,.sk,.bar i,.bar i::after,.stage .a
 .page:not(.on){display:none}
 .page.on{display:grid;animation:pin .6s var(--ease) both}
 @keyframes pin{from{opacity:0;transform:translateY(12px) scale(.99);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
-#p-home,#p-versions,#p-accounts{grid-template-columns:minmax(330px,380px) 1fr;gap:14px}
+#p-home,#p-versions,#p-accounts{grid-template-columns:clamp(240px,27%,340px) minmax(0,1fr);gap:14px}
 #p-mods,#p-settings{grid-template-columns:1fr}
 
 /* ── списки ── */
@@ -136,11 +136,13 @@ html.idle :is(.nbtn.upd,.racc i.busy,.spinner,.sk,.bar i,.bar i::after,.stage .a
 .scroll{overflow-y:auto;overflow-x:hidden;min-height:0;padding:0 10px 14px;scrollbar-width:none}
 .scroll::-webkit-scrollbar{display:none}
 
-.row{position:relative;display:flex;align-items:center;gap:12px;height:62px;padding:0 10px 0 12px;border-radius:16px;cursor:pointer;margin-bottom:2px;
+.row{position:relative;display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 10px 8px 12px;border-radius:16px;cursor:pointer;margin-bottom:2px;
   transition:background .25s var(--ease),transform .35s var(--ease);animation:rin .5s var(--ease) both;animation-delay:calc(var(--i,0)*16ms)}
 @keyframes rin{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 .row:hover{background:var(--fill);transform:translateX(3px)}
 .row.sel{background:var(--fill2)}
+#plist .meta b,#plist .meta small{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+#plist .badge{font-size:9.5px;padding:2px 7px}
 .row.sel::before{content:"";position:absolute;left:3px;top:15px;bottom:15px;width:3px;border-radius:3px;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.8);animation:grow .5s var(--spring)}
 @keyframes grow{from{transform:scaleY(0)}to{transform:none}}
 .row.live{background:rgba(255,255,255,.15)}
@@ -152,7 +154,8 @@ html.idle :is(.nbtn.upd,.racc i.busy,.spinner,.sk,.bar i,.bar i::after,.stage .a
 .meta{flex:1;min-width:0}
 .meta b{display:block;font-weight:550;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meta small{display:block;font-size:11.5px;color:var(--fg3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .acts{display:flex;gap:2px;opacity:0;transition:opacity .2s}
+.row .acts{display:flex;gap:2px;opacity:0;transition:opacity .2s;position:absolute;right:8px;top:50%;transform:translateY(-50%);padding:2px;border-radius:12px;background:#1d1d1f;pointer-events:none}
+.row:hover .acts{pointer-events:auto}
 .row:hover .acts{opacity:1}
 .badge{flex:none;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;letter-spacing:.04em;background:var(--fill2);border:1px solid var(--line);color:var(--fg2)}
 .badge.w{background:#fff;color:var(--ink);border-color:#fff}
@@ -262,7 +265,7 @@ input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 7px rgba(255,255,
 .prog .ph{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--fg2);margin-bottom:8px}
 .prog .ph b{font-weight:600;color:var(--fg);letter-spacing:.06em;text-transform:uppercase;font-size:11px}
 .prog .ph span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;color:var(--fg3)}
-.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:auto;padding-top:20px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:auto;padding-top:20px}
 .quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;min-height:0}
 .quick:empty{display:none}
 .quick .lab{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3);align-self:center;margin-right:2px}
@@ -278,6 +281,7 @@ button.tile:hover{border-color:var(--line2)}
 .tile svg{position:absolute;right:13px;top:13px;width:16px;height:16px;color:var(--fg3);transition:transform .4s var(--spring)}
 .tile:hover svg{transform:scale(1.2) rotate(-6deg)}
 .tiles .tile{padding:12px 11px}.tiles .tile b{font-size:15px}.tiles .tile span{padding-right:18px;letter-spacing:.05em;font-size:10px}.tiles .tile svg{right:10px;top:12px}
+.tiles .tile b{white-space:normal;overflow-wrap:anywhere;line-height:1.2}.tiles .tile span{text-overflow:clip}
 .console{position:relative;margin-top:12px;border-radius:18px;background:rgba(0,0,0,.45);border:1px solid var(--line);overflow:hidden;
   height:0;opacity:0;transition:height .5s var(--ease),opacity .3s}
 .console.on{height:210px;opacity:1}
@@ -604,7 +608,7 @@ const ART = `<div class="art"><svg viewBox="0 0 512 512"><path d="M256 92 392 17
 const S = {
   page:'home', profiles:[], sel:null, game:{state:'idle', id:null}, task:null, logOpen:false, accts:[], ms:null, creating:false, cstat:'',
   versions:null, latest:null, vfilter:'release', vq:'', vsel:null, vloader:'vanilla', vname:'', vlv:'', vpreset:'', presets:[], lv:{},
-  m:{ profile:null, tab:'installed', src:'all', kind:'mod', q:'', sort:'relevance', client:'all', upd:null, warn:[], hits:[], offset:0, total:0, installed:[], loading:false, err:null, busy:new Set() },
+  m:{ profile:null, tab:'installed', src:'modrinth', kind:'mod', q:'', sort:'relevance', client:'all', upd:null, warn:[], hits:[], offset:0, total:0, installed:[], loading:false, err:null, busy:new Set(), htab:'catalog', hq:'', hitems:[], hinstalled:[], hbusy:new Set(), hloading:false, herr:null },
   av:null, det:null, skinModel:'auto',
   set:null, sys:null,
 };
@@ -686,11 +690,12 @@ addEventListener('click', () => $$('.dd.open').forEach(d => d.classList.remove('
 document.addEventListener('mousemove', e => { const g = e.target.closest && e.target.closest('.glass'); if (g) { const r = g.getBoundingClientRect(); g.style.setProperty('--mx', (e.clientX - r.left) + 'px'); g.style.setProperty('--my', (e.clientY - r.top) + 'px'); } });
 
 /* ── навигация ── */
-const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['friends','Друзья',I.users],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
+const PAGES = [['home','Играть',I.home],['versions','Версии',I.ver],['mods','Моды',I.mod],['servers','Серверы',I.srv],['news','Новости',I.bell],['accounts','Аккаунты',I.user],['settings','Настройки',I.gear]];
 $('#nav').insertAdjacentHTML('beforeend', PAGES.map(([id, t, ic]) => `<button class="nbtn" data-p="${id}" title="${t}">${ic}<span class="lbl">${t}</span></button>`).join(''));
 $$('.nbtn').forEach(b => b.onclick = () => go(b.dataset.p));
 $('#railAcc').onclick = () => go('accounts');
 function go(p){
+  if (p === 'friends') p = 'home';
   S.page = p;
   $$('.page').forEach(x => x.classList.toggle('on', x.id === 'p-' + p));
   $$('.nbtn').forEach((b, i) => { b.classList.toggle('on', b.dataset.p === p); if (b.dataset.p === p) $('#pill').style.setProperty('--y', (b.offsetTop + (b.offsetHeight - 22) / 2) + 'px'); });
@@ -716,8 +721,8 @@ function renderProfiles(){
     const live = S.game.id === p.id && S.game.state === 'running';
     return `<div class="row ${p.id === S.sel ? 'sel' : ''} ${live ? 'live' : ''}" data-id="${esc(p.id)}" style="--i:${i}">
       <div class="avatar">${esc(letter(LNAME[p.loader] || 'V'))}</div>
-      <div class="meta"><b>${esc(p.name)}</b><small>${esc(sub(p))}${p.mods ? ' · ' + p.mods + ' ' + plural(p.mods, 'мод','мода','модов') : ''}</small></div>
-      ${live ? '<span class="badge w">ИГРАЕТ</span>' : !p.installed ? '<span class="badge">НЕ СКАЧАНО</span>' : ''}
+      <div class="meta"><b>${esc(p.name)}</b><small>${esc(sub(p))}${p.mods ? ' · ' + p.mods + ' ' + plural(p.mods, 'мод','мода','модов') : ''}${!live && !p.installed ? ' · не скачано' : ''}</small></div>
+      ${live ? '<span class="badge w">ИГРАЕТ</span>' : ''}
       <div class="acts"><button class="ibtn sm" data-act="dup" title="Создать копию">${I.copy}</button><button class="ibtn sm" data-act="del" title="Удалить">${I.trash}</button></div></div>`;
   }).join('');
   $$('.row', el).forEach(r => r.onclick = e => {
@@ -812,7 +817,7 @@ async function packTools(p){
         <div class="opt" style="margin:0"><div class="t"><b>Вместе с мирами</b><small>Добавить папку saves (файл станет больше)</small></div><button class="switch" id="ptSaves"></button></div>
         <div class="mrow"><button class="minibtn sm" id="ptMr" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'mr' ? 'Упаковываю…' : '.mrpack · Modrinth, Prism'}</button><button class="minibtn sm" id="ptCf" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'cf' ? 'Упаковываю…' : '.zip · CurseForge'}</button></div></div>
       ${T2.upd && T2.upd.pack ? `<div class="ncard"><b>Обновление сборки</b>${T2.upd.update ? `<div class="nb">Есть новая версия: <b style="color:#fff">${esc(T2.upd.new)}</b> (сейчас ${esc(T2.upd.current || '?')}).${T2.upd.added.length || T2.upd.removed.length ? `<br>Добавится: ${T2.upd.added.length ? esc(T2.upd.added.slice(0, 8).join(', ')) + (T2.upd.added.length > 8 ? '…' : '') : 'ничего'}<br>Уберётся: ${T2.upd.removed.length ? esc(T2.upd.removed.slice(0, 8).join(', ')) + (T2.upd.removed.length > 8 ? '…' : '') : 'ничего'}` : ''}<br>Перед обновлением сохранится точка восстановления: если что-то сломается, профиль можно вернуть.</div>${T2.upd.changelog ? `<pre style="max-height:120px;overflow:auto;white-space:pre-wrap;font-size:11.5px;color:var(--fg2);margin:0">${esc(T2.upd.changelog)}</pre>` : ''}<div class="mrow"><button class="minibtn solid sm" id="ptUpd" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'upd' ? esc(T2.prog || 'Обновляю…') : 'Обновить сборку'}</button></div>` : `<div class="nb">Стоит последняя версия ${esc(T2.upd.current || '')}.</div>`}</div>` : ''}
-      ${hasLoader ? `<div class="ncard"><b>Голосовой чат</b><div class="nb">Simple Voice Chat: говори с друзьями в своём мире голосом. Друзья, которые заходят к тебе через Noxel, получат мод автоматически.</div><div class="mrow"><button class="minibtn sm" id="ptVoice" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'voice' ? 'Ставлю…' : 'Поставить голосовой чат'}</button></div></div>` : ''}
+      ${hasLoader ? `<div class="ncard"><b>Голосовой чат</b><div class="nb">Simple Voice Chat: говори с друзьями в своём мире голосом. Для голосового чата серверу и другим игрокам нужен такой же мод.</div><div class="mrow"><button class="minibtn sm" id="ptVoice" ${T2.busy ? 'disabled' : ''}>${T2.busy === 'voice' ? 'Ставлю…' : 'Поставить голосовой чат'}</button></div></div>` : ''}
       <div class="ncard"><b>Точки восстановления</b><div class="nb">Снимок модов, ресурспаков, шейдеров и настроек модов. Сохраняется сам перед обновлением модов и сборки. Миры не трогаются.</div>
         ${sn.length ? sn.map((x, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(fmtDate(x.created))}</span><small>${esc(x.reason)} · модов: ${x.mods}</small><button class="minibtn sm" data-sr="${i}">Вернуть</button><button class="ibtn sm" data-sd="${i}" title="Удалить точку">${I.trash}</button></div>`).join('') : `<div class="hint">${T2.snaps ? 'Точек пока нет.' : 'Загружаю…'}</div>`}
         <div class="mrow"><button class="minibtn sm" id="ptSnap">Сохранить точку сейчас</button></div></div>
@@ -897,17 +902,16 @@ const fmtDate = t => t ? new Date(t * 1000).toLocaleString('ru-RU', {day: 'numer
 async function worldsModal(p){
   const box = $('#xbox'); box.innerHTML = '<h3>Миры</h3><div class="hint">Загружаю…</div>'; $('#xmodal').classList.add('on');
   const render = async () => {
-    let r, cloud = null, na = noxAcc(), dv = null;
-    if (S.set && S.set.dav_url) { try { dv = {list: await invoke('dav_list', {profileId: p.id})}; } catch (e) { dv = {error: String(e), list: []}; } }
+    let r, cloud = null, na = null, dv = null;
+    if (false && S.set && S.set.dav_url) { try { dv = {list: await invoke('dav_list', {profileId: p.id})}; } catch (e) { dv = {error: String(e), list: []}; } }
     if (na) { try { cloud = await invoke('cloud_list', {id: na.id}); } catch (e) { cloud = {error: String(e), worlds: [], used: 0, quota: 0}; } }
     try { r = await invoke('worlds_list', {profileId: p.id}); } catch (e) { box.innerHTML = `<h3>Миры</h3><div class="hint">${esc(e)}</div><div class="btns"><button class="minibtn solid" id="xc">Закрыть</button></div>`; $('#xc').onclick = closeX; return; }
     box.innerHTML = `<h3>Миры профиля «${esc(p.name)}»</h3>
       <div class="hint" style="margin-bottom:10px">Резервная копия — это zip-архив мира. При восстановлении текущий мир не удаляется, а переименовывается рядом.</div>
       <div style="max-height:360px;overflow:auto;scrollbar-width:none">
-      ${r.worlds.length ? r.worlds.map((w, i) => `<div class="palrow" style="cursor:default"><b style="color:var(--fg)">${esc(w.name)}</b><small>${fmtSize(w.size)} · играл ${fmtDate(w.modified)} · копий: ${w.backups}</small><button class="minibtn sm" data-wb="${i}">Сделать копию</button><button class="minibtn sm" data-wc="${i}" title="Сохранить мир на сервере Noxel, чтобы открыть его на другом компьютере">В облако</button>${dv ? `<button class="minibtn sm" data-dw="${i}" title="Загрузить в твоё облако (WebDAV)">В моё облако</button>` : ''}</div>`).join('') : '<div class="hint" style="padding:10px">В этом профиле пока нет миров.</div>'}
+      ${r.worlds.length ? r.worlds.map((w, i) => `<div class="palrow" style="cursor:default"><b style="color:var(--fg)">${esc(w.name)}</b><small>${fmtSize(w.size)} · играл ${fmtDate(w.modified)} · копий: ${w.backups}</small><button class="minibtn sm" data-wb="${i}">Сделать копию</button>${dv ? `<button class="minibtn sm" data-dw="${i}" title="Загрузить в твоё облако (WebDAV)">В моё облако</button>` : ''}</div>`).join('') : '<div class="hint" style="padding:10px">В этом профиле пока нет миров.</div>'}
       ${r.backups.length ? `<div class="lbl" style="margin:14px 0 6px"><span>Копии</span></div>` + r.backups.map((b, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(b.world)}</span><small>${fmtDate(b.created)} · ${fmtSize(b.size)}</small><button class="minibtn sm" data-br="${i}">Восстановить</button><button class="ibtn sm" data-bd="${i}" title="Удалить копию">${I.trash}</button></div>`).join('') : ''}
       ${dv ? `<div class="lbl" style="margin:14px 0 6px"><span>Моё облако (WebDAV)</span></div>` + (dv.error ? `<div class="hint" style="padding:6px 10px">${esc(dv.error)}</div>` : dv.list.length ? dv.list.map((c, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(c.name)}</span><small>${fmtSize(c.size)}</small><button class="minibtn sm" data-dd="${i}">Скачать сюда</button></div>`).join('') : '<div class="hint" style="padding:6px 10px">В твоём облаке для этого профиля пока пусто.</div>') + `<div class="mrow" style="margin:8px 0 0"><button class="minibtn sm" id="dvSync">Синхронизировать изменённые</button></div>` : ''}
-      ${na ? `<div class="lbl" style="margin:14px 0 6px"><span>Облако Noxel · один мир, до ${cloud && cloud.quota ? fmtSize(cloud.quota) : '300 МБ'}, сжимается при загрузке</span></div>` + (cloud && cloud.error ? `<div class="hint" style="padding:6px 10px">${esc(cloud.error)}</div>` : cloud && cloud.worlds.length ? cloud.worlds.map((c, i) => `<div class="palrow" style="cursor:default"><span style="color:var(--fg)">${esc(c.name)}</span><small>${esc(c.mc || '')} · ${fmtDate(c.created)} · ${fmtSize(c.size)}</small><button class="minibtn sm" data-cl="${i}" title="Ссылка, по которой друг скачает этот мир и увидит страницу с установкой Noxel">${c.share ? 'Скопировать ссылку' : 'Поделиться'}</button>${c.share ? `<button class="ibtn sm" data-cu="${i}" title="Отозвать ссылку">${I.ext}</button>` : ''}<button class="minibtn sm" data-cd="${i}">Скачать сюда</button><button class="ibtn sm" data-cx="${i}" title="Удалить из облака">${I.trash}</button></div>`).join('') : '<div class="hint" style="padding:6px 10px">В облаке пока пусто: нажми «В облако» у любого мира. Новый мир заменяет прежний.</div>') + `<div style="display:flex;gap:8px;margin-top:10px"><input class="inp" id="lnkIn" placeholder="Ссылка на мир друга: https://mr1s.site/w/…" style="flex:1" spellcheck="false"><button class="minibtn" id="lnkGo">Добавить по ссылке</button></div>` : '<div class="hint" style="margin-top:12px">Облачные миры доступны с аккаунтом Noxel (страница «Аккаунты»). Мир друга по ссылке можно добавить и без него.</div><div style="display:flex;gap:8px;margin-top:10px"><input class="inp" id="lnkIn" placeholder="Ссылка на мир друга: https://mr1s.site/w/…" style="flex:1" spellcheck="false"><button class="minibtn" id="lnkGo">Добавить по ссылке</button></div>'}
       </div><div class="btns"><button class="minibtn solid" id="xc">Готово</button></div>`;
     $('#xc').onclick = closeX;
     $$('[data-wc]', box).forEach(b => b.onclick = async () => { if (!na) return toast('Нужен аккаунт Noxel'); b.disabled = true; b.textContent = 'Загружаю…'; try { await invoke('cloud_upload', {id: na.id, profileId: p.id, world: r.worlds[+b.dataset.wc].name}); toast('Мир сохранён в облаке'); } catch (e) { modal('Не получилось', String(e)); } render(); });
@@ -1012,8 +1016,8 @@ function selectVersion(id, silent){
       .catch(() => { S.lv[id + '|' + l] = []; if (S.vsel === id) renderVDetail(); });
   }
 }
-/* ── Horizon: Minecraft на Rust. Список приходит с сервера Noxel, новые сборки появляются без обновления лаунчера ── */
-const HZ = {st: null, busy: ''};
+/* ── Rust-клиент, встроенный в Noxel ── */
+const HZ = {st: null, busy: '', auth: {code: '', url: ''}};
 async function renderHorizon(force){
   const list = $('#vlist'), det = $('#vdetail'); if (!list || !det) return;
   if (!HZ.st || force) {
@@ -1023,23 +1027,54 @@ async function renderHorizon(force){
   }
   if (S.vfilter !== 'rust') return;
   const st = HZ.st, busy = !!HZ.busy;
+  const selected = st.selected_build || (st.builds[0] && st.builds[0].tag) || '';
+  st.installed_builds = Array.isArray(st.installed_builds) ? st.installed_builds : [];
+  st.prepared_builds = Array.isArray(st.prepared_builds) ? st.prepared_builds : [];
+  const selectedInstalled = !!selected && st.installed_builds.includes(selected);
+  const selectedPrepared = !!selected && st.prepared_builds.includes(selected);
+  const accounts = st.account && Array.isArray(st.account.accounts) ? st.account.accounts : [];
+  const offline = st.account && Array.isArray(st.account.offline) ? st.account.offline : [];
+  const activeAccount = accounts.find(a => a.selected) || accounts[0];
+  const accountReady = !!(st.account && st.account.owner);
+  const signInConfigured = !!(st.account && st.account.sign_in_configured);
+  const activeOffline = offline.find(a => a.selected);
+  const activePlayer = activeOffline ? `${activeOffline.name} · офлайн` : activeAccount ? `${activeAccount.name} · Microsoft` : 'Офлайн-профиль';
   $('#vcount').textContent = st.builds.length ? String(st.builds.length) : '';
-  list.innerHTML = st.builds.length ? st.builds.map((b, i) => `<div class="row" style="--i:${Math.min(i, 14)};cursor:default"><div class="avatar" style="font-size:11px">${b.nightly ? 'NG' : 'RS'}</div><div class="meta"><b>${esc(b.name)}</b><small>${esc(b.date)}${b.nightly ? ' · ночная сборка' : ' · выпуск'}</small></div></div>`).join('') : '<div class="empty"><div><p>Список сборок пока пуст</p></div></div>';
-  det.innerHTML = ART + `<div class="vd"><div><div class="lbl">Minecraft на Rust</div><h1 style="margin-top:10px">Horizon</h1><div class="sub">Minecraft: Java Edition 26.3, написанный с нуля на Rust. Открытый код (MIT), создан независимой командой, не связан с Mojang и Noxel.</div></div>
+  list.innerHTML = st.builds.length ? st.builds.map((b, i) => {
+    const isInstalled = st.installed_builds.includes(b.tag), isSelected = selected === b.tag;
+    return `<div class="row ${isSelected ? 'sel' : ''}" data-hz-tag="${esc(b.tag)}" style="--i:${Math.min(i, 14)}"><div class="avatar" style="font-size:11px">${b.nightly ? 'NG' : 'RS'}</div><div class="meta"><b>${esc(b.name)}</b><small>${esc(b.date)} · ${st.prepared_builds.includes(b.tag) ? 'подготовлена' : isInstalled ? 'не подготовлена' : b.nightly ? 'ночная сборка' : 'релиз'}${isSelected ? ' · выбрана' : ''}</small></div>${isSelected ? '<span class="badge">Выбрана</span>' : ''}</div>`;
+  }).join('') : '<div class="empty"><div><p>Список сборок пока пуст</p></div></div>';
+  det.innerHTML = ART + `<div class="vd"><div><div class="lbl">ВСТРОЕННЫЙ RUST-КЛИЕНТ</div><h1 style="margin-top:10px">Minecraft на Rust</h1><div class="sub">Нативный клиент Minecraft Java Edition 26.3 на основе открытого проекта Horizon. Скачивание, вход, версии и запуск доступны в Noxel.</div></div>
     <div class="kv" style="max-width:640px">
-      <div class="kvr"><span>Лаунчер Horizon</span><b>${st.installed ? 'установлен ' + esc(st.installed) : 'не установлен'}${st.update ? ' · есть ' + esc(st.latest) : ''}</b></div>
-      <div class="kvr"><span>Что нужно</span><b style="white-space:normal">Купленная Minecraft Java и вход через Microsoft в окне Horizon, видеокарта с Vulkan или DirectX 12</b></div>
-      <div class="kvr"><span>Моды</span><b style="white-space:normal">Моды Fabric и Forge не работают: у Horizon своя система модов</b></div>
+      <div class="kvr"><span>Клиент Noxel</span><b>${st.installed ? 'установлен' + (st.update ? ' · доступно обновление' : '') : 'не загружен'}</b></div>
+      <div class="kvr"><span>Версия игры</span><b style="white-space:normal">${selected ? esc(selected) + (selectedPrepared ? ' · готова к запуску' : selectedInstalled ? ' · нужна подготовка' : ' · не установлена') : 'выбери сборку слева'}</b></div>
+      <div class="kvr"><span>Профиль</span><b style="white-space:normal">${esc(activePlayer)}</b></div>
+      <div class="kvr"><span>Лицензия Microsoft</span><b style="white-space:normal">${accountReady ? 'подтверждена' + (activeAccount ? ' · ' + esc(activeAccount.name) : '') : 'не требуется для одиночной игры'}</b></div>
     </div>
-    <div class="hint" style="max-width:640px">Игру и проверку владения Minecraft ведёт сам Horizon, Noxel только ставит и запускает его лаунчер. Версии игры и обновления выбираются в окне Horizon.</div>
+    ${st.installed ? `<div class="ncard" style="max-width:640px"><b>Офлайн-профиль</b><div class="nb">Для одиночного мира и LAN. Офлайн-аккаунт не пройдёт проверку лицензии на online-mode серверах.</div><div class="mrow" style="margin-top:10px"><input id="hzNick" maxlength="16" placeholder="Ник: 3–16 латинских букв/цифр" value="${esc(activeOffline?.name || '')}" style="width:min(320px,100%);padding:8px 10px;border:1px solid var(--line);border-radius:8px"><button class="minibtn solid sm" id="hzOffline">Выбрать офлайн-ник</button></div></div>` : ''}
+    ${st.installed ? `<div class="ncard" style="max-width:640px"><b>Лицензионный вход Microsoft</b><div class="nb">Пароль вводится только на официальной странице Microsoft. Noxel не получает его. Вход проверяет владение Minecraft: Java Edition. ${!signInConfigured ? 'Сначала укажи свой Client ID в Настройки → Лицензия Microsoft.' : ''}</div>${accounts.length ? `<div class="mrow" style="margin-top:10px">${accounts.map(a => `<button class="minibtn sm ${a.selected ? 'solid' : ''}" data-hz-account="${esc(a.name)}">${esc(a.name)}${a.selected ? ' · выбрано' : ''}</button><button class="minibtn sm" data-hz-signout="${esc(a.name)}">Выйти</button>`).join('')}</div>` : ''}${HZ.auth.code ? `<div class="mrow" style="margin-top:10px"><code style="font-size:18px;letter-spacing:.12em;padding:8px 10px;border:1px solid var(--line);border-radius:8px">${esc(HZ.auth.code)}</code><button class="minibtn solid sm" id="hzMsOpen">Открыть Microsoft и ввести код</button></div>` : ''}<div class="mrow" style="margin-top:10px"><button class="minibtn ${HZ.auth.code ? '' : 'solid'} sm" id="hzSignIn" ${busy || !signInConfigured ? 'disabled' : ''}>${HZ.busy === 'signin' ? 'Жду подтверждение…' : HZ.auth.code ? 'Проверить вход' : accounts.length ? 'Добавить аккаунт Microsoft' : 'Войти через Microsoft'}</button>${!signInConfigured ? '<button class="minibtn sm" id="hzSettings">Настроить Client ID</button>' : ''}<button class="minibtn sm" id="hzPrivacy">Приватность и токены</button></div></div>` : ''}
+    <div class="hint" style="max-width:640px">Офлайн-профиль предназначен для одиночной игры и LAN; сервера с проверкой Mojang требуют лицензионный Microsoft-аккаунт. Файлы Minecraft 26.3 в Noxel не включены: можно использовать установленные файлы или скачать их напрямую у Mojang после входа с лицензией. Java-моды Fabric/Forge не работают.</div>
     <div class="mrow" style="max-width:640px">
-      ${!st.supported ? '<button class="minibtn" disabled>Для этой системы сборки нет</button>' : st.installed ? `<button class="minibtn solid" id="hzPlay" ${busy ? 'disabled' : ''}>${I.play} Играть</button><button class="minibtn" id="hzOpen" ${busy ? 'disabled' : ''}>Открыть Horizon</button>${st.update ? `<button class="minibtn" id="hzInst" ${busy ? 'disabled' : ''}>Обновить лаунчер Horizon</button>` : ''}` : `<button class="minibtn solid" id="hzInst" ${busy ? 'disabled' : ''}>${busy ? 'Скачиваю…' : I.dl + ' Установить Horizon'}</button>`}
-      <button class="minibtn" id="hzSite">${I.ext} playhorizon.dev</button></div></div>`;
-  const run = async (what, fn, ok) => { HZ.busy = what; renderHorizon(); try { const r = await fn(); if (ok) ok(r); } catch (e) { modal('Horizon', String(e) + (what === 'play' ? '\n\nЕсли ещё не входил в Microsoft, нажми «Открыть Horizon» и войди там.' : '')); } HZ.busy = ''; renderHorizon(true); };
-  if ($('#hzInst')) $('#hzInst').onclick = () => run('install', () => invoke('horizon_install'), () => toast('Horizon установлен: войди в Microsoft в его окне'));
-  if ($('#hzPlay')) $('#hzPlay').onclick = () => run('play', () => invoke('horizon_play'), () => toast('Horizon запускается'));
-  if ($('#hzOpen')) $('#hzOpen').onclick = () => invoke('horizon_open').catch(e => modal('Horizon', String(e)));
-  $('#hzSite').onclick = () => invoke('open_url', {url: 'https://playhorizon.dev'}).catch(toast);
+      ${!st.feed_ok ? '<button class="minibtn" disabled>Нет связи с каталогом Horizon Offline</button>' : !st.feed_source_ok ? '<button class="minibtn" disabled>Каталог Noxel нужно обновить перед установкой форка</button>' : !st.supported ? '<button class="minibtn" disabled>Эта система не поддерживается</button>' : !st.installed ? `<button class="minibtn solid" id="hzInst" ${busy ? 'disabled' : ''}>${busy ? 'Загружаю компонент…' : I.dl + ' Установить Rust-клиент'}</button>` : !selectedInstalled ? `<button class="minibtn solid" id="hzBuild" ${busy ? 'disabled' : ''}>${busy ? 'Устанавливаю версию…' : I.dl + ' Установить выбранную версию'}</button>` : !selectedPrepared ? `<button class="minibtn solid" id="hzPrepare" ${busy ? 'disabled' : ''}>${busy ? 'Подготавливаю…' : 'Найти Minecraft 26.3 на компьютере'}</button><button class="minibtn" id="hzFolder" ${busy ? 'disabled' : ''}>Выбрать папку Minecraft</button><button class="minibtn" id="hzJar" ${busy ? 'disabled' : ''}>Выбрать client.jar</button><button class="minibtn" id="hzMojang" ${busy || !accountReady ? 'disabled' : ''}>Скачать с Mojang по лицензии</button>` : `<button class="minibtn solid" id="hzPlay" ${busy ? 'disabled' : ''}>${I.play} Играть ${esc(selected)}</button>`}
+      ${st.installed && st.update ? `<button class="minibtn" id="hzInst" ${busy ? 'disabled' : ''}>Обновить компонент</button>` : ''}
+      <button class="minibtn" id="hzAbout">${I.ext} Horizon Offline</button></div></div>`;
+  const run = async (what, fn, ok) => { HZ.busy = what; renderHorizon(); try { const r = await fn(); if (ok) await ok(r); } catch (e) { modal('Minecraft на Rust', String(e) + (what === 'play' ? '\n\nДля online-mode серверов войди в Microsoft с лицензией Minecraft Java.' : '')); } finally { HZ.busy = ''; renderHorizon(true); } };
+  $$('#vlist [data-hz-tag]').forEach(row => row.onclick = () => run('select', () => invoke('horizon_select_build', {tag: row.dataset.hzTag})));
+  if ($('#hzInst')) $('#hzInst').onclick = () => run('install', () => invoke('horizon_install'), () => toast('Клиент установлен в Noxel'));
+  if ($('#hzBuild')) $('#hzBuild').onclick = () => run('build', () => invoke('horizon_install_build', {tag: selected}), () => toast(`Сборка ${selected} установлена; проверь подготовку файлов игры`));
+  if ($('#hzPrepare')) $('#hzPrepare').onclick = () => run('prepare', () => invoke('horizon_prepare_build', {tag: selected, minecraft: null, downloadMojang: false}), () => toast('Minecraft 26.3 подготовлен'));
+  if ($('#hzFolder')) $('#hzFolder').onclick = async () => { const path = await T.dialog.open({multiple:false,directory:true,title:'Выбери папку игры Minecraft 26.3'}); if (path) run('prepare', () => invoke('horizon_prepare_build', {tag:selected,minecraft:path,downloadMojang:false}), () => toast('Minecraft 26.3 подготовлен')); };
+  if ($('#hzJar')) $('#hzJar').onclick = async () => { const path = await T.dialog.open({multiple:false,title:'Выбери client.jar Minecraft 26.3',filters:[{name:'Minecraft client',extensions:['jar']}]}); if (path) run('prepare', () => invoke('horizon_prepare_build', {tag:selected,minecraft:path,downloadMojang:false}), () => toast('Minecraft 26.3 подготовлен')); };
+  if ($('#hzMojang')) $('#hzMojang').onclick = () => run('prepare', () => invoke('horizon_prepare_build', {tag:selected,minecraft:null,downloadMojang:true}), () => toast('Файлы скачаны с Mojang и подготовлены'));
+  if ($('#hzPlay')) $('#hzPlay').onclick = () => run('play', () => invoke('horizon_play'), () => toast('Игра запускается из Noxel'));
+  if ($('#hzOffline')) $('#hzOffline').onclick = () => run('offline', () => invoke('horizon_offline_name', {name: $('#hzNick').value.trim() || null}), () => toast('Офлайн-профиль выбран'));
+  $$('[data-hz-account]').forEach(b => b.onclick = () => run('account', () => invoke('horizon_select_account', {name:b.dataset.hzAccount}), () => toast(`Выбран аккаунт ${b.dataset.hzAccount}`)));
+  $$('[data-hz-signout]').forEach(b => b.onclick = () => run('signout', () => invoke('horizon_sign_out', {name:b.dataset.hzSignout}), () => toast('Аккаунт Microsoft удалён с этого устройства')));
+  if ($('#hzSignIn')) $('#hzSignIn').onclick = () => run('signin', () => invoke('horizon_sign_in'), r => { HZ.st = {...HZ.st, account:r}; HZ.auth.code = ''; HZ.auth.url = ''; toast('Microsoft подтвердил лицензию Minecraft Java'); });
+  if ($('#hzMsOpen')) $('#hzMsOpen').onclick = () => invoke('open_url', {url: HZ.auth.url}).catch(e => modal('Microsoft', String(e)));
+  if ($('#hzPrivacy')) $('#hzPrivacy').onclick = () => invoke('open_url', {url: 'https://magmar1s.github.io/Noxel/privacy.html'}).catch(toast);
+  if ($('#hzSettings')) $('#hzSettings').onclick = () => go('settings');
+  $('#hzAbout').onclick = () => invoke('open_url', {url: 'https://github.com/gerdaroot/Horizon-Offline-Launcher'}).catch(toast);
 }
 function renderVDetail(){
   if (S.vfilter === 'rust') { renderHorizon(); return; }
@@ -1177,14 +1212,14 @@ function skinViewer(host, o){
 }
 
 async function loadAccounts(){
-  S.accts = await invoke('accounts_list');
+  S.accts = (await invoke('accounts_list')).filter(a => a.kind !== 'noxel');
   if (!S.av || !S.accts.some(a => a.id === S.av)) S.av = (active() || S.accts[0]).id;
   renderRailAcc(); if (S.page === 'accounts') renderAccounts(); if (S.page === 'home') renderHero();
 }
 /* аккаунт могли сменить из игры: подхватываем без перезапуска лаунчера */
 setInterval(async () => {
   try {
-    const l = await invoke('accounts_list'), now = (l.find(x => x.selected) || {}).id, was = (S.accts.find(x => x.selected) || {}).id;
+    const l = (await invoke('accounts_list')).filter(a => a.kind !== 'noxel'), now = (l.find(x => x.selected) || {}).id, was = (S.accts.find(x => x.selected) || {}).id;
     if (now && now !== was) { S.accts = l; S.av = now; S.det = null; S._dj = ''; renderRailAcc(); if (S.page === 'accounts') renderAccounts(); if (S.page === 'home') renderHero(); }
   } catch (e) {}
 }, 4000);
@@ -1291,14 +1326,14 @@ async function renderDetails(){
   const an = analytics(st.raw);
   const skip = (S.set && S.set.auto_skip) || [];
   const ygg = d.kind === 'ygg';
-  const note = ygg ? `Скин и плащ этого аккаунта хранит ${esc(d.server || 'Ely.by')}: их видят все игроки на серверах с его поддержкой. Сменить скин можно на сайте, лаунчер подтянет его сам.` : d.kind === 'local' ? `Скин хранится в лаунчере. Чтобы его видели другие игроки через SkinsRestorer, подключи аккаунт Noxel: скин загрузится на сервер.` : d.kind === 'microsoft' ? 'Скин сохраняется прямо на серверах Mojang, его видят все игроки.' : 'Скины и плащи хранятся на сервере Noxel. Ссылка на скин подходит для команды SkinsRestorer.';
+  const note = ygg ? `Скин и плащ этого аккаунта хранит ${esc(d.server || 'Ely.by')}: их видят все игроки на серверах с его поддержкой. Сменить скин можно на сайте, лаунчер подтянет его сам.` : d.kind === 'local' ? `Скин хранится в лаунчере. Можно загрузить PNG со своего GitHub. Для видимости на сервере с SkinsRestorer используй прямую публичную ссылку PNG в команде /skin url.` : d.kind === 'microsoft' ? 'Скин сохраняется прямо на серверах Mojang, его видят все игроки.' : 'Скины и плащи хранятся на сервере Noxel. Ссылка на скин подходит для команды SkinsRestorer.';
   el.innerHTML = ART + `<div class="adetail"><div class="ainfo">
     <div><div class="lbl">${KINDN[d.kind]}</div><h1 class="gh" style="font-size:42px;margin-top:8px">${esc(d.name)}</h1>
       <div class="chips" style="margin-top:12px"><span class="chip num" id="uuidChip" title="Скопировать UUID" style="cursor:pointer">${esc(d.uuid)}</span>${d.skin ? `<span class="chip">${slim ? 'Тонкие руки' : 'Классические руки'}</span>` : '<span class="chip">Скин по умолчанию</span>'}${d.cape ? '<span class="chip">Плащ</span>' : ''}${(S.game.state === 'running' && a.selected) ? '<span class="live"><i></i>В игре <span id="liveT" class="num">00:00:00</span></span>' : ''}</div></div>
     <div class="mrow"><button class="minibtn ${a.selected ? '' : 'solid'}" id="bAct" ${a.selected ? 'disabled' : ''}>${a.selected ? 'Активный аккаунт' : 'Играть этим аккаунтом'}</button>
-      ${ygg ? `<button class="minibtn" id="bYgg">${I.ext} Сменить скин на ${esc(d.server && d.server.includes('ely.by') ? 'ely.by' : d.server || 'сайте')}</button>` : `<button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><button class="minibtn" id="bNick">Скин по нику</button><div class="seg" id="mseg"></div>`}
+      ${ygg ? `<button class="minibtn" id="bYgg">${I.ext} Сменить скин на ${esc(d.server && d.server.includes('ely.by') ? 'ely.by' : d.server || 'сайте')}</button>` : `<button class="minibtn" id="bSkin">${I.up} Загрузить скин</button><button class="minibtn" id="bNick">Скин по нику</button><button class="minibtn" id="bGithubSkin">Скин с GitHub</button><div class="seg" id="mseg"></div>`}
       ${noxel || d.kind === 'microsoft' ? `<button class="minibtn" id="bCape">Плащи</button>${d.cape && noxel ? '<button class="minibtn" id="bCapeOff">Убрать плащ</button>' : ''}` : ''}${noxel && d.skin && d.skin.url ? '<button class="minibtn" id="bCmd">Команда SkinsRestorer</button>' : ''}
-      ${d.kind === 'local' ? '<button class="minibtn" id="bNox">Подключить Noxel</button>' : ''}${noxel ? '<button class="minibtn" id="bNoxDel">Удалить аккаунт с сервера</button>' : ''}</div>
+      ${noxel ? '<button class="minibtn" id="bNoxDel">Удалить аккаунт с сервера</button>' : ''}</div>
     <div class="hint" style="max-width:560px">${note}</div>
     <div class="pwbox" style="max-width:560px;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--fill);border:1px solid var(--line)">
       <div style="font-weight:600;font-size:13px;margin-bottom:4px">Пароль на серверах (для автовхода)</div>
@@ -1318,6 +1353,11 @@ async function renderDetails(){
   if ($('#bYgg')) $('#bYgg').onclick = () => invoke('open_url', {url: d.server && d.server.includes('ely.by') ? 'https://ely.by/skins' : 'https://' + d.server}).catch(toast);
   $('#uuidChip').onclick = () => navigator.clipboard.writeText(d.uuid).then(() => toast('UUID скопирован')).catch(() => {});
   $('#bAct').onclick = async () => { try { S.accts = await invoke('account_select', {id: d.id}); renderRailAcc(); renderAccounts(); toast(`Играешь как ${d.name}`); } catch (x) { toast(x); } };
+  if ($('#bGithubSkin')) $('#bGithubSkin').onclick = () => {
+    openX(true); $('#xbox').innerHTML = '<h3>Скин с GitHub</h3><p>Прямая публичная ссылка PNG на raw.githubusercontent.com. Для Microsoft-аккаунта скин также загрузится в Minecraft.</p><input class="inp" id="githubSkinUrl" aria-label="Ссылка PNG" placeholder="https://raw.githubusercontent.com/owner/repo/main/skin.png"><div class="btns"><button class="minibtn" id="githubSkinCancel">Отмена</button><button class="minibtn solid" id="githubSkinApply">Загрузить</button></div>';
+    $('#githubSkinCancel').onclick = closeX;
+    $('#githubSkinApply').onclick = () => { const url = $('#githubSkinUrl').value.trim(); if (!url) return; closeX(); skinAction(() => invoke('skin_from_github', {id:d.id,url,model:S.skinModel === 'auto' ? null : S.skinModel}), 'Скин загружен с GitHub'); };
+  };
   if ($('#bSkin')) $('#bSkin').onclick = async () => { const f = await pickPng('Выбери скин (PNG 64×64 или 64×32)'); if (f) skinAction(() => invoke('skin_apply', {id: d.id, path: f, model: S.skinModel === 'auto' ? null : S.skinModel}), 'Скин обновлён'); };
   if ($('#bNox')) $('#bNox').onclick = () => openAddAccount('noxel');
   if ($('#bNoxDel')) $('#bNoxDel').onclick = async () => {
@@ -1351,7 +1391,7 @@ async function renderDetails(){
 function openAddAccount(tab){
   const box = $('#xbox'); S.xtab = tab;
   box.innerHTML = `<h3>Новый аккаунт</h3><div class="seg full" id="xseg" style="margin-bottom:18px"></div><div id="xbody"></div>`;
-  mkSeg($('#xseg'), [['local','Локальный'],['noxel','Noxel'],['ely','Ely.by'],['ms','Microsoft']], tab, t => openAddAccount(t));
+  mkSeg($('#xseg'), [['local','Локальный'],['ely','Ely.by'],['ms','Microsoft']], tab, t => openAddAccount(t));
   const b = $('#xbody'), err = m => { let e = $('#xerr'); if (!e) { e = document.createElement('div'); e.id = 'xerr'; e.className = 'err'; b.append(e); } e.textContent = m; };
   const done = async (msg) => { closeX(); S.det = null; S._dj = ''; await loadAccounts(); S.av = (active() || {}).id; renderAccounts(); toast(msg); };
   if (tab === 'local') {
@@ -1409,7 +1449,23 @@ function initMods(){
 }
 function renderModsHead(){
   const el = $('#mods'); const m = S.m; const p = prof(m.profile);
-  if (!S.profiles.length) { el.innerHTML = `<div class="empty"><div><h3>Сначала нужен профиль</h3><p>Моды ставятся в папку конкретного профиля. Создай профиль с Fabric, Quilt, Forge или NeoForge.</p><button class="minibtn solid" id="mAdd">${I.plus} Добавить версию</button></div></div>`; $('#mAdd').onclick = () => go('versions'); return; }
+  if (m.tab === 'horizon') {
+    el.innerHTML = `<div class="mhead">
+      <div class="mrow"><div class="ltitle"><h2>Моды Horizon · 26.3</h2><small>Пакеты контента для Rust-клиента</small></div><div class="grow"></div><button class="minibtn" id="hmodback">Java-моды</button><div class="seg" id="hmodtab"></div></div>
+      <div class="mrow">${m.htab === 'catalog' ? `<div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="hmq" placeholder="Искать Horizon-мод" value="${esc(m.hq)}" spellcheck="false"></div>` : '<div class="grow"></div>'}<div class="grow"></div><button class="minibtn" id="hmodrefresh">${I.refresh || I.dl} Обновить</button></div>
+      <div class="hint">Моды данных Horizon для Minecraft 26.3. Java-моды Fabric/Forge здесь не работают; нативные .hnmod требуют отдельной сборки.</div>
+    </div><div class="mbody" id="hmods"></div>`;
+    mkSeg($('#hmodtab'), [['catalog','Каталог'],['installed','Установлено']], m.htab, t => { m.htab = t; renderModsHead(); refreshHorizonMods(); });
+    if ($('#hmq')) {
+      let timer;
+      $('#hmq').oninput = e => { m.hq = e.target.value; clearTimeout(timer); timer = setTimeout(() => refreshHorizonMods(), 300); };
+      $('#hmq').onkeydown = e => { if (e.key === 'Enter') { clearTimeout(timer); refreshHorizonMods(); } };
+    }
+    $('#hmodback').onclick = () => { m.tab = 'installed'; renderModsHead(); refreshMods(); };
+    $('#hmodrefresh').onclick = () => refreshHorizonMods();
+    return;
+  }
+  if (!S.profiles.length) { el.innerHTML = `<div class="empty"><div><h3>Сначала нужен профиль</h3><p>Моды ставятся в папку конкретного профиля. Создай профиль с Fabric, Quilt, Forge или NeoForge.</p><button class="minibtn solid" id="mAdd">${I.plus} Добавить версию</button></div></div>`; $('#mAdd').onclick = () => go('versions'); const hb = document.createElement('button'); hb.className = 'minibtn'; hb.textContent = 'Моды Horizon 26.3'; hb.onclick = () => { m.tab = 'horizon'; renderModsHead(); refreshMods(); }; $('#mAdd').after(hb); return; }
   const cat = m.tab === 'catalog';
   const noLoader = m.kind === 'mod' && p && NOMODS.includes(p.loader);
   el.innerHTML = `<div id="drop"><div>${I.up}Отпусти, чтобы добавить в профиль<small>${m.kind === 'mod' ? 'файлы .jar' : 'файлы .zip'} · «${esc(pname(p))}»</small></div></div><div class="mhead">
@@ -1423,14 +1479,14 @@ function renderModsHead(){
     <div class="mbody" id="mbody"></div><aside class="drawer glass" id="drawer"></aside>`;
   const reset = () => { m.hits = []; m.offset = 0; m.err = null; };
   mkDd($('#mprof'), S.profiles.map(x => [x.id, x.name, sub(x)]), m.profile, id => { m.profile = id; reset(); m.upd = null; renderModsHead(); refreshMods(); }, {});
-  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['reco','Рекомендуемое'],['emotes','Эмоции'],['models','Модели'],['packs','Сборки'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
+  mkSeg($('#mtab'), [['installed','Установлено'],['catalog','Каталог'],['horizon','Horizon 26.3'],['reco','Рекомендуемое'],['emotes','Эмоции'],['models','Модели'],['packs','Сборки'],['servers','Серверы']], m.tab, t => { m.tab = t; reset(); renderModsHead(); refreshMods(); });
   if ($('#mkind')) mkSeg($('#mkind'), KINDS, m.kind, k => { m.kind = k; reset(); m.upd = null; renderModsHead(); refreshMods(); });
   if (cat) {
     mkDd($('#msort'), SORTS, m.sort, s => { m.sort = s; reset(); renderModsHead(); searchMods(); }, {});
     let t; $('#mq').oninput = e => { m.q = e.target.value; clearTimeout(t); t = setTimeout(() => { reset(); searchMods(); }, 380); };
   }
   if ($('#mclient')) mkSeg($('#mclient'), [['all','Все моды'],['client','Клиентские']], m.client, v => { m.client = v; reset(); renderModsHead(); searchMods(); });
-  if ($('#msrc')) mkSeg($('#msrc'), [['all','Все источники'],['modrinth','Modrinth'],['curseforge','CurseForge']], m.src, v => { m.src = v; reset(); renderModsHead(); searchMods(); });
+  if ($('#msrc')) mkSeg($('#msrc'), [['modrinth','Modrinth']], m.src, v => { m.src = v; reset(); renderModsHead(); searchMods(); });
   if ($('#mupd')) $('#mupd').onclick = checkUpdates;
   $('#mdir').onclick = () => invoke('open_folder', {profileId: m.profile, sub: m.kind}).catch(toast);
   $('#madd').onclick = pickOwn;
@@ -1449,9 +1505,76 @@ async function addOwn(paths){
   catch (e) { modal('Не удалось добавить', String(e)); }
 }
 async function refreshMods(){
-  const m = S.m; if (!m.profile) return;
+  const m = S.m; if (m.tab === 'horizon') return refreshHorizonMods(); if (!m.profile) return;
   try { m.installed = await invoke('mods_list', {profileId: m.profile, kind: m.kind}); } catch (e) { m.installed = []; }
   if (m.tab === 'installed') renderInstalled(); else if (m.tab === 'servers') renderServers(); else if (m.tab === 'packs') renderPacks(); else if (m.tab === 'reco') renderReco(); else if (m.tab === 'emotes') renderEmotes(); else if (m.tab === 'models') renderModels(); else if (!m.hits.length && !m.loading) searchMods(); else renderCatalog();
+}
+async function refreshHorizonMods(){
+  const m = S.m, body = $('#hmods'); if (!body || m.tab !== 'horizon') return;
+  const request = m.hrequest = (m.hrequest || 0) + 1;
+  m.hloading = true; m.herr = null; body.innerHTML = '<div class="mgrid">' + '<div class="sk"></div>'.repeat(6) + '</div>';
+  try {
+    if (m.htab === 'catalog') {
+      const [r, installed] = await Promise.all([invoke('horizon_mods_search', {query:m.hq}), invoke('horizon_mods_list')]);
+      m.hinstalled = Array.isArray(installed) ? installed : [];
+      m.hitems = Array.isArray(r.items) ? r.items : [];
+    } else {
+      m.hinstalled = await invoke('horizon_mods_list');
+      if (!Array.isArray(m.hinstalled)) m.hinstalled = [];
+    }
+  } catch (e) { m.herr = String(e); }
+  if (request !== m.hrequest) return;
+  m.hloading = false;
+  renderHorizonMods();
+}
+function renderHorizonMods(){
+  const m = S.m, body = $('#hmods'); if (!body || m.tab !== 'horizon') return;
+  if (m.herr) { body.innerHTML = `<div class="empty"><div><h3>Не получилось загрузить каталог</h3><p>${esc(m.herr)}</p><button class="minibtn solid" id="hmodretry">Повторить</button></div></div>`; $('#hmodretry').onclick = refreshHorizonMods; return; }
+  const list = m.htab === 'catalog' ? m.hitems : m.hinstalled;
+  if (!list.length) { body.innerHTML = `<div class="empty"><div><h3>${m.htab === 'catalog' ? 'Подходящих модов не найдено' : 'Horizon-модов пока нет'}</h3><p>${m.htab === 'catalog' ? 'Попробуй другое название или тег.' : 'Установленные контент-моды появятся здесь.'}</p></div></div>`; return; }
+  const installed = new Set(m.hinstalled.map(x => x.project || x.id));
+  body.innerHTML = `<div class="mgrid">${list.map((x, i) => {
+    const id = x.id || x.project || '', isInstalled = m.htab === 'installed' || installed.has(id), busy = m.hbusy.has(id);
+    const sig = x.signed ? 'Подпись автора проверяется' : 'SHA-256 проверяется';
+    const meta = m.htab === 'catalog'
+      ? `26.3 · v${esc(x.version)} · ${fmtNum(x.downloads || 0)} скачиваний · ${esc(x.license || 'лицензия не указана')}`
+      : `v${esc(x.number || x.version || '')} · ${x.enabled ? 'включён' : 'выключен'} · ${esc(x.checksum || '')}`;
+    const capabilities = m.htab === 'catalog' ? 'Пакет данных Horizon · без исполняемого кода' : 'Пакет данных Horizon';
+    return `<div class="card" style="--i:${Math.min(i,16)}">
+      ${x.icon ? `<img class="ico" src="${esc(x.icon)}" loading="lazy">` : `<div class="ico">${esc(letter(x.title || x.name || id))}</div>`}
+      <div class="meta"><b>${esc(x.title || x.name || id)}</b><small>${esc(x.summary || x.desc || '')}</small>
+        <span class="by">${esc(x.author || 'Автор не указан')} · ${meta}</span>
+        <span class="elsewhere">${esc(m.htab === 'catalog' ? sig : capabilities)}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none">
+        ${m.htab === 'catalog'
+          ? isInstalled ? '<span class="badge w">Установлено</span>' : `<button class="minibtn solid sm" data-hinstall="${esc(id)}" ${busy ? 'disabled' : ''}>${busy ? 'Скачиваю…' : 'Установить'}</button>`
+          : `<button class="switch ${x.enabled ? 'on' : ''}" data-htoggle="${esc(id)}" data-enabled="${x.enabled ? '1' : '0'}" title="${x.enabled ? 'Выключить' : 'Включить'}"></button><button class="minibtn sm" data-hremove="${esc(id)}">Удалить</button>`}
+        <button class="ibtn sm" data-hurl="${esc(x.page || `https://playhorizon.dev/mods/${id}`)}" title="Страница мода">${I.ext}</button>
+      </div></div>`;
+  }).join('')}</div><div class="hint" style="margin-top:12px">Установка и удаление применяются к Rust-клиенту Horizon. После изменения перезапусти игру; удаление мода, добавлявшего блоки или предметы, может повлиять на сохранённый мир.</div>`;
+  $$('[data-hinstall]', body).forEach(b => b.onclick = async () => {
+    const id = b.dataset.hinstall, item = m.hitems.find(x => x.id === id); if (!item || m.hbusy.has(id)) return;
+    const ok = await modal('Установить Horizon-мод?', `${item.title} v${item.version}. Это пакет данных без исполняемого кода. Horizon проверит контрольную сумму пакета. После установки перезапусти игру.`, [{label:'Отмена',val:false},{label:'Установить',val:true,cls:'solid'}]);
+    if (!ok) return;
+    m.hbusy.add(id); renderHorizonMods();
+    try { await invoke('horizon_mods_install', {projectId:id}); toast(`Установлен мод ${item.title}`); }
+    catch (e) { modal('Не удалось установить', String(e)); }
+    finally { m.hbusy.delete(id); await refreshHorizonMods(); }
+  });
+  $$('[data-htoggle]', body).forEach(b => b.onclick = async () => {
+    const id = b.dataset.htoggle, enabled = b.dataset.enabled !== '1';
+    try { await invoke('horizon_mods_toggle', {projectId:id, enabled}); toast(enabled ? 'Horizon-мод включён' : 'Horizon-мод выключен'); await refreshHorizonMods(); }
+    catch (e) { modal('Не удалось изменить мод', String(e)); }
+  });
+  $$('[data-hremove]', body).forEach(b => b.onclick = async () => {
+    const id = b.dataset.hremove, item = m.hinstalled.find(x => x.project === id); if (!item) return;
+    const ok = await modal('Удалить Horizon-мод?', `${item.title || id} будет удалён из Rust-клиента. Если мод добавлял блоки или предметы, удаление может повлиять на миры, где они использовались.`, [{label:'Отмена',val:false},{label:'Удалить',val:true,cls:'solid'}]);
+    if (!ok) return;
+    try { await invoke('horizon_mods_remove', {projectId:id}); toast('Horizon-мод удалён'); await refreshHorizonMods(); }
+    catch (e) { modal('Не удалось удалить', String(e)); }
+  });
+  $$('[data-hurl]', body).forEach(b => b.onclick = () => invoke('open_url', {url:b.dataset.hurl}).catch(toast));
 }
 const PROV = {modrinth:'Modrinth', curseforge:'CurseForge', local:'Свой файл'};
 function elsewhereText(list){
@@ -1786,7 +1909,7 @@ async function renderModels(force){
   $$('[data-mf]', el).forEach(b => b.onclick = () => downloadReco(files[+b.dataset.mf], b, () => { MD.list = null; renderModels(); }));
 }
 /* «Рекомендуемое»: список и подборки приходят с сервера Noxel, поэтому меняются без обновления лаунчера */
-const RC = {cat: null, info: {}, busy: new Set()};
+const RC = {cat: null, info: {}, jar: {}, busy: new Set()};
 async function downloadReco(f, btn, after){
   const p = S.m.profile; if (!p) return toast('Сначала выбери профиль');
   btn.disabled = true; const old = btn.innerHTML; btn.textContent = 'Скачиваю…';
@@ -1814,11 +1937,15 @@ async function renderReco(force){
         return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar" style="${f.icon ? `background:url(${esc(f.icon)}) center/cover` : ''}">${f.icon ? '' : esc(letter(name))}</div><div class="meta"><b>${esc(name)}</b><small>${f.downloads ? fmtNum(f.downloads) + ' скачиваний' : esc(it.provider === 'curseforge' ? 'CurseForge' : 'Modrinth')}</small></div>${it.tag ? `<span class="badge">${esc(it.tag)}</span>` : ''}</div>
           <div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc || f.desc || '')}</div>
           <div class="mrow">${f.installed ? '<button class="minibtn sm" disabled>Уже стоит</button>' : bad ? `<button class="minibtn sm" disabled>Нет для ${esc(pr ? pr.mc : 'этой версии')}</button>` : `<button class="minibtn solid sm" data-rm="${i}" ${RC.busy.has(it.id) ? 'disabled' : ''}>${RC.busy.has(it.id) ? 'Ставлю…' : I.dl + ' Поставить'}</button>`}</div></div>`; }
+      if (it.type === 'jar') { const st = RC.jar[p + '|' + it.id] || {}, mcs = it.mc || [], fits = pr && ['fabric', 'quilt'].includes(pr.loader) && (!mcs.length || mcs.includes(pr.mc)), busy = RC.busy.has(it.id);
+        const btn = busy ? '<button class="minibtn sm" disabled>Ставлю…</button>' : !fits ? `<button class="minibtn sm" disabled>Только Fabric ${esc(mcs.join(', '))}</button>` : st.current ? '<button class="minibtn sm" disabled>Уже стоит</button>' : `<button class="minibtn solid sm" data-rj="${i}">${I.dl} ${st.installed ? 'Обновить' : 'Поставить'}</button>`;
+        return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar" style="${it.icon ? `background:url(${esc(it.icon)}) center/cover` : ''}">${it.icon ? '' : esc(letter(it.title))}</div><div class="meta"><b>${esc(it.title)}</b><small>${esc([it.author, 'Minecraft ' + mcs.join(', ')].filter(Boolean).join(' · '))}</small></div>${it.tag ? `<span class="badge">${esc(it.tag)}</span>` : ''}</div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc)}</div><div class="mrow">${btn}</div></div>`; }
       if (it.type === 'search') return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${I.mod}</div><div class="meta"><b>${esc(it.title)}</b><small>Modrinth и CurseForge</small></div></div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc)}</div><div class="mrow"><button class="minibtn solid sm" data-rs="${i}">Открыть подборку</button></div></div>`;
       return `<div class="scard" style="--i:${Math.min(i, 12)}"><div class="top"><div class="avatar">${I.dl}</div><div class="meta"><b>${esc(it.title)}</b><small>${esc([it.author, it.license].filter(Boolean).join(' · ') || it.folder)}</small></div></div><div class="hint" style="font-size:12.5px;color:var(--fg2)">${esc(it.desc)}</div><div class="mrow"><button class="minibtn solid sm" data-rf="${i}">${I.dl} Скачать в профиль</button></div></div>`;
     }).join('');
     $$('[data-rm]', el).forEach(b => b.onclick = () => installMods([cat.items[+b.dataset.rm]]));
     $$('[data-rs]', el).forEach(b => b.onclick = () => { const it = cat.items[+b.dataset.rs]; Object.assign(S.m, {tab: 'catalog', kind: it.kind, q: it.query, hits: [], offset: 0}); renderModsHead(); refreshMods(); });
+    $$('[data-rj]', el).forEach(b => b.onclick = () => installJar(cat.items[+b.dataset.rj]));
     $$('[data-rf]', el).forEach(b => b.onclick = () => { const it = cat.items[+b.dataset.rf]; downloadReco(it, b, () => { if (it.folder === 'emotes') { toast('Эмоции добавлены: открой вкладку «Эмоции»'); } }); });
   };
   const installMods = async list => {
@@ -1828,14 +1955,25 @@ async function renderReco(force){
     catch (e) { modal('Не удалось установить', String(e)); }
     list.forEach(it => RC.busy.delete(it.id)); await loadInfo(); draw();
   };
+  const installJar = async it => {
+    RC.busy.add(it.id); draw();
+    try {
+      const deps = (it.deps || []).filter(d => Array.isArray(d) && d.length === 2);
+      if (deps.length) { const r = await invoke('mods_install_many', {profileId: p, items: deps}); if (r.skipped.length) modal('Часть зависимостей не поставилась', r.skipped.join('\n')); }
+      await invoke('reco_jar', {profileId: p, url: it.url, sha1: it.sha1 || '', mc: it.mc || [], id: it.id, title: it.title || it.id});
+      toast(`${it.title || it.id} установлен`); await loadProfiles();
+    } catch (e) { modal('Не удалось установить', String(e)); }
+    RC.busy.delete(it.id); await loadJars(); draw();
+  };
+  const loadJars = async () => { if (!p) return; for (const it of cat.items.filter(i => i.type === 'jar')) { try { RC.jar[p + '|' + it.id] = await invoke('reco_jar_state', {profileId: p, id: it.id, url: it.url}); } catch (e) {} } };
   const loadInfo = async () => { if (!p || !mods.length) return; try { const r = await invoke('reco_info', {profileId: p, items: mods.map(i => [i.provider, i.id])}); for (const k in r) RC.info[p + '|' + k] = r[k]; } catch (e) {} };
-  draw(); loadInfo().then(() => draw());
+  draw(); Promise.all([loadInfo(), loadJars()]).then(() => draw());
   $$('[data-rc]', el).forEach(b => b.onclick = () => { RC.cat = b.dataset.rc; renderReco(); });
   $('#rcRef').onclick = () => { S.reco = null; for (const k in RC.info) delete RC.info[k]; renderReco(true); };
   if ($('#rcAll')) $('#rcAll').onclick = () => installMods(mods);
   if ($('#rcEdit')) $('#rcEdit').onclick = () => {
-    const box = $('#xbox'); box.innerHTML = `<h3>Рекомендуемое: список на сервере</h3><div class="hint" style="margin-bottom:8px">JSON: разделы с записями типов mod, search и file. Сохранение сразу меняет список у всех игроков, обновлять лаунчер не нужно.</div><textarea class="inp" id="rcJson" spellcheck="false" style="min-height:340px;font-family:monospace;font-size:12px"></textarea><div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="rcSave">Сохранить</button></div>`;
-    $('#rcJson').value = JSON.stringify({categories: cats}, null, 1); $('#xc').onclick = closeX; $('#xmodal').classList.add('on');
+    const box = $('#xbox'); box.innerHTML = `<h3>Рекомендуемое: список на сервере</h3><div class="hint" style="margin-bottom:8px">JSON: разделы с записями типов mod, search, file и jar. Сохранение сразу меняет список у всех игроков, обновлять лаунчер не нужно.</div><textarea class="inp" id="rcJson" spellcheck="false" style="min-height:340px;font-family:monospace;font-size:12px"></textarea><div class="btns"><button class="minibtn" id="xc">Отмена</button><button class="minibtn solid" id="rcSave">Сохранить</button></div>`;
+    $('#rcJson').value = JSON.stringify({categories: cats.filter(c => !c.builtin).map(c => ({...c, items: c.items.filter(i => !i.builtin)}))}, null, 1); $('#xc').onclick = closeX; $('#xmodal').classList.add('on');
     $('#rcSave').onclick = async () => { let j; try { j = JSON.parse($('#rcJson').value); } catch (e) { return toast('Ошибка в JSON: ' + e.message); } try { await invoke('reco_save', {list: j}); closeX(); toast('Сохранено на сервере'); S.reco = null; renderReco(true); } catch (e) { modal('Не удалось сохранить', String(e)); } };
   };
 }
@@ -2140,7 +2278,7 @@ async function crashHelp(auto, code, crash, pidIn){
     const ready = modalHtml(crash.title, html.replace(/>\s+</g, '><'), [{label:'Точки восстановления', val:'snap'}, {label:'Закрыть', val:true, cls:'solid'}]);
     setTimeout(() => {
       $$('#mx [data-off]').forEach(b => b.onclick = async () => { const f = crash.mods[+b.dataset.off]; try { await invoke('mods_toggle', {profileId: pid, kind: 'mod', file: f}); b.disabled = true; b.textContent = 'Выключен'; toast(`Мод ${f} выключен: попробуй запустить снова`); await loadProfiles(); } catch (e) { toast(e); } });
-      $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'all', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
+      $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'modrinth', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
       $$('#mx [data-set]').forEach(b => b.onclick = () => { $('#modal').classList.remove('on'); go('settings'); });
     }, 30);
     if (await ready === 'snap') { const p = prof(pid); if (p) packTools(p); }
@@ -2150,7 +2288,7 @@ async function crashHelp(auto, code, crash, pidIn){
   const html = sugs.map((x, i) => `<div class="sug"><div><b>${esc(x.title)}</b><small>${esc(x.text)}</small></div>${x.kind === 'ram' ? '<button class="minibtn solid sm" data-set>Настройки</button>' : x.q ? `<button class="minibtn solid sm" data-find="${i}">Найти мод</button>` : ''}</div>`).join('');
   const ready = modalHtml(auto ? 'Игра закрылась с ошибкой' : 'Что нашлось в логе', `<div class="hint" style="margin-bottom:6px">Вот что похоже на причину:</div>${html}`, [{label:'Закрыть', val:true}]);
   setTimeout(() => {
-    $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'all', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
+    $$('#mx [data-find]').forEach(b => b.onclick = () => { const x = sugs[+b.dataset.find]; $('#modal').classList.remove('on'); Object.assign(S.m, {profile: pid, tab: 'catalog', src: 'modrinth', kind: 'mod', q: x.q, hits: [], offset: 0, err: null, client: 'all'}); go('mods'); });
     $$('#mx [data-set]').forEach(b => b.onclick = () => { $('#modal').classList.remove('on'); go('settings'); });
   }, 30);
   await ready;
@@ -2169,17 +2307,6 @@ function renderSettings(){
       <input type="range" id="sRam" min="1024" max="${Math.max(2048, Math.floor(total * 0.85 / 512) * 512)}" step="512" value="${s.ram_mb}">
       <div style="margin-top:8px"><button class="minibtn sm" id="sRamAuto">Подобрать автоматически</button></div>
       <div class="hint">Всего в системе ${(total / 1024).toFixed(1)} ГБ. Для сборок с модами обычно хватает 4–6 ГБ.</div></div>
-    <div class="glass panel" style="--i:1"><h3>Своё облако<small>Копии миров в твоём облаке по WebDAV (Яндекс Диск, Nextcloud и другие)</small></h3>
-      <div class="field"><label>Адрес WebDAV</label><input class="inp" id="sDavUrl" value="${esc(s.dav_url || '')}" placeholder="https://webdav.yandex.ru" spellcheck="false"></div>
-      <div class="two"><div class="field"><label>Логин</label><input class="inp" id="sDavUser" value="${esc(s.dav_user || '')}" spellcheck="false"></div><div class="field"><label>Пароль приложения</label><input class="inp" id="sDavPass" type="password" value="${esc(s.dav_pass || '')}" autocomplete="off"></div></div>
-      ${sw('sDavAuto', 'Синхронизировать после игры', 'Изменённые миры сами загрузятся в твоё облако, когда закроешь игру', s.dav_auto)}
-      <div class="mrow" style="margin-top:8px"><button class="minibtn sm" id="sDavTest">Проверить подключение</button></div>
-      <div class="hint">Яндекс Диск: адрес <code>https://webdav.yandex.ru</code>, логин — твой Яндекс-логин, пароль приложения создаётся в Яндекс ID → Безопасность → Пароли приложений («Файлы WebDAV»). Google Диск так подключить нельзя: ему нужен отдельный ключ приложения. Пароль хранится только на этом компьютере.</div></div>
-    <div class="glass panel" style="--i:1"><h3>Общий мир и голосовой чат<small>Как друзья играют вместе через сервер Noxel</small></h3>
-      <div class="field"><label>UDP-порты для голосового чата</label><input class="inp" id="sRoomPorts" value="${esc(s.room_ports || '')}" placeholder="24454" spellcheck="false"></div>
-      <div class="hint">Через запятую, до четырёх. Simple Voice Chat использует 24454, Plasmo Voice 60606. Друзья услышат тебя, когда ты откроешь мир, а у них в игре будет такой же мод.</div>
-      ${sw('sMod', 'Мод Noxel в игре', 'Кнопка «Друзья» в меню Esc. Ставится сам в профили Fabric 26.x с Fabric API', s.noxel_mod)}
-      ${sw('sYgg', 'Скин Noxel виден всем', 'Аккаунт Noxel входит в игру через сервер Noxel (authlib-injector): друзья видят твой скин в твоём мире. Чтобы зайти в мир, где это включено, другу нужен аккаунт Noxel с этой же настройкой', s.noxel_ygg)}</div>
     <div class="glass panel" style="--i:9"><h3>Место на диске<small>Одинаковые моды, ресурспаки и шейдеры в разных профилях хранятся один раз</small></h3>
       <div class="hint" id="stInfo">Новые моды сразу ложатся в общее хранилище. Кнопка сведёт к одной копии то, что уже скачано.</div>
       <div class="mrow" style="margin-top:8px"><button class="minibtn sm" id="stDedupe">Освободить место</button></div></div>
@@ -2200,26 +2327,23 @@ function renderSettings(){
     <div class="glass panel" style="--i:4"><h3>Лицензия Microsoft<small>Для входа в лицензионный аккаунт нужен Client ID приложения Azure</small></h3>
       <div class="field"><label>Client ID</label><input class="inp" id="sMs" placeholder="00000000-0000-0000-0000-000000000000" value="${esc(s.ms_client_id)}" spellcheck="false"></div>
       <div class="hint">Зарегистрируй публичное приложение на portal.azure.com, включи «разрешить публичные клиентские потоки» и получи доступ к API Minecraft у Mojang. Подробности в README.</div></div>
-    <div class="glass panel" style="--i:5"><h3>Каталоги модов<small>Modrinth и CurseForge подключены и объединены в одном поиске</small></h3>
-      <div class="hint">CurseForge работает через сервер Noxel: отдельный ключ не нужен, и в лаунчере его нет.</div>
-      <div class="hint">Список рекомендуемых серверов и обновления лаунчера тоже приходят с сервера Noxel, поэтому переустанавливать лаунчер не нужно.</div></div>
+    <div class="glass panel" style="--i:5"><h3>Каталоги модов<small>Modrinth и Horizon работают напрямую</small></h3>
+      <div class="hint">CurseForge в этой версии отключён: его API требует отдельный ключ. Используй Modrinth.</div>
+      <div class="hint">Список рекомендуемых серверов и обновления лаунчера приходят с GitHub, поэтому переустанавливать лаунчер не нужно.</div></div>
     <div class="glass panel" style="--i:6"><h3>Лаунчер<small>Внешний вид</small></h3>
       ${sw('sAnim', 'Анимации', 'Плавные переходы, свечение и живой фон', s.animations)}
       ${sw('sLite', 'Лёгкий режим', 'Без размытия под панелями и с неподвижным фоном: меньше памяти и нагрузки, работает быстрее', liteOn())}
-      <div class="opt"><div class="t"><b>Версия ${esc(S.sys ? S.sys.version : '')}</b><small>Обновления берутся с сервера Noxel и проверяются подписью</small></div><div style="display:flex;gap:8px"><button class="minibtn sm" id="sUpd">Проверить</button><button class="minibtn sm" id="sNews">Новости</button></div></div></div>
+      <div class="opt"><div class="t"><b>Версия ${esc(S.sys ? S.sys.version : '')}</b><small>Автор: magmar1s · MIT. Обновления берутся с GitHub и проверяются подписью</small></div><div style="display:flex;gap:8px"><button class="minibtn sm" id="sUpd">Проверить</button><button class="minibtn sm" id="sNews">Новости</button></div></div></div>
     <div class="glass panel" style="--i:7"><h3>Данные<small>Здесь лежат профили, моды, миры и Java</small></h3>
       <div class="chip" style="align-self:flex-start;max-width:100%;user-select:text"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.sys ? S.sys.data_dir : '')}</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="minibtn" id="sDir">${I.folder} Открыть папку</button><button class="minibtn" id="sClr">${I.trash} Очистить кэш установщиков</button></div></div>
-    <div class="glass panel" style="--i:8"><h3>Администратор<small>Для владельца сервера Noxel: позволяет менять список рекомендуемых серверов</small></h3>
-      <div class="field"><label>Токен администратора</label><input class="inp" id="sAdm" type="password" placeholder="Оставь пустым, если ты не администратор" value="${esc(s.admin_token || '')}" spellcheck="false"></div>
-      <div class="hint">Токен лежит на сервере в файле /etc/noxel/admin.token. С ним на вкладке «Серверы» появятся кнопки добавления и правки.</div></div>
   </div></div>`;
   let t; const save = () => { clearTimeout(t); t = setTimeout(async () => {
-    S.set = await invoke('settings_set', {s: {...S.set, ram_mb: +$('#sRam').value, java_path: $('#sJava').value, jvm_args: $('#sJvm').value, room_ports: $('#sRoomPorts').value.trim(), dav_url: $('#sDavUrl').value.trim(), dav_user: $('#sDavUser').value.trim(), dav_pass: $('#sDavPass').value, width: +$('#sW').value || 0, height: +$('#sH').value || 0, ms_client_id: $('#sMs').value, admin_token: $('#sAdm').value, threads: +$('#sTh').value}});
+    S.set = await invoke('settings_set', {s: {...S.set, ram_mb: +$('#sRam').value, java_path: $('#sJava').value, jvm_args: $('#sJvm').value, width: +$('#sW').value || 0, height: +$('#sH').value || 0, ms_client_id: $('#sMs').value, threads: +$('#sTh').value}});
     const sv = $('#saved'); if (sv) { sv.textContent = 'Сохранено'; setTimeout(() => { const x = $('#saved'); if (x) x.textContent = 'Сохраняется автоматически'; }, 1400); }
   }, 450); };
   const flag = (id, key, after) => { const b = $('#' + id); b.onclick = () => { b.classList.toggle('on'); S.set[key] = b.classList.contains('on'); if (after) after(); save(); }; };
-  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon'); flag('sDavAuto', 'dav_auto'); flag('sMod', 'noxel_mod'); flag('sYgg', 'noxel_ygg');
+  flag('sFull', 'fullscreen'); flag('sCon', 'show_console'); flag('sAA', 'auto_auth'); flag('sAS', 'auto_skin'); flag('sGI', 'game_icon');
   $('#stDedupe').onclick = async () => { const b = $('#stDedupe'); b.disabled = true; b.textContent = 'Ищу одинаковые файлы…'; try { const r = await invoke('store_dedupe'); $('#stInfo').textContent = `Освобождено ${fmtSize(r.saved + r.freed)}. В общем хранилище ${fmtSize(r.store)}.`; } catch (e) { toast(e); } b.disabled = false; b.textContent = 'Освободить место'; }; $('#sLite').onclick = e => { const b = e.currentTarget; b.classList.toggle('on'); try { localStorage.setItem('nx_lite', b.classList.contains('on') ? '1' : '0'); } catch (x) {} applyLite(); };
   flag('sAnim', 'animations', applyAnim);
   mkDd($('#sOn'), [['keep','Оставить открытым'],['minimize','Свернуть']], s.on_launch, v => { S.set.on_launch = v; renderSettings(); save(); }, {});
@@ -2228,8 +2352,7 @@ function renderSettings(){
   rp(); rg.oninput = () => { rp(); save(); };
   $('#sRamAuto').onclick = () => { const mods = (prof(S.sel) || {}).mods || 0, want = mods > 120 ? 8192 : mods > 40 ? 6144 : mods > 0 ? 4096 : 3072; rg.value = Math.max(+rg.min, Math.min(+rg.max, Math.min(want, Math.floor(total * 0.5 / 512) * 512))); rp(); save(); toast(`Выбрано ${(rg.value / 1024).toFixed(1)} ГБ: под ${mods} модов и твоё количество памяти`); };
   const th = $('#sTh'); const tp = () => { th.style.setProperty('--p', ((th.value - th.min) / (th.max - th.min) * 100) + '%'); $('#sThV').textContent = th.value; }; tp(); th.oninput = () => { tp(); save(); };
-  ['sJava','sJvm','sW','sH','sMs','sAdm','sDavUrl','sDavUser','sDavPass','sRoomPorts'].forEach(id => $('#' + id).oninput = save);
-  $('#sDavTest').onclick = async () => { const b = $('#sDavTest'); b.disabled = true; b.textContent = 'Проверяю…'; await save(); try { await invoke('dav_test'); toast('Облако подключено'); } catch (e) { modal('Не удалось подключиться', String(e)); } b.disabled = false; b.textContent = 'Проверить подключение'; };
+  ['sJava','sJvm','sW','sH','sMs'].forEach(id => $('#' + id).oninput = save);
   $('#sUpd').onclick = () => checkLauncher(false);
   $('#sNews').onclick = showNews;
   $('#sDir').onclick = () => invoke('open_folder', {profileId: null, sub: null});
@@ -2267,6 +2390,10 @@ T.event.listen('log', ({payload: lines}) => {
 T.event.listen('profiles-changed', () => loadProfiles());
 T.event.listen('game', ({payload: p}) => { if (p && p.state === 'agent-off') { modal('Игра упала из-за помощника Noxel', 'Автовход, автоскин и значок игры отключены, чтобы игра запускалась. Запусти её снова. Включить их обратно можно в настройках, а ошибку лучше передать разработчику.'); if (S.set) { S.set.auto_auth = false; S.set.auto_skin = false; S.set.game_icon = false; } } });
 T.event.listen('autoauth', ({payload: p}) => toast(p.kind === 'register' ? `Автовход: регистрация на ${p.host}` : p.kind === 'login' ? `Автовход: вход на ${p.host}` : `Скин отправлен на ${p.host}`));
+T.event.listen('horizon-auth', ({payload: p}) => {
+  if (p && p.kind === 'code') { HZ.auth.code = p.code || ''; HZ.auth.url = p.url || ''; if (S.vfilter === 'rust') renderHorizon(); }
+  if (p && p.kind === 'complete') { HZ.auth.code = ''; HZ.auth.url = ''; if (S.vfilter === 'rust') renderHorizon(true); }
+});
 /* перетаскивание своих файлов */
 T.event.listen('tauri://drag-enter', () => { if (S.page === 'mods') { const d = $('#drop'); if (d) d.classList.add('on'); } });
 T.event.listen('tauri://drag-leave', () => { const d = $('#drop'); if (d) d.classList.remove('on'); });

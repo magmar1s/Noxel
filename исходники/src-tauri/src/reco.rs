@@ -112,3 +112,82 @@ pub fn install_file(profile_id: &str, url: &str, folder: &str, extract: bool, pr
     let _ = fs::remove_file(&tmp);
     Ok(res)
 }
+
+/// Моды, вшитые в сам лаунчер: ставятся без интернета и без сервера.
+const BUILTIN: &[(&str, &[u8])] = &[("nocturne-1.0.0.jar", include_bytes!("../builtin/nocturne-1.0.0.jar"))];
+
+pub fn builtin_category() -> Value {
+    json!({"id": "visuals", "title": "Визуалы", "builtin": true, "desc": "Свои визуалы Noxel. Ставятся одной кнопкой вместе с Fabric API.", "items": [
+        {"type": "jar", "builtin": true, "id": "nocturne", "title": "Nocturne", "author": "Noxel", "tag": "новое",
+         "desc": "Готические визуалы: слова песни прямо в мире, красивое небо и инвентарь, HUD, эффекты боя, почти прозрачное меню на правый Shift. Всё на русском.",
+         "url": "builtin:nocturne-1.0.0.jar", "sha1": "", "mc": ["26.2"], "deps": [["modrinth", "fabric-api"]], "icon": "assets/nocturne.png"}
+    ]})
+}
+
+/// Свой мод с сервера Noxel (например, визуалы Nocturne): jar только с mr1s.site, с проверкой sha1, версии игры и загрузчика.
+pub fn install_jar(profile_id: &str, url: &str, sha1: &str, mcs: &[String], id: &str, title: &str) -> R<Value> {
+    let builtin = url.strip_prefix("builtin:").and_then(|n| BUILTIN.iter().find(|b| b.0 == n)).map(|b| b.1);
+    if builtin.is_none() {
+        if !url.starts_with("https://mr1s.site/noxel/") || !url.to_lowercase().ends_with(".jar") {
+            return Err("моды скачиваются только с сервера Noxel".into());
+        }
+        if sha1.len() != 40 || !sha1.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err("у записи нет контрольной суммы".into());
+        }
+    }
+    let p = mc::load_profiles().into_iter().find(|p| p.id == profile_id).ok_or("профиль не найден")?;
+    if !mods::loaders_of(&p.loader).contains(&"fabric") {
+        return Err("этот мод работает только на Fabric: создай профиль Fabric".into());
+    }
+    if !mcs.iter().any(|v| v == &p.mc) {
+        return Err(format!("этот мод только для Minecraft {}, а у профиля {}", mcs.join(", "), p.mc));
+    }
+    let fname = Path::new(url.trim_start_matches("builtin:")).file_name().map(|f| f.to_string_lossy().to_string()).ok_or("плохая ссылка")?;
+    if fname.contains("..") || fname.contains('/') || fname.contains('\\') {
+        return Err("плохое имя файла".into());
+    }
+    let dir = mc::inst_dir(profile_id).join("mods");
+    fs::create_dir_all(&dir).map_err(e)?;
+    // старые версии этого же мода убираем
+    let pre = format!("{}-", id.to_lowercase());
+    if let Ok(rd) = fs::read_dir(&dir) {
+        for en in rd.flatten() {
+            let n = en.file_name().to_string_lossy().to_lowercase();
+            if n.starts_with(&pre) && (n.ends_with(".jar") || n.ends_with(".jar.disabled")) && n != fname.to_lowercase() {
+                let _ = fs::remove_file(en.path());
+            }
+        }
+    }
+    if let Some(bytes) = builtin {
+        fs::write(dir.join(&fname), bytes).map_err(e)?;
+    } else {
+        let tmp = data_dir().join("cache").join(format!("reco-{}.jar", now()));
+        download(url, &tmp, Some(&sha1.to_lowercase()))?;
+        fs::copy(&tmp, dir.join(&fname)).map_err(e)?;
+        let _ = fs::remove_file(&tmp);
+    }
+    mods::remember_noxel(profile_id, &fname, id, title);
+    Ok(json!({"files": 1, "name": fname}))
+}
+
+/// Стоит ли уже свой мод (по началу имени файла «id-») и та ли это версия.
+pub fn jar_state(profile_id: &str, id: &str, url: &str) -> Value {
+    let want = Path::new(url.trim_start_matches("builtin:")).file_name().map(|f| f.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let pre = format!("{}-", id.to_lowercase());
+    let mut have: Option<String> = None;
+    if let Ok(rd) = fs::read_dir(mc::inst_dir(profile_id).join("mods")) {
+        for en in rd.flatten() {
+            let n = en.file_name().to_string_lossy().to_lowercase();
+            if n.starts_with(&pre) && (n.ends_with(".jar") || n.ends_with(".jar.disabled")) {
+                have = Some(n);
+            }
+        }
+    }
+    let mut current = have.as_deref().map(|h| h.trim_end_matches(".disabled") == want).unwrap_or(false);
+    // у встроенного мода сверяем и содержимое: версия в имени может не меняться
+    if let (true, Some(h), Some(b)) = (current, have.as_deref(), url.strip_prefix("builtin:").and_then(|n| BUILTIN.iter().find(|b| b.0 == n))) {
+        current = fs::read(mc::inst_dir(profile_id).join("mods").join(h)).map(|d| d == b.1).unwrap_or(false)
+            || fs::read(mc::inst_dir(profile_id).join("mods").join(format!("{}", h))).is_err();
+    }
+    json!({"installed": have.is_some(), "current": current})
+}

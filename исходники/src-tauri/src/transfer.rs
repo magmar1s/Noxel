@@ -219,7 +219,7 @@ pub fn export_cf(profile_id: &str, out: &Path, saves: bool, cb: Cb) -> R<Value> 
     cb("Ищу файлы на CurseForge", 0.4, "");
     let mut matched: HashMap<u32, (u64, u64)> = HashMap::new();
     for chunk in fps.chunks(300) {
-        let r = agent().post("https://mr1s.site/noxel/v1/cf/fingerprints").send_json(json!({"fingerprints": chunk}));
+        let r = agent().post("https://api.curseforge.com/v1/fingerprints").send_json(json!({"fingerprints": chunk}));
         let Ok(r) = r else { continue };
         let Ok(v) = r.into_json::<Value>() else { continue };
         for m in v["data"]["exactMatches"].as_array().cloned().unwrap_or_default() {

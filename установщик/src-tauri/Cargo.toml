@@ -1,4 +1,7 @@
 [package]
+authors = ["magmar1s"]
+license = "MIT"
+repository = "https://github.com/magmar1s/Noxel"
 name = "noxel-setup"
 version = "0.1.0"
 description = "Установщик Noxel"

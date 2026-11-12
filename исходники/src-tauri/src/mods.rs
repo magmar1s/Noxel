@@ -10,7 +10,7 @@ use std::{
 
 const MR: &str = "https://api.modrinth.com/v2";
 /// CurseForge запрашивается через сервер Noxel: ключ хранится только там и в лаунчере его нет.
-const CF: &str = "https://mr1s.site/noxel/v1/cf";
+const CF: &str = "https://api.curseforge.com/v1";
 
 pub fn folder(kind: &str) -> R<&'static str> {
     match kind {
@@ -60,7 +60,7 @@ pub fn pack_manifest(profile_id: &str) -> Vec<Value> {
     let mut seen = std::collections::HashSet::new();
     let mut out = vec![];
     for (file, m) in idx {
-        if m.kind != "mod" || !dir.join(&file).exists() || !seen.insert(m.project_id.clone()) {
+        if m.kind != "mod" || m.provider == "noxel" || !dir.join(&file).exists() || !seen.insert(m.project_id.clone()) {
             continue;
         }
         out.push(json!({"provider": m.provider, "id": m.project_id, "name": m.title}));
@@ -289,6 +289,14 @@ fn remember(profile_id: &str, file: &str, m: Meta) {
     save_index(profile_id, &idx);
 }
 
+/// Запоминает свой мод с сервера Noxel, чтобы он был подписан в списке установленного.
+pub fn remember_noxel(profile_id: &str, file: &str, id: &str, title: &str) {
+    let mut idx = load_index(profile_id);
+    idx.retain(|f, m| !(m.provider == "noxel" && m.project_id == id && f != file));
+    idx.insert(file.to_string(), Meta { project_id: id.into(), title: title.into(), icon: None, provider: "noxel".into(), kind: "mod".into(), version: String::new() });
+    save_index(profile_id, &idx);
+}
+
 /// Файлы профиля, про которые известно, откуда они.
 pub fn indexed_files(profile_id: &str) -> Vec<String> {
     load_index(profile_id).into_keys().collect()
@@ -304,6 +312,57 @@ pub fn remember_many(profile_id: &str, items: Vec<(String, String, String, Optio
         idx.insert(file, Meta { project_id: pid, title, icon, provider: "modrinth".into(), kind, version });
     }
     save_index(profile_id, &idx);
+}
+
+
+/// Известные id модов Fabric -> слаг на Modrinth.
+const DEP_SLUGS: &[(&str, &str)] = &[
+    ("yet_another_config_lib_v3", "yacl"),
+    ("cloth-config", "cloth-config"),
+    ("cloth_config", "cloth-config"),
+    ("fabric-language-kotlin", "fabric-language-kotlin"),
+    ("owo", "owo-lib"),
+    ("architectury", "architectury-api"),
+    ("midnightlib", "midnightlib"),
+    ("geckolib", "geckolib"),
+    ("puzzleslib", "puzzles-lib"),
+    ("forgeconfigapiport", "forge-config-api-port"),
+];
+
+/// Слаги обязательных зависимостей jar (по fabric.mod.json), которых нет среди установленных модов.
+fn jar_missing_deps(dir: &std::path::Path, jar: &std::path::Path) -> Vec<String> {
+    let read = |p: &std::path::Path| -> Option<Value> {
+        let mut z = zip::ZipArchive::new(fs::File::open(p).ok()?).ok()?;
+        let mut f = z.by_name("fabric.mod.json").ok()?;
+        let mut t = String::new();
+        std::io::Read::read_to_string(&mut f, &mut t).ok()?;
+        serde_json::from_str(&t).ok()
+    };
+    let Some(m) = read(jar) else { return vec![] };
+    let Some(depends) = m["depends"].as_object() else { return vec![] };
+    let mut have: HashSet<String> = HashSet::new();
+    if let Ok(rd) = fs::read_dir(dir) {
+        for en in rd.flatten() {
+            let pth = en.path();
+            if pth.extension().map_or(false, |x| x == "jar") {
+                if let Some(j) = read(&pth) {
+                    if let Some(id) = j["id"].as_str() {
+                        have.insert(id.to_string());
+                    }
+                    for pv in j["provides"].as_array().into_iter().flatten() {
+                        if let Some(x) = pv.as_str() {
+                            have.insert(x.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    depends
+        .keys()
+        .filter(|k| !have.contains(k.as_str()))
+        .filter_map(|k| DEP_SLUGS.iter().find(|d| d.0 == k.as_str()).map(|d| d.1.to_string()))
+        .collect()
 }
 
 pub fn already(profile_id: &str, kind: &str, project_id: &str) -> bool {
@@ -375,6 +434,16 @@ fn install_mr(kind: &str, project_id: &str, p: &Profile, first: Option<String>, 
         );
         done.push(title);
         if kind == "mod" {
+            // Modrinth часто не знает про обязательные зависимости: читаем их из самого jar
+            for slug in jar_missing_deps(&dir, &dir.join(&fname)) {
+                if let Ok(v) = get_json(&format!("{MR}/project/{slug}")) {
+                    if let Some(id) = v["id"].as_str() {
+                        if !seen.contains(id) && !already(&p.id, kind, id) {
+                            queue.push((id.to_string(), None));
+                        }
+                    }
+                }
+            }
             for d in ver["dependencies"].as_array().cloned().unwrap_or_default() {
                 if d["dependency_type"] != "required" {
                     continue;

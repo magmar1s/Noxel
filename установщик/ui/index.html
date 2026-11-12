@@ -29,9 +29,9 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:
 .page{display:none;flex:1;flex-direction:column;min-height:0;animation:pin .55s var(--ease) both}.page.on{display:flex}
 @keyframes pin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 h2{font-size:26px;font-weight:700;letter-spacing:-.03em}.sub{color:var(--fg3);margin-top:6px;font-size:13px}
-.opts{margin-top:20px;display:flex;flex-direction:column;gap:2px}
+.opts{overflow:auto;max-height:360px;margin-top:20px;display:flex;flex-direction:column;gap:2px}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:11px 14px;border-radius:14px;cursor:pointer;transition:background .25s}
-.opt:hover{background:var(--fill)}.opt b{display:block;font-weight:550;font-size:13.5px}.opt small{display:block;color:var(--fg3);font-size:12px;margin-top:2px}
+.opt:focus-visible{outline:2px solid white}.opt:hover{background:var(--fill)}.opt b{display:block;font-weight:550;font-size:13.5px}.opt small{display:block;color:var(--fg3);font-size:12px;margin-top:2px}
 .sw{position:relative;width:42px;height:25px;border-radius:25px;flex:none;background:var(--fill2);border:1px solid var(--line);transition:background .3s}
 .sw::after{content:"";position:absolute;left:3px;top:3px;width:17px;height:17px;border-radius:50%;background:var(--fg3);transition:transform .4s var(--spring),background .3s}
 .sw.on{background:rgba(255,255,255,.28)}.sw.on::after{transform:translateX(17px);background:#fff;box-shadow:0 0 10px rgba(255,255,255,.6)}
@@ -58,12 +58,12 @@ h2{font-size:26px;font-weight:700;letter-spacing:-.03em}.sub{color:var(--fg3);ma
 <div class="wrap"><div class="card">
   <aside class="side">
     <svg class="logo" viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg>
-    <h1>NOXEL</h1><p>Лаунчер Minecraft, где у каждой версии свои моды</p>
+    <h1>NOXEL</h1><small>Автор: magmar1s · MIT · открытый код</small><p>Лаунчер Minecraft, где у каждой версии свои моды</p>
     <div class="steps"><div id="s1" class="on"><b>1</b>Параметры</div><div id="s2"><b>2</b>Установка</div><div id="s3"><b>3</b>Готово</div></div>
   </aside>
   <section class="main">
     <div class="page on" id="p1">
-      <h2>Установка Noxel</h2><div class="sub" id="ver">Проверяю сервер…</div>
+      <h2>Установка Noxel</h2><div class="sub" id="ver">Проверяю выпуск на GitHub…</div>
       <div class="opts" id="opts"></div>
       <div class="dir"><label>Папка установки</label><input class="inp" id="dir" spellcheck="false"></div>
       <div class="foot"><button class="btn" id="bClose">Отмена</button><button class="btn solid" id="bGo" disabled>Установить</button></div>
@@ -84,10 +84,10 @@ h2{font-size:26px;font-weight:700;letter-spacing:-.03em}.sub{color:var(--fg3);ma
 </div></div>
 <script>
 const T = window.__TAURI__, invoke = (c, a) => T.core.invoke(c, a || {}), $ = s => document.querySelector(s);
-const st = {menu: true, desktop: true, java: false, game: false, run: true}; let exe = '';
-const OPTS = [['menu','Ярлык в меню приложений','Noxel появится в списке программ'],['desktop','Ярлык на рабочем столе','Запуск одним кликом'],['java','Скачать Java сейчас','Около 200 МБ. Иначе скачается при первом запуске игры'],['game','Скачать последнюю версию Minecraft','Около 600 МБ. Первый запуск будет мгновенным'],['run','Запустить Noxel после установки','']];
-function drawOpts(){ $('#opts').innerHTML = OPTS.map(([k, t, d]) => `<div class="opt" data-k="${k}"><div><b>${t}</b>${d ? `<small>${d}</small>` : ''}</div><div class="sw ${st[k] ? 'on' : ''}"></div></div>`).join('');
-  document.querySelectorAll('.opt').forEach(o => o.onclick = () => { st[o.dataset.k] = !st[o.dataset.k]; drawOpts(); }); }
+const st = {menu: true, desktop: true, java: false, game: false, horizon: false, run: true}; let exe = '';
+const OPTS = [['menu','Ярлык в меню приложений','Noxel появится в списке программ'],['desktop','Ярлык на рабочем столе','Запуск одним кликом'],['java','Скачать Java сейчас','Около 200 МБ. Иначе скачается при первом запуске игры'],['game','Скачать последнюю версию Minecraft','Около 600 МБ. Сократит загрузку при первом запуске'],['horizon','Скачать Horizon на Rust','Клиент и актуальная сборка. Файлы Minecraft 26.3 подготавливаются отдельно из своей копии игры'],['run','Запустить Noxel после установки','']];
+function drawOpts(){ $('#opts').innerHTML = OPTS.map(([k, t, d]) => `<div class="opt" role="checkbox" tabindex="0" aria-checked="${!!st[k]}" data-k="${k}"><div><b>${t}</b>${d ? `<small>${d}</small>` : ''}</div><div class="sw ${st[k] ? 'on' : ''}"></div></div>`).join('');
+  document.querySelectorAll('.opt').forEach(o => { o.onclick = () => { const key = o.dataset.k; st[key] = !st[key]; drawOpts(); document.querySelector('[data-k="' + key + '"]').focus(); }; o.onkeydown = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); o.click(); } }; }); }
 function step(n){ ['1','2','3'].forEach(i => { const e = $('#s' + i); e.className = +i < n ? 'done' : +i === n ? 'on' : ''; }); document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('on', i === n - 1)); }
 const seen = new Set();
 function note(stage){ if (seen.has(stage)) return; seen.add(stage); const d = document.createElement('div'); d.innerHTML = '<svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>' + stage; $('#log').prepend(d); while ($('#log').children.length > 5) $('#log').lastChild.remove(); }
@@ -100,11 +100,11 @@ T.event.listen('setup-done', ({payload: p}) => {
   if (p.ok) { exe = p.exe; $('#bRun').style.display = st.run ? '' : 'none'; }
   else { $('#bigicon').innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>'; $('#doneT').textContent = 'Не получилось установить'; $('#doneS').textContent = 'Проверь интернет и попробуй ещё раз.'; $('#errBox').style.display = ''; $('#errBox').textContent = p.error; $('#bRun').textContent = 'Повторить'; $('#bRun').onclick = () => { seen.clear(); $('#log').innerHTML = ''; begin(); }; }
 });
-function begin(){ step(2); $('#fill').style.width = '0'; invoke('start', {opts: {dir: $('#dir').value, menu: st.menu, desktop: st.desktop, java: st.java, game: st.game, run: st.run}}); }
+function begin(){ step(2); $('#fill').style.width = '0'; invoke('start', {opts: {dir: $('#dir').value, menu: st.menu, desktop: st.desktop, java: st.java, game: st.game, horizon: st.horizon, run: st.run}}); }
 $('#bGo').onclick = begin; $('#bClose').onclick = () => invoke('finish', {run: false, exe: ''}); $('#bExit').onclick = () => invoke('finish', {run: false, exe: ''});
 $('#bRun').onclick = () => invoke('finish', {run: true, exe});
 drawOpts();
-invoke('plan').then(p => { $('#dir').value = p.dir; $('#ver').textContent = `Версия ${p.version}${p.size ? ' · ' + (p.size / 1e6).toFixed(1) + ' МБ' : ''}${p.installed ? ' · уже установлен, будет обновлён' : ''}`; $('#bGo').disabled = false; if (p.installed) $('#bGo').textContent = 'Обновить'; if (p.auto !== null && p.auto !== undefined) { st.java = p.auto.includes('java'); st.game = p.auto.includes('game'); st.run = false; begin(); } })
+invoke('plan').then(p => { $('#dir').value = p.dir; $('#ver').textContent = `Версия ${p.version}${p.size ? ' · ' + (p.size / 1e6).toFixed(1) + ' МБ' : ''}${p.installed ? ' · уже установлен, будет обновлён' : ''}`; $('#bGo').disabled = false; if (p.installed) $('#bGo').textContent = 'Обновить'; if (p.auto !== null && p.auto !== undefined) { st.java = p.auto.includes('java'); st.game = p.auto.includes('game'); st.horizon = p.auto.includes('horizon'); st.run = false; begin(); } })
   .catch(e => { $('#ver').textContent = String(e); });
 </script>
 </body>

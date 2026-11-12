@@ -6,7 +6,7 @@ use std::{fs, io::Read, path::Path};
 
 const MR: &str = "https://api.modrinth.com/v2";
 
-const CF: &str = "https://mr1s.site/noxel/v1/cf";
+const CF: &str = "https://api.curseforge.com/v1";
 
 /// Поиск сборок сразу в двух каталогах. `mc` — версия игры (пусто: любая).
 pub fn search(query: &str, sort: &str, offset: u32, mc: &str) -> R<Value> {

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/noxel"
+umask 077
+mkdir -p "$STATE"
+LOG="$STATE/launcher.log"
+# Keep one previous startup log, without growing an unlimited file.
+[[ ! -f "$LOG" ]] || mv -f "$LOG" "$LOG.previous"
+report() {
+  printf '%s\n' "$1" | tee -a "$LOG" >&2
+  if command -v zenity >/dev/null; then zenity --error --title=Noxel --text="$1" 2>/dev/null || true
+  elif command -v kdialog >/dev/null; then kdialog --error "$1" --title Noxel 2>/dev/null || true
+  fi
+}
+if [[ ! -x "$BASE/Noxel" ]]; then report "Не найден файл Noxel. Распакуй архив полностью."; exit 1; fi
+if command -v ldd >/dev/null; then
+  DEPS="$(ldd "$BASE/Noxel" 2>&1 || true)"
+  if [[ "$DEPS" == *'not found'* ]]; then
+    report "Не найдены системные библиотеки. Для Ubuntu/Debian установи libwebkit2gtk-4.1-0, libgtk-3-0 и ca-certificates; для других дистрибутивов — WebKitGTK 4.1 и GTK 3. Подробности: $LOG"
+    printf '%s\n' "$DEPS" >> "$LOG"
+    exit 1
+  fi
+fi
+# NVIDIA/Wayland systems may not support WebKit's DMA-BUF renderer.
+export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
+if "$BASE/Noxel" "$@" >> "$LOG" 2>&1; then exit 0; else
+  STATUS=$?
+  report "Noxel завершился с ошибкой ($STATUS). Журнал запуска: $LOG"
+  exit "$STATUS"
+fi

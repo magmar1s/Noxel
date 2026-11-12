@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Приватность Rust-клиента — Noxel</title>
+<meta name="description" content="Как Noxel обрабатывает вход Microsoft, игровые файлы и данные Horizon Offline.">
+<link rel="canonical" href="https://mr1s.site/privacy.html">
+<link rel="stylesheet" href="/assets/style.css">
+<style>
+.policy{max-width:820px;margin:0 auto;padding:130px 0 48px}.pc{border-radius:24px;padding:30px;background:rgba(255,255,255,.045);border:1px solid var(--line);margin-bottom:14px}.pc h1{font-size:clamp(28px,4vw,42px);letter-spacing:-.03em;margin:8px 0 12px}.pc h2{font-size:20px;margin:0 0 10px}.pc p,.pc li{color:var(--fg2);font-size:15px;line-height:1.7}.pc ul{margin:8px 0 0 20px}.stamp{color:var(--fg2);font-size:14px}
+</style>
+</head>
+<body>
+<div id="bg"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+<nav class="top"><div class="wrap in"><a class="brand" href="/"><svg viewBox="0 0 512 512"><path d="M256 92 392 170 256 248 120 170Z" fill="#f4f4f5"/><path d="M120 170 256 248V420L120 342Z" fill="#8a8a90"/><path d="M392 170 256 248V420L392 342Z" fill="#35353a"/></svg>NOXEL</a><div class="links"><a href="/docs.html">Документация</a><a href="/security.html">Безопасность</a></div><a class="btn solid sm" href="/">На главную</a></div></nav>
+<main class="wrap policy">
+  <section class="pc"><div class="stamp">Политика приватности Rust-клиента Noxel · обновлено 11 ноября 2026</div><h1>Вход и данные игрока</h1><p>Эта страница описывает Rust-клиент Horizon Offline, который Noxel запускает внутри своей вкладки «Версии → Rust». Она дополняет общую страницу <a href="/security.html">безопасности Noxel</a>.</p></section>
+  <section class="pc"><h2>Вход Microsoft и лицензия</h2><ul>
+    <li>Вход начинается в Noxel, но пароль ты вводишь только на странице Microsoft. Noxel не видит и не сохраняет пароль.</li>
+    <li>Для входа используется Client ID публичного приложения Microsoft. Его можно указать в Noxel: Настройки → Лицензия Microsoft. Это идентификатор приложения, не пароль и не секрет; он остаётся в настройках устройства и не отправляется серверу Noxel.</li>
+    <li>Microsoft, Xbox Live, XSTS и Minecraft Services обмениваются данными, необходимыми для проверки аккаунта, профиля и лицензии Minecraft: Java Edition. Эти запросы идут напрямую из клиента поставщика к соответствующим сервисам.</li>
+    <li>Токены входа хранит Horizon: в системном хранилище учётных данных, если оно доступно, или в зашифрованном файле профиля пользователя. Они остаются на устройстве и не отправляются на сервер Noxel.</li>
+    <li>Локально также сохраняются имя и UUID аккаунта, чтобы показывать выбор профиля. Выйди из аккаунта в Noxel, чтобы удалить его токены с устройства.</li>
+  </ul></section>
+  <section class="pc"><h2>Офлайн-профиль</h2><p>Офлайн-ник хранится только на устройстве и используется для одиночной игры и LAN. На серверы с проверкой Mojang (online-mode) такой профиль войти не сможет. Noxel не заявляет, что офлайн-профиль является лицензией Minecraft.</p></section>
+  <section class="pc"><h2>Телеметрия и сетевые запросы</h2><ul>
+    <li>Noxel отключает endpoint телеметрии Horizon при запуске клиента, включая анонимный ping «играю сейчас».</li>
+    <li>Для списка выпусков Noxel получает манифест со своего API; установщик скачивает проверенные SHA-256 файлы с GitHub. Игровые файлы Minecraft скачиваются с серверов Mojang только по отдельному действию и после входа с лицензией.</li>
+    <li>При подключении к игровому серверу этот сервер получает обычные сетевые данные соединения, включая IP-адрес, как при подключении через любой другой клиент. Серверы могут отдельно обрабатывать игровой ник и действия согласно своим правилам.</li>
+    <li>Файлы игры, миры, ник офлайн-профиля и токены не передаются Noxel. При выборе локальной папки Minecraft Noxel использует её для подготовки клиента; исходную установку не изменяет.</li>
+  </ul></section>
+  <section class="pc"><h2>Удаление данных</h2><p>Выйди из Microsoft-аккаунта в Rust-разделе Noxel, чтобы удалить сохранённую авторизацию. Офлайн-ник и игровые файлы можно удалить вместе с папкой данных Noxel: <code>~/.local/share/noxel/horizon</code> на Linux или <code>%LOCALAPPDATA%\Noxel\horizon</code> на Windows. Перед удалением папки скопируй нужные миры.</p></section>
+  <section class="pc"><h2>Исходный код</h2><p>Используется открытый проект <a href="https://github.com/gerdaroot/Horizon-Offline-Launcher">Horizon Offline Launcher</a> под лицензией MIT. Noxel не связан с Mojang, Microsoft или авторами Horizon.</p></section>
+</main>
+<footer><div class="wrap in"><a class="brand" href="/">NOXEL</a><span>Minecraft принадлежит Mojang и Microsoft. Noxel с ними не связан.</span><div class="links"><a href="/docs.html">Документация</a><a href="/security.html">Безопасность</a><a href="/">Главная</a></div></div></footer>
+<script src="/assets/app.js"></script>
+</body>
+</html>
